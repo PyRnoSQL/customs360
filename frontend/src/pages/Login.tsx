@@ -9,7 +9,12 @@ export default function Login() {
   const [pin, setPin] = useState(['', '', '', '']);
   const [shake, setShake] = useState(false);
   const [error, setError] = useState('');
-  const pinRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+  const pinRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+  ];
 
   const handlePinChange = (i: number, val: string) => {
     if (!/^\d?$/.test(val)) return;
@@ -18,20 +23,12 @@ export default function Login() {
     setPin(next);
     setError('');
     if (val && i < 3) pinRefs[i + 1].current?.focus();
-    // Auto-submit when all 4 filled
-    if (val && i === 3) {
-      const fullPin = [...next].join('');
-      setTimeout(() => attempt(username, fullPin), 80);
-    }
+    if (val && i === 3) setTimeout(() => attempt(username, [...next].join('')), 80);
   };
 
   const handlePinKeyDown = (i: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !pin[i] && i > 0) {
-      pinRefs[i - 1].current?.focus();
-    }
-    if (e.key === 'Enter') {
-      attempt(username, pin.join(''));
-    }
+    if (e.key === 'Backspace' && !pin[i] && i > 0) pinRefs[i - 1].current?.focus();
+    if (e.key === 'Enter') attempt(username, pin.join(''));
   };
 
   const attempt = (u: string, p: string) => {
@@ -46,7 +43,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4"
+    <div className="min-h-screen flex flex-col items-center justify-between py-6 px-4"
       style={{ background: 'linear-gradient(160deg, #060d1a 0%, #0b1f3a 50%, #060d1a 100%)' }}>
 
       {/* Flag stripe top */}
@@ -56,110 +53,140 @@ export default function Login() {
         <div className="flex-1" style={{ background: '#fcd116' }} />
       </div>
 
-      {/* Institution header */}
-      <div className="text-center mb-8">
-        <img src={COAT} alt="Armoiries" className="h-24 w-24 object-contain mx-auto mb-4 drop-shadow-2xl" />
-        <div className="text-xs font-bold tracking-[4px] uppercase mb-1" style={{ color: '#fcd116' }}>
-          République du Cameroun
-        </div>
-        <div className="text-xs tracking-[2px] uppercase mb-3" style={{ color: '#94a3b8' }}>
-          Paix · Travail · Patrie
-        </div>
-        <div className="text-lg font-black tracking-[2px] uppercase text-white leading-tight">
-          Direction Générale des Douanes
-        </div>
-        <div className="text-sm font-semibold tracking-widest uppercase mt-0.5" style={{ color: '#94a3b8' }}>
-          du Cameroun
-        </div>
-      </div>
+      {/* Spacer */}
+      <div />
 
-      {/* Login card */}
-      <div
-        className={`w-full max-w-sm rounded-2xl p-8 ${shake ? 'animate-shake' : ''}`}
-        style={{ background: 'linear-gradient(160deg, #0f1e35, #111827)', border: '1px solid #1e3a5f', boxShadow: '0 25px 60px rgba(0,0,0,0.6)' }}
-      >
-        {/* Card header */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{ background: 'linear-gradient(135deg, #1d4ed8, #1e3a5f)', border: '1px solid #2a4a6b' }}>
-            <span className="text-2xl">🛡️</span>
-          </div>
-          <div className="text-2xl font-black tracking-widest">
-            <span style={{ color: '#3b82f6' }}>CUSTOMS</span>
-            <span style={{ color: '#fcd116' }}>360</span>
-          </div>
-          <div className="text-xs tracking-[2px] uppercase mt-1" style={{ color: '#64748b' }}>
-            Accès sécurisé · Authentification requise
-          </div>
-        </div>
+      {/* Main content column */}
+      <div className="flex flex-col items-center w-full">
 
-        {/* Username */}
-        <div className="mb-5">
-          <label className="flex items-center gap-2 text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#94a3b8' }}>
-            <span>👤</span> Identifiant
-          </label>
-          <input
-            className="w-full px-4 py-3 rounded-xl text-sm text-white font-medium transition-all"
-            style={{ background: '#0b1628', border: '1px solid #1e3a5f', outline: 'none' }}
-            placeholder="Nom d'utilisateur"
-            value={username}
-            onChange={e => { setUsername(e.target.value); setError(''); }}
-            onKeyDown={e => e.key === 'Enter' && pinRefs[0].current?.focus()}
-            autoComplete="username"
-            onFocus={e => e.target.style.borderColor = '#3b82f6'}
-            onBlur={e => e.target.style.borderColor = '#1e3a5f'}
+        {/* ── Institution header ── */}
+        <div className="text-center mb-5">
+          {/* République du Cameroun */}
+          <div className="text-xs font-bold tracking-[4px] uppercase mb-1" style={{ color: '#fcd116' }}>
+            République du Cameroun
+          </div>
+          <div className="text-[10px] tracking-[2px] uppercase mb-3" style={{ color: '#64748b' }}>
+            Paix · Travail · Patrie
+          </div>
+
+          {/* Coat of arms — between the two text blocks */}
+          <img
+            src={COAT}
+            alt="Armoiries du Cameroun"
+            className="h-20 w-20 object-contain mx-auto mb-3 drop-shadow-2xl"
           />
-        </div>
 
-        {/* PIN pad */}
-        <div className="mb-6">
-          <label className="flex items-center gap-2 text-xs font-bold tracking-widest uppercase mb-3" style={{ color: '#94a3b8' }}>
-            <span>🔒</span> Code PIN
-          </label>
-          <div className="flex gap-3 justify-center">
-            {pin.map((digit, i) => (
-              <input
-                key={i}
-                ref={pinRefs[i]}
-                type="password"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={e => handlePinChange(i, e.target.value)}
-                onKeyDown={e => handlePinKeyDown(i, e)}
-                className="w-14 h-14 text-center text-2xl font-black rounded-xl transition-all"
-                style={{
-                  background: digit ? 'rgba(59,130,246,0.15)' : '#0b1628',
-                  border: `2px solid ${digit ? '#3b82f6' : '#1e3a5f'}`,
-                  color: '#fff',
-                  outline: 'none',
-                  caretColor: 'transparent',
-                }}
-                onFocus={e => { if (!digit) e.target.style.borderColor = '#2a4a6b'; }}
-                onBlur={e => { if (!digit) e.target.style.borderColor = '#1e3a5f'; }}
-              />
-            ))}
+          {/* DGD title */}
+          <div className="text-sm font-black tracking-[2px] uppercase text-white leading-snug">
+            Direction Générale des Douanes
           </div>
-          {error && (
-            <div className="mt-3 text-center text-xs font-semibold" style={{ color: '#ef4444' }}>
-              ⚠️ {error}
-            </div>
-          )}
+          <div className="text-xs font-semibold tracking-widest uppercase mt-0.5" style={{ color: '#94a3b8' }}>
+            du Cameroun
+          </div>
         </div>
 
-        {/* Submit */}
-        <button
-          onClick={() => attempt(username, pin.join(''))}
-          className="w-full py-3.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all duration-150 hover:opacity-90 hover:scale-[1.01]"
-          style={{ background: 'linear-gradient(90deg, #1d4ed8, #3b82f6)', color: '#fff', boxShadow: '0 4px 20px rgba(59,130,246,0.3)' }}>
-          ACCÉDER À LA PLATEFORME
-        </button>
+        {/* ── Login card ── */}
+        <div
+          className={`w-full max-w-xs rounded-2xl px-6 py-5 ${shake ? 'animate-shake' : ''}`}
+          style={{
+            background: 'linear-gradient(160deg, #0f1e35, #111827)',
+            border: '1px solid #1e3a5f',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+          }}
+        >
+          {/* Card header */}
+          <div className="text-center mb-5">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-3"
+              style={{ background: 'linear-gradient(135deg, #1d4ed8, #1e3a5f)', border: '1px solid #2a4a6b' }}>
+              <span className="text-xl">🛡️</span>
+            </div>
+            <div className="text-xl font-black tracking-widest">
+              <span style={{ color: '#3b82f6' }}>CUSTOMS</span>
+              <span style={{ color: '#fcd116' }}>360</span>
+            </div>
+            <div className="text-[10px] tracking-[1.5px] uppercase mt-0.5" style={{ color: '#64748b' }}>
+              Accès sécurisé · Authentification requise
+            </div>
+          </div>
+
+          {/* Username */}
+          <div className="mb-4">
+            <label className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase mb-1.5"
+              style={{ color: '#94a3b8' }}>
+              <span>👤</span> Identifiant
+            </label>
+            <input
+              className="w-full px-3 py-2.5 rounded-lg text-sm text-white font-medium transition-all"
+              style={{ background: '#0b1628', border: '1px solid #1e3a5f', outline: 'none' }}
+              placeholder="Nom d'utilisateur"
+              value={username}
+              onChange={e => { setUsername(e.target.value); setError(''); }}
+              onKeyDown={e => e.key === 'Enter' && pinRefs[0].current?.focus()}
+              autoComplete="username"
+              onFocus={e => (e.target.style.borderColor = '#3b82f6')}
+              onBlur={e => (e.target.style.borderColor = '#1e3a5f')}
+            />
+          </div>
+
+          {/* PIN pad */}
+          <div className="mb-4">
+            <label className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase mb-2"
+              style={{ color: '#94a3b8' }}>
+              <span>🔒</span> Code PIN
+            </label>
+            <div className="flex gap-2.5 justify-center">
+              {pin.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={pinRefs[i]}
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={e => handlePinChange(i, e.target.value)}
+                  onKeyDown={e => handlePinKeyDown(i, e)}
+                  className="w-12 h-12 text-center text-xl font-black rounded-xl transition-all"
+                  style={{
+                    background: digit ? 'rgba(59,130,246,0.15)' : '#0b1628',
+                    border: `2px solid ${digit ? '#3b82f6' : '#1e3a5f'}`,
+                    color: '#fff',
+                    outline: 'none',
+                    caretColor: 'transparent',
+                  }}
+                  onFocus={e => { if (!digit) e.target.style.borderColor = '#2a4a6b'; }}
+                  onBlur={e => { if (!digit) e.target.style.borderColor = '#1e3a5f'; }}
+                />
+              ))}
+            </div>
+            {error && (
+              <div className="mt-2 text-center text-[11px] font-semibold" style={{ color: '#ef4444' }}>
+                ⚠️ {error}
+              </div>
+            )}
+          </div>
+
+          {/* Submit */}
+          <button
+            onClick={() => attempt(username, pin.join(''))}
+            className="w-full py-3 rounded-xl font-black text-sm tracking-widest uppercase transition-all duration-150 hover:opacity-90 hover:scale-[1.01]"
+            style={{
+              background: 'linear-gradient(90deg, #1d4ed8, #3b82f6)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(59,130,246,0.3)',
+            }}>
+            ACCÉDER À LA PLATEFORME
+          </button>
+        </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-8 text-center text-xs" style={{ color: '#334155' }}>
-        <div>Powered by <span style={{ color: '#3b82f6' }}>Analytix Engineering</span></div>
-        <div className="mt-1">© 2026 Direction Générale des Douanes du Cameroun</div>
+      {/* ── Footer ── */}
+      <div className="text-center text-xs mt-5 space-y-1">
+        <div style={{ color: '#475569' }}>
+          Powered by <span style={{ color: '#3b82f6' }}>Analytix Engineering</span>
+        </div>
+        <div style={{ color: '#334155' }}>
+          © 2026 Direction Générale des Douanes du Cameroun
+        </div>
       </div>
 
       {/* Flag stripe bottom */}
