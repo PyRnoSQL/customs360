@@ -215,7 +215,7 @@ export default function OfficersPage() {
     const o = officers.find((x: Officer) => x.officer_id === selected);
     if (o) return <OfficerDetail o={o} onBack={() => setSelected(null)} />;
   }
-  const filters = ['ALL', 'ELIGIBLE_PROMOTION', 'ACTIF', 'REDEPLOYMENT_RISK', 'BURNOUT_ALERT'];
+  const statusFilters = ['ALL', 'ELIGIBLE_PROMOTION', 'ACTIF', 'REDEPLOYMENT_RISK', 'BURNOUT_ALERT'];
   const filtered = filter === 'ALL' ? officers : officers.filter((o: Officer) => o.career_status === filter);
   const eligible = officers.filter((o: Officer) => o.career_status === 'ELIGIBLE_PROMOTION').length;
   const avgPI = Math.round(officers.reduce((s: number, o: Officer) => s + o.performance_index, 0) / Math.max(officers.length, 1));
@@ -230,7 +230,7 @@ export default function OfficersPage() {
         <KPICard label="Alerte Surmenage" value={fmt(burnoutHigh)} color="danger" />
       </div>
       <div className="flex gap-2 flex-wrap">
-        {filters.map(f => {
+        {statusFilters.map(f => {
           const sm = f === 'ALL' ? { color: '#3b82f6', label: 'Tous' } : (STATUS_META[f] ?? { color: '#64748b', label: f });
           return (
             <button key={f} onClick={() => setFilter(f)}
