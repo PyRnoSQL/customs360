@@ -5,6 +5,7 @@ import {
   Title, Tooltip, Legend
 } from 'chart.js';
 import { useApi } from '../hooks/useApi';
+import { PageHeader } from '../App';
 import { api, fmtM, fmt } from '../services/api';
 import { KPICard, SectionTitle, Loading, ErrorBox, StatusBadge } from '../components/UI';
 
@@ -53,6 +54,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
+      <PageHeader />
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <KPICard label="Total SGDs" value={fmt(data.total_sgd)} sub="Déclarations traitées" color="accent" />

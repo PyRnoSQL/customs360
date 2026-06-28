@@ -27,15 +27,15 @@ const ALL_NAV = [
   { path: '/graph',    icon: '🕸️', label: 'Graphe DATE',       group: 'INTELLIGENCE' },
 ];
 
-const PAGE_META: Record<string, { title: string; sub: string }> = {
-  '/welcome':   { title: 'Bienvenue sur CUSTOMS360', sub: 'Plateforme Intelligence Douanière — République du Cameroun' },
-  '/':          { title: 'Tableau de bord exécutif', sub: 'Direction Générale des Douanes — Vue 360°' },
-  '/importers': { title: 'Intelligence Importateurs', sub: 'Algorithme DATE · Scoring risque · Profilage comportemental' },
-  '/fraud':     { title: 'Centre de Détection Fraude', sub: 'Isolation Forest · XGBoost · DATE Algorithm' },
-  '/delays':    { title: 'Délais Suspects', sub: 'Détection patterns · Dédouanement anormal · Risques collusion' },
-  '/offices':   { title: 'Performance Bureaux', sub: 'Classement efficacité · Recettes · KPIs opérationnels' },
-  '/ai':        { title: 'Recommandations IA', sub: 'Assistant CUSTOMS360 · Analyse contextuelle · Groq AI' },
-  '/graph':     { title: 'Graphe DATE — Réseau Entités', sub: 'Visualisation relations · Détection collusion' },
+export const PAGE_META: Record<string, { title: string; sub: string }> = {
+  '/welcome':   { title: 'Bienvenue sur CUSTOMS360',    sub: 'Plateforme Intelligence Douanière — République du Cameroun' },
+  '/':          { title: 'Tableau de bord exécutif',    sub: 'Direction Générale des Douanes — Vue 360°' },
+  '/importers': { title: 'Intelligence Importateurs',   sub: 'Algorithme DATE · Scoring risque · Profilage comportemental' },
+  '/fraud':     { title: 'Centre de Détection Fraude',  sub: 'Isolation Forest · XGBoost · DATE Algorithm' },
+  '/delays':    { title: 'Délais Suspects',              sub: 'Détection patterns · Dédouanement anormal · Risques collusion' },
+  '/offices':   { title: 'Performance Bureaux',         sub: 'Classement efficacité · Recettes · KPIs opérationnels' },
+  '/ai':        { title: 'Recommandations IA',          sub: 'Assistant CUSTOMS360 · Analyse contextuelle · Groq AI' },
+  '/graph':     { title: 'Graphe DATE — Réseau Entités',sub: 'Visualisation relations · Détection collusion' },
 };
 
 function LiveClock() {
@@ -49,7 +49,7 @@ function LiveClock() {
   const timeStr = time.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const dateStr = time.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
   return (
-    <div className="flex items-center gap-2 border px-3 py-1.5 rounded-lg cursor-pointer select-none"
+    <div className="flex items-center gap-2 border px-3 py-1.5 rounded-lg"
       style={{ background: '#1a2236', borderColor: '#1e3a5f' }}>
       <span className="text-base">🌐</span>
       <div>
@@ -67,7 +67,7 @@ function LiveClock() {
 }
 
 function Sidebar() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const { pathname } = useLocation();
   const { user, logout, canAccess } = useAuth();
   const { sgdCount, demoMode } = useLiveData();
@@ -75,7 +75,6 @@ function Sidebar() {
 
   return (
     <aside className="w-[220px] bg-surface border-r border-border flex flex-col flex-shrink-0 z-10">
-      {/* Logo */}
       <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-3">
           <img src={COAT_OF_ARMS} alt="Armoiries" className="h-10 w-10 object-contain flex-shrink-0" />
@@ -87,8 +86,6 @@ function Sidebar() {
           </div>
         </div>
       </div>
-
-      {/* Nav — filtered by role */}
       <nav className="flex-1 overflow-auto py-2">
         {groups.map(g => {
           const items = ALL_NAV.filter(n => n.group === g && canAccess(n.path));
@@ -108,24 +105,18 @@ function Sidebar() {
           );
         })}
       </nav>
-
-      {/* User panel */}
       <div className="px-4 py-4 border-t border-border space-y-2.5">
-        {/* Lang + demo indicator */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted">🌐 FR</span>
           {demoMode && <span className="text-[10px] text-gold font-bold ml-auto">⚡ DÉMO</span>}
         </div>
-        {/* SGD count */}
         <div className="text-[10px] text-muted">{sgdCount} SGDs en base</div>
-        {/* Display name */}
         {user && (
           <>
             <div className="text-sm font-bold text-white leading-tight">{user.displayName}</div>
             <div className="text-[10px] font-mono tracking-widest" style={{ color: '#64748b' }}>{user.roleLabel}</div>
           </>
         )}
-        {/* Logout */}
         <button onClick={logout}
           className="flex items-center gap-2 text-sm font-semibold mt-1 transition-colors hover:opacity-80"
           style={{ color: '#ef4444' }}>
@@ -137,10 +128,8 @@ function Sidebar() {
 }
 
 function Header() {
-  const { pathname } = useLocation();
   const { user } = useAuth();
-  const meta = PAGE_META[pathname] ?? PAGE_META['/'];
-  const { newDataFlash, manualRefresh, refreshing } = useLiveData();
+  const { newDataFlash } = useLiveData();
 
   const roleColor: Record<string, string> = {
     admin: '#a78bfa', dg: '#a78bfa', dir_info: '#60a5fa',
@@ -155,57 +144,79 @@ function Header() {
         <div className="flex-1" style={{ background: '#ce1126' }} />
         <div className="flex-1" style={{ background: '#fcd116' }} />
       </div>
-      <div className="flex items-center px-6 gap-4 h-14">
-        {/* Left: page title */}
-        <div className="min-w-0">
-          <div className="text-sm font-bold text-white truncate">{meta.title}</div>
-          <div className="text-xs text-muted mt-0.5 truncate">{meta.sub}</div>
+
+      <div className="flex items-center px-6 h-16 gap-4">
+
+        {/* LEFT — Bienvenue + Role */}
+        <div className="flex-shrink-0 min-w-[180px]">
+          {user && (
+            <>
+              <div className="text-[10px] font-bold tracking-[2px] uppercase" style={{ color: '#64748b' }}>
+                Bienvenue
+              </div>
+              <div className="text-sm font-black leading-tight" style={{
+                color: roleColor[user.role] ?? '#a78bfa',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+              }}>
+                {user.displayName}
+              </div>
+              <div className="text-[9px] font-mono tracking-widest uppercase mt-0.5" style={{ color: '#475569' }}>
+                {user.roleLabel}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Center: branding + welcome */}
-        <div className="flex-1 flex flex-col items-center hidden xl:flex">
-          <div className="text-[9px] font-bold tracking-[2px] uppercase text-muted">Direction Générale des Douanes</div>
-          <div className="flex items-center gap-3">
-            <div className="text-sm font-black tracking-wider">
-              <span className="text-accent">CUSTOMS</span>
-              <span className="text-gold">360</span>
-            </div>
-            {user && (
-              <div className="text-xs">
-                <span className="text-muted">Bienvenue</span>{' '}
-                <span className="font-bold" style={{ color: roleColor[user.role] ?? '#a78bfa',
-                  fontFamily: 'Georgia, serif' }}>
-                  {user.displayName}
-                </span>
-              </div>
-            )}
+        {/* CENTER — Command Center title */}
+        <div className="flex-1 flex flex-col items-center text-center px-4">
+          <div className="text-sm font-black tracking-[2px] uppercase leading-tight text-white">
+            CUSTOMS INTELLIGENCE COMMAND CENTER
+          </div>
+          <div className="text-[10px] tracking-[1px] mt-0.5" style={{ color: '#64748b' }}>
+            Direction Générale des Douanes — République du Cameroun
           </div>
         </div>
 
-        {/* Right */}
-        <div className="flex items-center gap-3 ml-auto flex-shrink-0">
+        {/* RIGHT — new data flash + clock + avatar */}
+        <div className="flex items-center gap-3 flex-shrink-0">
           {newDataFlash && (
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border animate-pulse"
               style={{ background: '#064e3b', color: '#34d399', borderColor: '#065f46' }}>
               ✨ NOUVELLES DONNÉES
             </div>
           )}
-          <button onClick={manualRefresh} disabled={refreshing}
-            className={`btn btn-ghost text-xs flex items-center gap-1.5 ${refreshing ? 'opacity-60' : ''}`}>
-            <span className={refreshing ? 'animate-spin inline-block' : ''}>🔄</span>
-            {refreshing ? 'Sync…' : 'Actualiser'}
-          </button>
           <LiveClock />
-          {/* Avatar */}
           {user && (
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white"
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0"
               style={{ background: roleColor[user.role] ?? '#7c3aed' }}>
-              {user.displayName.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}
+              {user.displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
             </div>
           )}
         </div>
       </div>
     </header>
+  );
+}
+
+// ── Page title bar — rendered inside each scrolling page ─────────────────────
+export function PageHeader() {
+  const { pathname } = useLocation();
+  const { manualRefresh, refreshing } = useLiveData();
+  const meta = PAGE_META[pathname] ?? PAGE_META['/'];
+  return (
+    <div className="flex items-start justify-between mb-5">
+      <div>
+        <h1 className="text-lg font-black text-white leading-tight">{meta.title}</h1>
+        <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>{meta.sub}</p>
+      </div>
+      <button
+        onClick={manualRefresh}
+        disabled={refreshing}
+        className={`btn btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0 ml-4 ${refreshing ? 'opacity-60' : ''}`}>
+        <span className={refreshing ? 'animate-spin inline-block' : ''}>🔄</span>
+        {refreshing ? 'Sync…' : 'Actualiser'}
+      </button>
+    </div>
   );
 }
 
@@ -218,9 +229,7 @@ function ProtectedRoute({ path, element }: { path: string; element: React.ReactN
 function AppShell() {
   const { user } = useAuth();
   const { sgdCount } = useLiveData();
-
   if (!user) return <Login />;
-
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />

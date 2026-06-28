@@ -1,3 +1,4 @@
+import { PageHeader } from '../App';
 // ── Fraud Page ────────────────────────────────────────────────────────────────
 import React, { useRef, useEffect, useState } from 'react';
 import { useApi } from '../hooks/useApi';
@@ -24,6 +25,7 @@ export function Fraud() {
 
   return (
     <div className="space-y-5">
+      <PageHeader />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <KPICard label="Total Cas" value={fmt(data.total_cases)} color="danger" />
         <KPICard label="Pertes Totales" value={fmtM(data.total_loss) + ' FCFA'} color="gold" />
@@ -108,6 +110,7 @@ export function Delays() {
 
   return (
     <div className="space-y-5">
+      <PageHeader />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <KPICard label="Délais Suspects" value={fmt(data.length)} color="danger" />
         <KPICard label="Pire Délai" value={worst ? worst.clearance_hours + 'h' : '—'} sub={worst?.sgd_id} color="gold" />
@@ -151,6 +154,7 @@ export function Offices() {
 
   return (
     <div className="space-y-5">
+      <PageHeader />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <KPICard label="Bureaux Actifs" value={fmt(data.length)} color="accent" />
         <KPICard label="Total Recettes" value={fmtM(data.reduce((s, o) => s + o.total_revenue, 0)) + ' FCFA'} color="success" />
@@ -226,6 +230,7 @@ export function AIPage() {
 
   return (
     <div className="space-y-5">
+      <PageHeader />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <KPICard label="Modèle IA" value="Claude Sonnet" sub="API Anthropic" color="accent" />
         <KPICard label="Données Source" value="Google Sheets" sub="Live · 5min cache" color="teal" />
@@ -415,6 +420,7 @@ export function GraphPage() {
 
   return (
     <div className="space-y-5">
+      <PageHeader />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <KPICard label="Nœuds Graph" value={fmt(nodeCount)} color="accent" />
         <KPICard label="Connexions" value={fmt(linkCount)} color="teal" />

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApi } from '../hooks/useApi';
+import { PageHeader } from '../App';
 import { api, fmtM, fmt, riskColor } from '../services/api';
 import { KPICard, RiskBadge, Gauge, SectionTitle, Loading, ErrorBox, Code } from '../components/UI';
 import type { ImporterProfile } from '../types';
@@ -108,6 +109,7 @@ export default function Importers() {
 
   return (
     <div className="space-y-5">
+      <PageHeader />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <KPICard label="Total Importateurs" value={fmt(data.length)} color="accent" />
         <KPICard label="Haut Risque (≥70)" value={fmt(highRisk)} color="danger" />
