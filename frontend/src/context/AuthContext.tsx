@@ -19,11 +19,11 @@ const USERS: Record<string, { pin: string; displayName: string; roleLabel: strin
 
 // Pages each role can access (by path)
 export const ROLE_PAGES: Record<Role, string[]> = {
-  admin:       ['/welcome','/','/importers','/fraud','/delays','/offices','/ai','/graph'],
-  dg:          ['/welcome','/','/importers','/fraud','/delays','/offices','/ai','/graph'],
-  dir_info:    ['/welcome','/','/importers','/fraud','/delays','/offices','/ai','/graph'],
-  dir_secteur: ['/welcome','/','/importers','/fraud','/delays','/offices','/ai','/graph'],
-  ip:          ['/welcome','/importers','/offices'],
+  admin:       ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/analytics','/ai','/graph','/officers'],
+  dg:          ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/analytics','/ai','/graph','/officers'],
+  dir_info:    ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/analytics','/ai','/graph','/officers'],
+  dir_secteur: ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/analytics','/ai','/graph','/officers'],
+  ip:          ['/welcome','/importers','/offices','/officers'],
 };
 
 interface AuthCtx {

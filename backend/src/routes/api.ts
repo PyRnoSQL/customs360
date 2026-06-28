@@ -186,3 +186,84 @@ router.get('/health', (_req, res) => {
 });
 
 export default router;
+
+// ── GET /api/officers ──────────────────────────────────────────────────────
+router.get('/officers', wrap(async (_req, res) => {
+  const { sgd, fraud } = await getSheetData();
+  const { buildOfficerMetrics } = await import('../services/analytics.js');
+  res.json(buildOfficerMetrics(sgd, fraud));
+}));
+
+router.get('/officers/:id', wrap(async (req, res) => {
+  const { sgd, fraud } = await getSheetData();
+  const { buildOfficerMetrics } = await import('../services/analytics.js');
+  const all = buildOfficerMetrics(sgd, fraud);
+  const officer = all.find(o => o.officer_id === req.params.id);
+  if (!officer) return void res.status(404).json({ error: 'Officer not found' });
+  const officerSGDs = sgd.filter(s => s.declarant_id === req.params.id);
+  res.json({ ...officer, recent_sgds: officerSGDs.slice(0, 30) });
+}));
+
+// ── GET /api/predictions ───────────────────────────────────────────────────
+router.get('/predictions', wrap(async (_req, res) => {
+  const { sgd, fraud } = await getSheetData();
+  const { buildPredictions } = await import('../services/analytics.js');
+  res.json(buildPredictions(sgd, fraud));
+}));
+
+// ── GET /api/analytics ─────────────────────────────────────────────────────
+router.get('/analytics/cohorts', wrap(async (_req, res) => {
+  const { sgd, fraud } = await getSheetData();
+  // Importer behavior cohorts
+  const { buildImporterProfiles, buildTariffRisk } = await import('../services/analytics.js');
+  const profiles = buildImporterProfiles(sgd, fraud);
+  const tariff = buildTariffRisk(sgd, fraud);
+
+  // Temporal patterns: day of week fraud
+  const dowFraud = Array(7).fill(0);
+  const dowTotal = Array(7).fill(0);
+  sgd.forEach(s => {
+    const d = new Date(s.date);
+    if (!isNaN(d.getTime())) {
+      const dow = d.getDay();
+      dowTotal[dow]++;
+      if (s.fraud_flag) dowFraud[dow]++;
+    }
+  });
+  const DOW = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  const temporal_patterns = DOW.map((label, i) => ({
+    day: label, total: dowTotal[i],
+    fraud: dowFraud[i],
+    rate: dowTotal[i] > 0 ? dowFraud[i] / dowTotal[i] : 0,
+  }));
+
+  // Country analysis
+  const countryMap: Record<string, { total: number; fraud: number; revenue: number }> = {};
+  sgd.forEach(s => {
+    if (!countryMap[s.country]) countryMap[s.country] = { total: 0, fraud: 0, revenue: 0 };
+    countryMap[s.country].total++;
+    if (s.fraud_flag) countryMap[s.country].fraud++;
+    countryMap[s.country].revenue += s.revenue_collected;
+  });
+  const country_analysis = Object.entries(countryMap)
+    .map(([country, v]) => ({ country, ...v, fraud_rate: v.total > 0 ? v.fraud / v.total : 0 }))
+    .sort((a, b) => b.fraud_rate - a.fraud_rate);
+
+  // Cohorts
+  const elite = profiles.filter(p => p.risk_score < 30);
+  const watch = profiles.filter(p => p.risk_score >= 30 && p.risk_score < 60);
+  const high  = profiles.filter(p => p.risk_score >= 60 && p.risk_score < 80);
+  const critical = profiles.filter(p => p.risk_score >= 80);
+
+  res.json({
+    cohorts: [
+      { label: 'Opérateurs Fiables', count: elite.length, color: '#10b981', avg_risk: Math.round(elite.reduce((s,p)=>s+p.risk_score,0)/Math.max(elite.length,1)) },
+      { label: 'Sous Surveillance', count: watch.length, color: '#f59e0b', avg_risk: Math.round(watch.reduce((s,p)=>s+p.risk_score,0)/Math.max(watch.length,1)) },
+      { label: 'Haut Risque',       count: high.length,  color: '#f97316', avg_risk: Math.round(high.reduce((s,p)=>s+p.risk_score,0)/Math.max(high.length,1)) },
+      { label: 'Critique / Fraude', count: critical.length, color: '#ef4444', avg_risk: Math.round(critical.reduce((s,p)=>s+p.risk_score,0)/Math.max(critical.length,1)) },
+    ],
+    tariff_matrix: tariff,
+    temporal_patterns,
+    country_analysis: country_analysis.slice(0, 12),
+  });
+}));
