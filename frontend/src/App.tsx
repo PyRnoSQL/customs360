@@ -219,17 +219,19 @@ export function PageHeader() {
   return (
     <div className="mb-0">
       <div className="flex items-start justify-between mb-3">
-      <div>
-        <h1 className="text-lg font-black text-white leading-tight">{meta.title}</h1>
-        <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>{meta.sub}</p>
+        <div>
+          <h1 className="text-lg font-black text-white leading-tight">{meta.title}</h1>
+          <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>{meta.sub}</p>
+        </div>
+        <button
+          onClick={manualRefresh}
+          disabled={refreshing}
+          className={`btn btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0 ml-4 ${refreshing ? 'opacity-60' : ''}`}>
+          <span className={refreshing ? 'animate-spin inline-block' : ''}>🔄</span>
+          {refreshing ? 'Sync…' : 'Actualiser'}
+        </button>
       </div>
-      <button
-        onClick={manualRefresh}
-        disabled={refreshing}
-        className={`btn btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0 ml-4 ${refreshing ? 'opacity-60' : ''}`}>
-        <span className={refreshing ? 'animate-spin inline-block' : ''}>🔄</span>
-        {refreshing ? 'Sync…' : 'Actualiser'}
-      </button>
+      <FilterBar />
     </div>
   );
 }
