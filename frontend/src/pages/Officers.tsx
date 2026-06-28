@@ -1,9 +1,15 @@
-import { useFilters, applyBureauFilter, applyRiskFilter } from '../context/FilterContext';
 import React, { useState } from 'react';
+import {
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell, BarChart, Bar, PieChart, Pie,
+} from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useApi } from '../hooks/useApi';
-import { api, fmt, fmtM, riskColor } from '../services/api';
 import { PageHeader } from '../App';
-import { KPICard, SectionTitle, Loading, ErrorBox, Gauge, StatusBadge } from '../components/UI';
+import { KPICard, SectionTitle, Loading, ErrorBox, Gauge, FadeIn, StaggerGrid } from '../components/UI';
+import { fmt, fmtM } from '../services/api';
+import { useFilters, applyRiskFilter } from '../context/FilterContext';
 
 type Officer = {
   officer_id: string; name: string; bureau_ids: string[];
@@ -12,238 +18,340 @@ type Officer = {
   revenue_recovered: number; revenue_recovery_rate: number; performance_index: number;
   career_status: string; promotion_readiness: number; burnout_risk: string;
   monthly_trend: { month: string; pi: number; declarations: number }[];
-  rank_in_bureau: number; total_in_bureau: number; revenue_vs_taxes_gap: number;
+  rank_in_bureau: number; total_in_bureau: number;
 };
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  ELIGIBLE_PROMOTION: { label: 'Eligible Promotion', color: '#10b981', bg: '#064e3b', icon: '🏆' },
-  ACTIF:              { label: 'Actif',               color: '#3b82f6', bg: '#1e3a5f', icon: '✅' },
-  REDEPLOYMENT_RISK:  { label: 'Risque Redéploiement',color: '#f97316', bg: '#431407', icon: '⚠️' },
-  BURNOUT_ALERT:      { label: 'Alerte Surmenage',    color: '#ef4444', bg: '#450a0a', icon: '🔴' },
+  ELIGIBLE_PROMOTION: { label: 'Eligible Promotion', color: '#10b981', bg: 'rgba(16,185,129,0.1)', icon: '🏆' },
+  ACTIF:              { label: 'Actif',               color: '#3b82f6', bg: 'rgba(59,130,246,0.1)', icon: '✅' },
+  REDEPLOYMENT_RISK:  { label: 'Risque Redéploiement',color: '#f97316', bg: 'rgba(249,115,22,0.1)', icon: '⚠️' },
+  BURNOUT_ALERT:      { label: 'Alerte Surmenage',    color: '#ef4444', bg: 'rgba(239,68,68,0.1)', icon: '🔴' },
 };
 const BURNOUT_COLOR: Record<string, string> = { LOW: '#10b981', MEDIUM: '#f59e0b', HIGH: '#ef4444' };
+const CHART_STYLE = {
+  tooltip: { contentStyle: { background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, color: '#f1f5f9' }, labelStyle: { color: '#94a3b8' } },
+};
 
-function MiniSparkline({ data, color }: { data: number[]; color: string }) {
-  if (data.length < 2) return null;
-  const max = Math.max(...data, 1);
-  const w = 80; const h = 28;
-  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - (v / max) * h}`).join(' ');
+// Circular gauge SVG
+function CircularGauge({ value, color, size = 64 }: { value: number; color: string; size?: number }) {
+  const r = (size - 8) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (value / 100) * circ;
   return (
-    <svg width={w} height={h} style={{ overflow: 'visible' }}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={(data.length - 1) / (data.length - 1) * w} cy={h - (data[data.length - 1] / max) * h} r="3" fill={color} />
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={6} />
+      <motion.circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={6}
+        strokeLinecap="round" strokeDasharray={circ}
+        initial={{ strokeDashoffset: circ }} animate={{ strokeDashoffset: circ - dash }}
+        transition={{ duration: 1.2, ease: 'easeOut' }} />
     </svg>
-  );
-}
-
-function OfficerCard({ o, onClick }: { o: Officer; onClick: () => void }) {
-  const sm = STATUS_META[o.career_status] ?? STATUS_META.ACTIF;
-  const piColor = o.performance_index >= 75 ? '#10b981' : o.performance_index >= 50 ? '#3b82f6' : o.performance_index >= 35 ? '#f59e0b' : '#ef4444';
-  const trendData = o.monthly_trend.map(m => m.pi);
-  return (
-    <div onClick={onClick} className="card cursor-pointer hover:border-accent transition-all duration-150 hover:scale-[1.01]"
-      style={{ borderColor: sm.color + '44' }}>
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span>{sm.icon}</span>
-            <span className="text-sm font-black text-white">{o.name}</span>
-          </div>
-          <div className="text-xs text-muted">{o.officer_id} · {o.bureau_ids.join(', ')}</div>
-          <div className="text-[10px] mt-1" style={{ color: sm.color }}>
-            Rang #{o.rank_in_bureau}/{o.total_in_bureau} dans le bureau
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-3xl font-black" style={{ color: piColor }}>{o.performance_index}</div>
-          <div className="text-[9px] text-muted">PI Score</div>
-        </div>
-      </div>
-      <Gauge value={o.performance_index} color={piColor} height="h-1.5" />
-      <div className="grid grid-cols-3 gap-2 mt-3 mb-3">
-        {[
-          { l: 'Déclarations', v: fmt(o.total_declarations) },
-          { l: 'Fraudes', v: fmt(o.fraud_detected) },
-          { l: 'Délai moy.', v: o.avg_clearance_hours + 'h' },
-        ].map(k => (
-          <div key={k.l} className="text-center rounded-lg py-1.5" style={{ background: '#0b1221' }}>
-            <div className="text-xs font-bold text-white">{k.v}</div>
-            <div className="text-[9px] text-muted">{k.l}</div>
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-          style={{ background: sm.bg, color: sm.color, border: `1px solid ${sm.color}44` }}>
-          {sm.label}
-        </span>
-        {trendData.length >= 2 && <MiniSparkline data={trendData} color={piColor} />}
-        <span className="text-[10px] font-bold" style={{ color: BURNOUT_COLOR[o.burnout_risk] }}>
-          Surmenage: {o.burnout_risk}
-        </span>
-      </div>
-    </div>
   );
 }
 
 function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
   const sm = STATUS_META[o.career_status] ?? STATUS_META.ACTIF;
   const piColor = o.performance_index >= 75 ? '#10b981' : o.performance_index >= 50 ? '#3b82f6' : '#ef4444';
-  const dimensions = [
-    { label: 'Détection Fraude (30%)', value: Math.min(100, o.fraud_detection_rate * 300), color: '#ef4444' },
-    { label: 'Vitesse Traitement (20%)', value: o.speed_score, color: '#3b82f6' },
-    { label: 'Recouvrement Recettes (25%)', value: Math.min(100, o.revenue_recovery_rate * 100), color: '#10b981' },
-    { label: 'Volume Traité (15%)', value: Math.min(100, (o.total_declarations / 80) * 100), color: '#f59e0b' },
-    { label: 'Codes Tarif. Risqués (10%)', value: Math.min(100, (o.fraud_detected / Math.max(o.total_declarations, 1)) * 200), color: '#8b5cf6' },
+
+  const radarData = [
+    { subject: 'Détection Fraude', value: Math.min(100, o.fraud_detection_rate * 300) },
+    { subject: 'Vitesse', value: o.speed_score },
+    { subject: 'Recettes', value: Math.min(100, o.revenue_recovery_rate * 100) },
+    { subject: 'Volume', value: Math.min(100, (o.total_declarations / 80) * 100) },
+    { subject: 'Qualité', value: o.performance_index },
+    { subject: 'Fiabilité', value: o.burnout_risk === 'LOW' ? 90 : o.burnout_risk === 'MEDIUM' ? 55 : 20 },
   ];
-  const CAREER_EVENTS = [
-    { event: 'Évaluation annuelle', due: 'Déc 2026', status: o.performance_index >= 50 ? 'Prévu' : 'Prioritaire' },
-    { event: 'Promotion', due: o.career_status === 'ELIGIBLE_PROMOTION' ? 'Eligible maintenant' : 'Non éligible', status: o.career_status === 'ELIGIBLE_PROMOTION' ? 'ELIGIBLE' : 'EN ATTENTE' },
-    { event: 'Risque redéploiement', due: o.career_status === 'REDEPLOYMENT_RISK' ? 'Immédiat' : 'N/A', status: o.career_status === 'REDEPLOYMENT_RISK' ? 'ALERTE' : 'NON' },
-    { event: 'Formation recommandée', due: o.performance_index < 60 ? 'Urgent' : 'Optionnel', status: o.performance_index < 60 ? 'RECOMMANDÉ' : 'OPTIONNEL' },
+
+  const trendData = o.monthly_trend.map(m => ({ month: m.month.slice(5), pi: m.pi, decls: m.declarations }));
+
+  const pieData = [
+    { name: 'Fraudes détectées', value: o.fraud_detected, fill: '#ef4444' },
+    { name: 'Normal', value: o.total_declarations - o.fraud_detected, fill: 'rgba(59,130,246,0.3)' },
   ];
+
   return (
-    <div className="space-y-5">
+    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="btn btn-ghost text-xs">← Retour</button>
         <span className="text-sm font-bold text-white">Fiche Agent — {o.name}</span>
+        <span className="ml-auto text-xs px-2 py-1 rounded-full font-bold"
+          style={{ background: sm.bg, color: sm.color, border: `1px solid ${sm.color}44` }}>
+          {sm.icon} {sm.label}
+        </span>
       </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <div className="card xl:col-span-1">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black flex-shrink-0"
-              style={{ background: sm.bg, border: `2px solid ${sm.color}` }}>
-              {o.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
-            </div>
-            <div>
-              <div className="text-base font-black text-white">{o.name}</div>
-              <div className="text-xs text-muted">{o.officer_id}</div>
-              <div className="text-xs mt-1" style={{ color: sm.color }}>{sm.icon} {sm.label}</div>
+        {/* Profile card */}
+        <div className="card text-center">
+          <div className="relative inline-flex items-center justify-center mb-3">
+            <CircularGauge value={o.performance_index} color={piColor} size={80} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div>
+                <div className="text-xl font-black" style={{ color: piColor }}>{o.performance_index}</div>
+                <div className="text-[8px] text-muted">PI</div>
+              </div>
             </div>
           </div>
-          <div className="text-center mb-4">
-            <div className="text-5xl font-black mb-1" style={{ color: piColor }}>{o.performance_index}</div>
-            <div className="text-xs text-muted">Performance Index</div>
-            <Gauge value={o.performance_index} color={piColor} height="h-2" />
-          </div>
-          <div className="space-y-1.5 text-sm">
+          <div className="text-base font-black text-white mb-0.5">{o.name}</div>
+          <div className="text-xs text-muted mb-3">{o.officer_id} · {o.bureau_ids.join(', ')}</div>
+          <div className="space-y-1.5 text-left">
             {[
-              ['Déclarations traitées', fmt(o.total_declarations)],
-              ['Fraudes détectées', fmt(o.fraud_detected)],
+              ['Déclarations', fmt(o.total_declarations)],
+              ['Fraudes détectées', o.fraud_detected.toString()],
               ['Taux détection', (o.fraud_detection_rate * 100).toFixed(1) + '%'],
-              ['Délai moyen', o.avg_clearance_hours + 'h vs ' + o.bureau_baseline_hours + 'h base'],
+              ['Délai moyen', o.avg_clearance_hours + 'h vs ' + o.bureau_baseline_hours + 'h'],
               ['Recettes recouvrées', fmtM(o.revenue_recovered) + ' FCFA'],
               ['Rang bureau', `#${o.rank_in_bureau}/${o.total_in_bureau}`],
               ['Risque surmenage', o.burnout_risk],
             ].map(([k, v]) => (
-              <div key={k} className="flex justify-between border-b border-border pb-1.5">
-                <span className="text-muted text-xs">{k}</span>
-                <span className="font-semibold text-white text-xs">{v}</span>
+              <div key={k} className="flex justify-between py-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <span className="text-xs text-muted">{k}</span>
+                <span className="text-xs font-semibold text-white">{v}</span>
               </div>
             ))}
           </div>
         </div>
-        <div className="xl:col-span-2 space-y-5">
-          <div className="card">
-            <SectionTitle icon="📊">Dimensions de Performance (5 facteurs)</SectionTitle>
-            {dimensions.map(d => (
-              <div key={d.label} className="mb-3">
-                <div className="flex justify-between mb-1">
-                  <span className="text-xs text-sub">{d.label}</span>
-                  <span className="text-xs font-bold" style={{ color: d.color }}>{Math.round(d.value)}%</span>
-                </div>
-                <Gauge value={d.value} color={d.color} />
-              </div>
+
+        {/* Radar 360° */}
+        <div className="card">
+          <SectionTitle icon="🎯">Profil 360° — 6 Dimensions</SectionTitle>
+          <ResponsiveContainer width="100%" height={220}>
+            <RadarChart data={radarData}>
+              <PolarGrid stroke="rgba(255,255,255,0.06)" />
+              <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 9 }} />
+              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
+              <Radar name="Agent" dataKey="value" stroke={piColor} fill={piColor} fillOpacity={0.2} strokeWidth={2} dot={{ fill: piColor, r: 3 }} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Fraud pie */}
+        <div className="card">
+          <SectionTitle icon="📊">Déclarations — Répartition</SectionTitle>
+          <ResponsiveContainer width="100%" height={160}>
+            <PieChart>
+              <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} dataKey="value" strokeWidth={0}>
+                {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              </Pie>
+              <Tooltip {...CHART_STYLE.tooltip} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex justify-center gap-4">
+            {pieData.map(d => (
+              <span key={d.name} className="flex items-center gap-1.5 text-xs text-muted">
+                <span className="w-2 h-2 rounded-full" style={{ background: d.fill }} />{d.name}
+              </span>
             ))}
           </div>
-          <div className="card">
-            <SectionTitle icon="🎯">Événements de Carrière</SectionTitle>
-            <table className="tbl">
-              <thead><tr><th>Événement</th><th>Échéance</th><th>Statut</th></tr></thead>
-              <tbody>
-                {CAREER_EVENTS.map(e => (
-                  <tr key={e.event}>
-                    <td className="text-sm text-white">{e.event}</td>
-                    <td className="text-xs text-muted">{e.due}</td>
-                    <td>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                        style={{ background: e.status === 'ELIGIBLE' ? '#064e3b' : e.status === 'ALERTE' ? '#450a0a' : '#1e3a5f', color: e.status === 'ELIGIBLE' ? '#10b981' : e.status === 'ALERTE' ? '#ef4444' : '#3b82f6' }}>
-                        {e.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="card">
-            <SectionTitle icon="📈">Tendance Mensuelle PI Score</SectionTitle>
-            <div className="flex items-end gap-1.5 h-24">
-              {o.monthly_trend.map((m, i) => {
-                const maxPI = Math.max(...o.monthly_trend.map(x => x.pi), 1);
-                const h = Math.round((m.pi / maxPI) * 100);
-                const c = m.pi >= 75 ? '#10b981' : m.pi >= 50 ? '#3b82f6' : '#ef4444';
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                    <div className="text-[8px] text-muted opacity-0 group-hover:opacity-100">{m.pi}</div>
-                    <div className="w-full rounded-t-sm" style={{ height: `${h}%`, background: c, minHeight: 4 }} />
-                    <div className="text-[8px] text-muted truncate w-full text-center">{m.month.slice(5)}</div>
-                  </div>
-                );
-              })}
-            </div>
+
+          {/* Career events */}
+          <div className="mt-4 space-y-2">
+            {[
+              { e: 'Promotion', s: o.career_status === 'ELIGIBLE_PROMOTION' ? 'ELIGIBLE' : 'EN ATTENTE', c: o.career_status === 'ELIGIBLE_PROMOTION' ? '#10b981' : '#64748b' },
+              { e: 'Surmenage', s: o.burnout_risk, c: BURNOUT_COLOR[o.burnout_risk] },
+              { e: 'Redéploiement', s: o.career_status === 'REDEPLOYMENT_RISK' ? 'ALERTE' : 'NON', c: o.career_status === 'REDEPLOYMENT_RISK' ? '#ef4444' : '#64748b' },
+            ].map(r => (
+              <div key={r.e} className="flex justify-between items-center">
+                <span className="text-xs text-muted">{r.e}</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: r.c + '18', color: r.c, border: `1px solid ${r.c}33` }}>{r.s}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Trend chart */}
+      <div className="card">
+        <SectionTitle icon="📈">Évolution mensuelle — PI Score & Volume</SectionTitle>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={trendData} margin={{ left: -10, right: 10, bottom: 5, top: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 10 }} />
+            <YAxis yAxisId="left" domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 10 }} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fill: '#64748b', fontSize: 10 }} />
+            <Tooltip {...CHART_STYLE.tooltip} />
+            <Bar yAxisId="left" dataKey="pi" name="PI Score" fill={piColor} fillOpacity={0.7} radius={[4,4,0,0]}>
+              {trendData.map((_: unknown, i: number) => <Cell key={i} fill={piColor} fillOpacity={0.5 + (i / trendData.length) * 0.5} />)}
+            </Bar>
+            <Bar yAxisId="right" dataKey="decls" name="Déclarations" fill="#8b5cf6" fillOpacity={0.4} radius={[4,4,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </motion.div>
   );
 }
 
 export default function OfficersPage() {
   const { data, loading, error, reload } = useApi(() => fetch('/api/officers').then(r => r.json()));
-  const [selected, setSelected] = useState<string | null>(null);
-  const [filter, setFilter] = useState<string>('ALL');
-  if (loading) return <><PageHeader /><Loading /></>;
-  if (error) return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
-  if (!data) return null;
   const { filters } = useFilters();
+  const [selected, setSelected] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [search, setSearch] = useState('');
+
+  if (loading) return <><PageHeader /><Loading /></>;
+  if (error)   return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
+  if (!data)   return null;
+
   const officers: Officer[] = applyRiskFilter(
     data.filter((o: Officer) => filters.bureau === 'ALL' || o.bureau_ids.includes(filters.bureau)),
     filters.risk
+  ).filter((o: Officer) =>
+    search === '' || o.name.toLowerCase().includes(search.toLowerCase()) || o.officer_id.toLowerCase().includes(search.toLowerCase())
   );
+
   if (selected) {
     const o = officers.find((x: Officer) => x.officer_id === selected);
     if (o) return <OfficerDetail o={o} onBack={() => setSelected(null)} />;
   }
+
   const statusFilters = ['ALL', 'ELIGIBLE_PROMOTION', 'ACTIF', 'REDEPLOYMENT_RISK', 'BURNOUT_ALERT'];
-  const filtered = filter === 'ALL' ? officers : officers.filter((o: Officer) => o.career_status === filter);
+  const filtered = statusFilter === 'ALL' ? officers : officers.filter((o: Officer) => o.career_status === statusFilter);
   const eligible = officers.filter((o: Officer) => o.career_status === 'ELIGIBLE_PROMOTION').length;
   const avgPI = Math.round(officers.reduce((s: number, o: Officer) => s + o.performance_index, 0) / Math.max(officers.length, 1));
   const burnoutHigh = officers.filter((o: Officer) => o.burnout_risk === 'HIGH').length;
+
+  // Scatter: PI vs fraud detection rate
+  const scatterData = officers.map((o: Officer) => ({
+    x: Math.round(o.fraud_detection_rate * 100),
+    y: o.performance_index,
+    z: o.total_declarations,
+    name: o.name,
+    id: o.officer_id,
+    status: o.career_status,
+  }));
+
+  const STATUS_COLORS: Record<string,string> = {
+    ELIGIBLE_PROMOTION: '#10b981', ACTIF: '#3b82f6',
+    REDEPLOYMENT_RISK: '#f97316', BURNOUT_ALERT: '#ef4444',
+  };
+
   return (
     <div className="space-y-5">
       <PageHeader />
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Total Agents" value={fmt(officers.length)} color="accent" />
-        <KPICard label="PI Moyen" value={avgPI + '/100'} sub="Performance Index" color="teal" />
-        <KPICard label="Eligible Promotion" value={fmt(eligible)} color="success" />
-        <KPICard label="Alerte Surmenage" value={fmt(burnoutHigh)} color="danger" />
+      <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <KPICard label="Total Agents" value={officers.length} icon="👤" color="accent" />
+        <KPICard label="PI Moyen" value={avgPI} suffix="/100" icon="📊" color="teal" />
+        <KPICard label="Eligible Promotion" value={eligible} icon="🏆" color="success" />
+        <KPICard label="Alerte Surmenage" value={burnoutHigh} icon="🔴" color="danger" />
+      </StaggerGrid>
+
+      {/* Scatter: PI vs fraud rate */}
+      <FadeIn delay={0.1}>
+        <div className="card">
+          <SectionTitle icon="📐">Performance Index vs Taux Détection Fraude — Attrition Map</SectionTitle>
+          <ResponsiveContainer width="100%" height={220}>
+            <ScatterChart margin={{ left: 10, right: 30, bottom: 10, top: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <XAxis type="number" dataKey="x" name="Taux fraude %" tick={{ fill: '#64748b', fontSize: 10 }}
+                label={{ value: 'Taux détection fraude (%)', position: 'insideBottom', offset: -5, fill: '#475569', fontSize: 10 }} />
+              <YAxis type="number" dataKey="y" name="PI Score" domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 10 }}
+                label={{ value: 'PI Score', angle: -90, position: 'insideLeft', fill: '#475569', fontSize: 10 }} />
+              <ZAxis type="number" dataKey="z" range={[60, 300]} />
+              <Tooltip {...CHART_STYLE.tooltip}
+                content={({ payload }) => {
+                  if (!payload?.length) return null;
+                  const d = payload[0]?.payload;
+                  const sm = STATUS_META[d.status] ?? STATUS_META.ACTIF;
+                  return (
+                    <div style={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '10px 14px', color: '#f1f5f9', fontSize: 12 }}>
+                      <div className="font-bold mb-1">{d.name}</div>
+                      <div>PI Score: <b style={{ color: '#60a5fa' }}>{d.y}</b></div>
+                      <div>Taux fraude: <b style={{ color: '#f87171' }}>{d.x}%</b></div>
+                      <div>Déclarations: <b>{d.z}</b></div>
+                      <div style={{ color: sm.color, marginTop: 4 }}>{sm.icon} {sm.label}</div>
+                    </div>
+                  );
+                }}
+              />
+              <Scatter data={scatterData} name="Agents">
+                {scatterData.map((entry: { status: string; id: string }, i: number) => (
+                  <Cell key={i} fill={STATUS_COLORS[entry.status] ?? '#64748b'} fillOpacity={0.8} />
+                ))}
+              </Scatter>
+            </ScatterChart>
+          </ResponsiveContainer>
+          <div className="flex flex-wrap gap-4 justify-center mt-2">
+            {Object.entries(STATUS_META).map(([k, v]) => (
+              <span key={k} className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span className="w-2 h-2 rounded-full" style={{ background: v.color }} />{v.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </FadeIn>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <input className="input w-48 text-sm" placeholder="🔍 Rechercher agent…"
+          value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="flex gap-2 flex-wrap">
+          {statusFilters.map(f => {
+            const sm = f === 'ALL' ? { color: '#3b82f6', label: 'Tous' } : (STATUS_META[f] ?? { color: '#64748b', label: f });
+            return (
+              <motion.button key={f} onClick={() => setStatusFilter(f)}
+                whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
+                style={{
+                  background: statusFilter === f ? sm.color + '22' : 'transparent',
+                  border: `1px solid ${statusFilter === f ? sm.color : '#1e3a5f'}`,
+                  color: statusFilter === f ? sm.color : '#64748b',
+                }}>
+                {f === 'ALL' ? 'Tous les agents' : sm.label}
+              </motion.button>
+            );
+          })}
+        </div>
       </div>
-      <div className="flex gap-2 flex-wrap">
-        {statusFilters.map(f => {
-          const sm = f === 'ALL' ? { color: '#3b82f6', label: 'Tous' } : (STATUS_META[f] ?? { color: '#64748b', label: f });
+
+      {/* Agent cards with circular gauges */}
+      <StaggerGrid className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filtered.map((o: Officer) => {
+          const sm = STATUS_META[o.career_status] ?? STATUS_META.ACTIF;
+          const piColor = o.performance_index >= 75 ? '#10b981' : o.performance_index >= 50 ? '#3b82f6' : '#ef4444';
           return (
-            <button key={f} onClick={() => setFilter(f)}
-              className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
-              style={{ background: filter === f ? sm.color + '22' : 'transparent', border: `1px solid ${filter === f ? sm.color : '#1e3a5f'}`, color: filter === f ? sm.color : '#64748b' }}>
-              {f === 'ALL' ? 'Tous les agents' : (STATUS_META[f]?.label ?? f)}
-            </button>
+            <motion.div key={o.officer_id}
+              onClick={() => setSelected(o.officer_id)}
+              className="card cursor-pointer"
+              whileHover={{ scale: 1.02, boxShadow: `0 8px 32px ${sm.color}22` }}
+              style={{ borderColor: sm.color + '33' }}>
+              <div className="flex items-start gap-3 mb-3">
+                {/* Circular gauge */}
+                <div className="relative flex-shrink-0" style={{ width: 52, height: 52 }}>
+                  <CircularGauge value={o.performance_index} color={piColor} size={52} />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-black" style={{ color: piColor }}>{o.performance_index}</span>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-white truncate">{o.name}</div>
+                  <div className="text-[10px] text-muted">{o.officer_id} · {o.bureau_ids[0]}</div>
+                  <div className="text-[10px] mt-0.5" style={{ color: sm.color }}>{sm.icon} {sm.label}</div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-xs font-bold" style={{ color: BURNOUT_COLOR[o.burnout_risk] }}>
+                    {o.burnout_risk === 'HIGH' ? '🔴' : o.burnout_risk === 'MEDIUM' ? '🟡' : '🟢'}
+                  </div>
+                  <div className="text-[9px] text-muted">Surmenage</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {[
+                  { l: 'Déclarations', v: o.total_declarations, c: '#3b82f6' },
+                  { l: 'Fraudes', v: o.fraud_detected, c: '#ef4444' },
+                  { l: 'Rang', v: `#${o.rank_in_bureau}`, c: '#f59e0b' },
+                ].map(k => (
+                  <div key={k.l} className="rounded-lg py-1 text-center" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                    <div className="text-xs font-bold" style={{ color: k.c }}>{k.v}</div>
+                    <div className="text-[9px] text-muted">{k.l}</div>
+                  </div>
+                ))}
+              </div>
+              <Gauge value={o.performance_index} color={piColor} />
+            </motion.div>
           );
         })}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((o: Officer) => <OfficerCard key={o.officer_id} o={o} onClick={() => setSelected(o.officer_id)} />)}
-      </div>
+      </StaggerGrid>
     </div>
   );
 }
