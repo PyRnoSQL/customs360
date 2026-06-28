@@ -1,150 +1,152 @@
-import React from 'react';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS, CategoryScale, LinearScale, BarElement,
-  Title, Tooltip, Legend
-} from 'chart.js';
+import React, { useRef, useEffect } from 'react';
+import ReactECharts from 'echarts-for-react';
+import { motion } from 'framer-motion';
 import { useApi } from '../hooks/useApi';
-import { PageHeader } from '../App';
 import { api, fmtM, fmt } from '../services/api';
-import { KPICard, SectionTitle, Loading, ErrorBox, StatusBadge } from '../components/UI';
+import { KPICard, SectionTitle, Loading, ErrorBox, StatusBadge, FadeIn, StaggerGrid, AnimatedNumber } from '../components/UI';
+import { PageHeader } from '../App';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+const ECHART_THEME = {
+  backgroundColor: 'transparent',
+  textStyle: { color: '#64748b', fontFamily: 'Inter, sans-serif' },
+};
 
 export default function Dashboard() {
   const { data, loading, error, reload } = useApi(api.overview);
   const { data: fraud } = useApi(api.fraud);
 
-  if (loading) return <div className="space-y-4"><div className="grid grid-cols-6 gap-3"><Loading rows={1} /></div><Loading rows={3} /></div>;
-  if (error)   return <ErrorBox message={error} onRetry={reload} />;
+  if (loading) return <><PageHeader /><Loading rows={4} /></>;
+  if (error)   return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
   if (!data)   return null;
 
-  const chartData = {
-    labels: data.monthly_revenue.map(m => m.label),
-    datasets: [
-      {
-        label: 'Prévisions',
-        data: data.monthly_revenue.map(m => Math.round(m.expected / 1e6)),
-        backgroundColor: 'rgba(59,130,246,0.25)',
-        borderColor: '#3b82f6', borderWidth: 1.5, borderRadius: 4,
-      },
-      {
-        label: 'Collectées',
-        data: data.monthly_revenue.map(m => Math.round(m.collected / 1e6)),
-        backgroundColor: 'rgba(16,185,129,0.3)',
-        borderColor: '#10b981', borderWidth: 1.5, borderRadius: 4,
-      },
-      {
-        label: 'Pertes fraude',
-        data: data.monthly_revenue.map(m => Math.round(m.lost_fraud / 1e6)),
-        backgroundColor: 'rgba(239,68,68,0.3)',
-        borderColor: '#ef4444', borderWidth: 1.5, borderRadius: 4,
-      },
+  const revenueOption = {
+    ...ECHART_THEME,
+    tooltip: {
+      trigger: 'axis', backgroundColor: 'rgba(15,23,42,0.95)',
+      borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' },
+      formatter: (params: { seriesName: string; value: number }[]) =>
+        params.map(p => `${p.seriesName}: <b>${fmtM(p.value * 1e6)} FCFA</b>`).join('<br/>'),
+    },
+    legend: { data: ['Prévisions','Collectées','Pertes fraude'], textStyle: { color: '#64748b' }, top: 0 },
+    grid: { left: 12, right: 12, bottom: 24, top: 40, containLabel: true },
+    xAxis: { type: 'category', data: data.monthly_revenue.map((m: { label: string }) => m.label), axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }, axisLabel: { color: '#475569', fontSize: 11 }, axisTick: { show: false } },
+    yAxis: { type: 'value', axisLabel: { color: '#475569', fontSize: 10, formatter: (v: number) => v + 'M' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLine: { show: false } },
+    series: [
+      { name: 'Prévisions', type: 'bar', data: data.monthly_revenue.map((m: { expected: number }) => Math.round(m.expected / 1e6)), itemStyle: { color: 'rgba(59,130,246,0.35)', borderRadius: [4,4,0,0] }, barGap: '10%' },
+      { name: 'Collectées', type: 'bar', data: data.monthly_revenue.map((m: { collected: number }) => Math.round(m.collected / 1e6)), itemStyle: { color: { type:'linear', x:0,y:0,x2:0,y2:1, colorStops:[{offset:0,color:'rgba(16,185,129,0.9)'},{offset:1,color:'rgba(16,185,129,0.3)'}] }, borderRadius: [4,4,0,0] } },
+      { name: 'Pertes fraude', type: 'bar', data: data.monthly_revenue.map((m: { lost_fraud: number }) => Math.round(m.lost_fraud / 1e6)), itemStyle: { color: 'rgba(239,68,68,0.5)', borderRadius: [4,4,0,0] } },
     ],
   };
 
-  const chartOptions = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#64748b', font: { size: 11 } } },
-      y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#64748b', font: { size: 11 }, callback: (v: number | string) => v + 'M' } },
-    },
+  const officeOption = {
+    ...ECHART_THEME,
+    tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' }, formatter: '{b}: <b>{c}%</b>' },
+    series: [{
+      type: 'pie', radius: ['55%', '80%'], center: ['50%', '50%'],
+      data: data.office_distribution.map((o: { name: string; pct: number }, i: number) => ({
+        name: o.name ?? o.office_id,
+        value: o.pct,
+        itemStyle: { color: ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4'][i] },
+      })),
+      label: { show: true, color: '#94a3b8', fontSize: 10, formatter: '{b}\n{c}%' },
+      emphasis: { itemStyle: { shadowBlur: 20, shadowColor: 'rgba(59,130,246,0.4)' } },
+    }],
   };
+
+  const radarOption = fraud ? {
+    ...ECHART_THEME,
+    tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' } },
+    radar: {
+      indicator: [
+        { name: 'Sous-évaluation', max: 100 }, { name: 'Fausse class.', max: 100 },
+        { name: 'Marchandises\nfantômes', max: 100 }, { name: 'Faux docs', max: 100 },
+        { name: 'Collusion', max: 100 },
+      ],
+      splitArea: { areaStyle: { color: ['rgba(59,130,246,0.02)','rgba(59,130,246,0.04)'] } },
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+      axisName: { color: '#64748b', fontSize: 10 },
+    },
+    series: [{
+      type: 'radar',
+      data: [{
+        value: Object.values(fraud.by_type as Record<string,number>).slice(0, 5).map((v: number) => Math.min(100, (v / Math.max(...Object.values(fraud.by_type as Record<string,number>), 1)) * 100)),
+        name: 'Fraudes',
+        areaStyle: { color: 'rgba(239,68,68,0.15)' },
+        lineStyle: { color: '#ef4444', width: 2 },
+        itemStyle: { color: '#ef4444' },
+      }],
+    }],
+  } : null;
 
   return (
     <div className="space-y-5">
       <PageHeader />
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KPICard label="Total SGDs" value={fmt(data.total_sgd)} sub="Déclarations traitées" color="accent" />
-        <KPICard label="Recettes collectées" value={fmtM(data.total_revenue) + ' FCFA'} sub="Exercice en cours" color="success" />
-        <KPICard label="Fraudes détectées" value={fmt(data.fraud_confirmed)} sub="Cas confirmés" color="danger" />
-        <KPICard label="Pertes estimées" value={fmtM(data.revenue_loss) + ' FCFA'} sub="Non recouvré" color="gold" />
-        <KPICard label="Importateurs risque" value={fmt(data.high_risk_importers)} sub="Score DATE ≥ 70" color="teal" />
-        <KPICard label="Délai moyen" value={data.avg_clearance_hours + 'h'} sub="Dédouanement" color="accent" />
-      </div>
+
+      {/* KPI grid */}
+      <StaggerGrid className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <KPICard label="Total SGDs" value={data.total_sgd} icon="📋" color="accent" />
+        <KPICard label="Recettes" value={Math.round(data.total_revenue / 1e9 * 10) / 10} suffix=" Mrd" icon="💰" color="success" />
+        <KPICard label="Fraudes" value={data.fraud_confirmed} icon="🚨" color="danger" />
+        <KPICard label="Pertes" value={Math.round(data.revenue_loss / 1e6)} suffix=" M FCFA" icon="⚠️" color="gold" />
+        <KPICard label="Haut Risque" value={data.high_risk_importers} icon="🎯" color="teal" />
+        <KPICard label="Délai moy." value={data.avg_clearance_hours} suffix="h" icon="⏱️" color="purple" />
+      </StaggerGrid>
 
       {/* Charts row */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <div className="card xl:col-span-2">
-          <SectionTitle icon="📈">Analyse des Recettes Mensuelles (MFCFA)</SectionTitle>
-          <div className="flex gap-4 mb-3">
-            {[['#3b82f6','Prévisions'],['#10b981','Collectées'],['#ef4444','Pertes fraude']].map(([c,l]) => (
-              <span key={l} className="flex items-center gap-1.5 text-xs text-sub">
-                <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: c }} />{l}
-              </span>
-            ))}
+        <FadeIn delay={0.2} className="xl:col-span-2">
+          <div className="card">
+            <SectionTitle icon="📈">Analyse des Recettes Mensuelles</SectionTitle>
+            <ReactECharts option={revenueOption} style={{ height: 240 }} />
           </div>
-          <div className="relative h-52">
-            <Bar data={chartData} options={chartOptions as object} />
+        </FadeIn>
+        <FadeIn delay={0.3}>
+          <div className="card">
+            <SectionTitle icon="🗺️">Distribution par Bureau</SectionTitle>
+            <ReactECharts option={officeOption} style={{ height: 240 }} />
           </div>
-        </div>
-
-        <div className="card">
-          <SectionTitle icon="🗺️">Distribution par Bureau</SectionTitle>
-          <div className="space-y-3">
-            {data.office_distribution.map(o => (
-              <div key={o.office_id}>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-sub">{o.name ?? o.office_id}</span>
-                  <span className="text-xs font-bold text-white">{o.pct}% · {fmt(o.count)} SGDs</span>
-                </div>
-                <div className="gauge-track">
-                  <div className="gauge-fill" style={{ width: `${o.pct}%`, background: '#3b82f6' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        </FadeIn>
       </div>
 
-      {/* Fraud summary */}
+      {/* Fraud + radar */}
       {fraud && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-          <div className="card">
-            <SectionTitle icon="🚨">Derniers Cas de Fraude</SectionTitle>
-            <table className="tbl">
-              <thead><tr>
-                <th>Cas</th><th>SGD</th><th>Type</th><th>Perte FCFA</th><th>IA Score</th><th>Statut</th>
-              </tr></thead>
-              <tbody>
-                {fraud.cases.slice(0, 8).map(f => (
-                  <tr key={f.case_id}>
-                    <td><code className="text-teal text-xs">{f.case_id}</code></td>
-                    <td><code className="text-accent text-xs">{f.sgd_id}</code></td>
-                    <td><span className="text-xs text-sub">{f.fraud_type}</span></td>
-                    <td><span className="text-xs font-bold text-danger">{fmtM(f.loss_amount)}</span></td>
-                    <td>
-                      <div className="flex items-center gap-1.5">
-                        <div className="h-1.5 w-12 bg-surface3 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${f.ai_probability}%`, background: f.ai_probability >= 80 ? '#ef4444' : '#eab308' }} />
+          <FadeIn delay={0.1}>
+            <div className="card">
+              <SectionTitle icon="🚨">Derniers Cas de Fraude</SectionTitle>
+              <table className="tbl">
+                <thead><tr><th>Cas</th><th>SGD</th><th>Type</th><th>Perte</th><th>IA %</th><th>Statut</th></tr></thead>
+                <tbody>
+                  {fraud.cases.slice(0, 8).map((f: { case_id: string; sgd_id: string; fraud_type: string; loss_amount: number; ai_probability: number; status: string }, i: number) => (
+                    <motion.tr key={f.case_id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                      <td><code style={{ color: '#22d3ee', fontSize: 11 }}>{f.case_id}</code></td>
+                      <td><code style={{ color: '#60a5fa', fontSize: 11 }}>{f.sgd_id}</code></td>
+                      <td><span className="text-xs text-slate-400">{f.fraud_type}</span></td>
+                      <td><span className="text-xs font-bold text-red-400">{fmtM(f.loss_amount)}</span></td>
+                      <td>
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-1 w-10 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                            <div className="h-full rounded-full" style={{ width: `${f.ai_probability}%`, background: f.ai_probability >= 80 ? '#ef4444' : '#f59e0b' }} />
+                          </div>
+                          <span className="text-xs font-bold" style={{ color: f.ai_probability >= 80 ? '#f87171' : '#fbbf24' }}>{f.ai_probability}%</span>
                         </div>
-                        <span className="text-xs font-bold" style={{ color: f.ai_probability >= 80 ? '#ef4444' : '#eab308' }}>{f.ai_probability}%</span>
-                      </div>
-                    </td>
-                    <td><StatusBadge status={f.status} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="card">
-            <SectionTitle icon="📋">Codes Tarifaires à Risque</SectionTitle>
-            <table className="tbl">
-              <thead><tr><th>Code SH</th><th>Fraudes</th><th>Taux</th><th>Risque</th></tr></thead>
-              <tbody>
-                {fraud.tariff_risk.slice(0, 8).map(t => (
-                  <tr key={t.tariff_code}>
-                    <td><code className="text-teal text-xs">{t.tariff_code}</code></td>
-                    <td><span className="text-sm font-bold text-white">{t.fraud_cases}</span></td>
-                    <td><span className="text-xs text-sub">{(t.fraud_rate * 100).toFixed(1)}%</span></td>
-                    <td><StatusBadge status={t.risk_level} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </td>
+                      <td><StatusBadge status={f.status} /></td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </FadeIn>
+          {radarOption && (
+            <FadeIn delay={0.2}>
+              <div className="card">
+                <SectionTitle icon="🎯">Répartition des Types de Fraude</SectionTitle>
+                <ReactECharts option={radarOption} style={{ height: 280 }} />
+              </div>
+            </FadeIn>
+          )}
         </div>
       )}
     </div>

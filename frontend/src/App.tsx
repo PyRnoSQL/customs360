@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import './index.css';
 import { LiveDataProvider, useLiveData } from './context/LiveData';
+import { ParticleBackground } from './components/UI';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AuthProvider, useAuth, ROLE_PAGES } from './context/AuthContext';
 
 import Login from './pages/Login';
@@ -83,7 +85,7 @@ function Sidebar() {
   const groups = [...new Set(ALL_NAV.map(n => n.group))];
 
   return (
-    <aside className="w-[220px] bg-surface border-r border-border flex flex-col flex-shrink-0 z-10">
+    <aside className="w-[220px] flex flex-col flex-shrink-0 z-10" style={{ background:"rgba(9,14,28,0.85)", backdropFilter:"blur(20px)", borderRight:"1px solid rgba(255,255,255,0.06)" }}>
       <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-3">
           <img src={COAT_OF_ARMS} alt="Armoiries" className="h-10 w-10 object-contain flex-shrink-0" />
@@ -146,7 +148,7 @@ function Header() {
   };
 
   return (
-    <header className="bg-surface border-b border-border flex-shrink-0">
+    <header className="flex-shrink-0" style={{ background:"rgba(9,14,28,0.85)", backdropFilter:"blur(20px)", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
       {/* Cameroon flag stripe */}
       <div className="flex h-1">
         <div className="flex-1" style={{ background: '#007a5e' }} />
@@ -241,10 +243,11 @@ function AppShell() {
   if (!user) return <Login />;
   return (
     <div className="flex h-screen overflow-hidden">
+      <ParticleBackground />
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6" style={{ background:"#020817" }}>
           <Routes>
             <Route path="/welcome"   element={<Welcome />} />
             <Route path="/"          element={<ProtectedRoute path="/"          element={<Dashboard   key={sgdCount} />} />} />

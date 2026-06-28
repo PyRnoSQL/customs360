@@ -1,7 +1,9 @@
 import React from 'react';
+import ReactECharts from 'echarts-for-react';
+import { motion } from 'framer-motion';
 import { useApi } from '../hooks/useApi';
 import { PageHeader } from '../App';
-import { KPICard, SectionTitle, Loading, ErrorBox } from '../components/UI';
+import { KPICard, SectionTitle, Loading, ErrorBox, FadeIn, StaggerGrid } from '../components/UI';
 import { fmt, fmtM } from '../services/api';
 
 type Cohort = { label: string; count: number; color: string; avg_risk: number };
@@ -9,137 +11,127 @@ type TariffRisk = { tariff_code: string; total_declarations: number; fraud_cases
 type TemporalPattern = { day: string; total: number; fraud: number; rate: number };
 type CountryAnalysis = { country: string; total: number; fraud: number; revenue: number; fraud_rate: number };
 
-const RISK_LEVEL_COLOR: Record<string, string> = { HIGH: '#ef4444', MEDIUM: '#f59e0b', LOW: '#10b981' };
-
 export default function Analytics() {
   const { data, loading, error, reload } = useApi(() => fetch('/api/analytics/cohorts').then(r => r.json()));
   if (loading) return <><PageHeader /><Loading rows={5} /></>;
-  if (error) return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
+  if (error)   return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
   if (!data) return null;
-
   const { cohorts, tariff_matrix, temporal_patterns, country_analysis } = data;
-  const maxDayRate = Math.max(...temporal_patterns.map((d: TemporalPattern) => d.rate), 0.01);
-  const maxCountryRev = Math.max(...country_analysis.map((c: CountryAnalysis) => c.revenue), 1);
   const totalDecls = cohorts.reduce((s: number, c: Cohort) => s + c.count, 0);
+
+  // Cohort donut
+  const cohortOption = {
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' }, formatter: '{b}: <b>{c}</b> ({d}%)' },
+    series: [{
+      type: 'pie', radius: ['50%', '78%'], center: ['50%', '50%'],
+      data: cohorts.map((c: Cohort) => ({ name: c.label, value: c.count, itemStyle: { color: c.color } })),
+      label: { show: true, color: '#94a3b8', fontSize: 10, formatter: '{b}\n{c}' },
+      emphasis: { itemStyle: { shadowBlur: 20, shadowColor: 'rgba(0,0,0,0.5)' } },
+      animationType: 'expansion', animationEasing: 'cubicOut',
+    }],
+  };
+
+  // Temporal pattern bar
+  const temporalOption = {
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' } },
+    grid: { left: 8, right: 8, bottom: 20, top: 10, containLabel: true },
+    xAxis: { type: 'category', data: temporal_patterns.map((d: TemporalPattern) => d.day), axisLabel: { color: '#475569', fontSize: 11 }, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }, axisTick: { show: false } },
+    yAxis: { type: 'value', axisLabel: { color: '#475569', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLine: { show: false } },
+    series: [
+      { name: 'Total', type: 'bar', data: temporal_patterns.map((d: TemporalPattern) => d.total), itemStyle: { color: 'rgba(59,130,246,0.25)', borderRadius: [3,3,0,0] } },
+      { name: 'Fraudes', type: 'bar', data: temporal_patterns.map((d: TemporalPattern) => d.fraud), itemStyle: { color: { type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(239,68,68,0.9)'},{offset:1,color:'rgba(239,68,68,0.4)'}] }, borderRadius: [3,3,0,0] } },
+    ],
+  };
+
+  // Tariff heatmap-style scatter
+  const tariffOption = {
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' }, formatter: (p: { data: [number, number, string] }) => `${p.data[2]}<br/>Fraudes: ${Math.round(p.data[0])}<br/>Taux: ${p.data[1].toFixed(1)}%` },
+    grid: { left: 16, right: 8, bottom: 24, top: 10, containLabel: true },
+    xAxis: { type: 'value', name: 'Cas Fraude', nameTextStyle: { color: '#475569', fontSize: 10 }, axisLabel: { color: '#475569', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } } },
+    yAxis: { type: 'value', name: 'Taux %', nameTextStyle: { color: '#475569', fontSize: 10 }, axisLabel: { color: '#475569', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } } },
+    series: [{
+      type: 'scatter',
+      data: tariff_matrix.map((t: TariffRisk) => [t.fraud_cases, t.fraud_rate * 100, t.tariff_code]),
+      symbolSize: (d: number[]) => Math.max(8, Math.sqrt(d[0]) * 8),
+      itemStyle: { color: (p: { data: number[] }) => p.data[1] > 25 ? '#ef4444' : p.data[1] > 10 ? '#f59e0b' : '#3b82f6', opacity: 0.8 },
+      label: { show: true, formatter: (p: { data: [number, number, string] }) => p.data[2], fontSize: 9, color: '#94a3b8', position: 'top' },
+    }],
+  };
+
+  // Country horizontal bar
+  const countryOption = {
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' }, axisPointer: { type: 'shadow' } },
+    grid: { left: 40, right: 8, top: 8, bottom: 20, containLabel: true },
+    xAxis: { type: 'value', axisLabel: { color: '#475569', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLine: { show: false } },
+    yAxis: { type: 'category', data: country_analysis.slice(0, 8).map((c: CountryAnalysis) => c.country), axisLabel: { color: '#94a3b8', fontSize: 11, fontWeight: 'bold' }, axisLine: { show: false }, axisTick: { show: false } },
+    series: [
+      { name: 'Déclarations', type: 'bar', data: country_analysis.slice(0, 8).map((c: CountryAnalysis) => c.total), itemStyle: { color: 'rgba(59,130,246,0.35)', borderRadius: [0,3,3,0] }, barMaxWidth: 20 },
+      { name: 'Fraudes', type: 'bar', data: country_analysis.slice(0, 8).map((c: CountryAnalysis) => c.fraud), itemStyle: { color: { type:'linear',x:0,y:0,x2:1,y2:0,colorStops:[{offset:0,color:'rgba(239,68,68,0.5)'},{offset:1,color:'rgba(239,68,68,0.9)'}] }, borderRadius: [0,3,3,0] }, barMaxWidth: 20 },
+    ],
+  };
 
   return (
     <div className="space-y-5">
       <PageHeader />
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Opérateurs analysés" value={fmt(totalDecls)} color="accent" />
-        <KPICard label="Codes tarifaires" value={fmt(tariff_matrix.length)} sub="Matrice risque" color="teal" />
-        <KPICard label="Pays d'origine" value={fmt(country_analysis.length)} color="gold" />
-        <KPICard label="Jour pic fraude" value={temporal_patterns.reduce((best: TemporalPattern, d: TemporalPattern) => d.rate > best.rate ? d : best, temporal_patterns[0])?.day ?? '—'} sub="Taux le plus élevé" color="danger" />
-      </div>
+      <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <KPICard label="Opérateurs analysés" value={totalDecls} icon="🏢" color="accent" />
+        <KPICard label="Codes tarifaires" value={tariff_matrix.length} icon="🗂️" color="teal" />
+        <KPICard label="Pays d'origine" value={country_analysis.length} icon="🌍" color="gold" />
+        <KPICard label="Jour pic fraude" value={temporal_patterns.reduce((b: TemporalPattern, d: TemporalPattern) => d.rate > b.rate ? d : b, temporal_patterns[0])?.day ?? '—'} icon="📅" color="danger" animate={false} />
+      </StaggerGrid>
 
-      {/* Cohort analysis */}
-      <div className="card">
-        <SectionTitle icon="👥">Segmentation des Importateurs — Analyse Comportementale</SectionTitle>
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-          {cohorts.map((c: Cohort) => (
-            <div key={c.label} className="rounded-xl p-4 text-center" style={{ background: c.color + '0f', border: `1px solid ${c.color}33` }}>
-              <div className="text-2xl font-black mb-1" style={{ color: c.color }}>{c.count}</div>
-              <div className="text-xs font-bold text-white mb-1">{c.label}</div>
-              <div className="text-[10px] text-muted">Score moyen: {c.avg_risk}%</div>
-              <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: '#1e2d40' }}>
-                <div className="h-full rounded-full" style={{ width: `${Math.round(c.count / Math.max(totalDecls, 1) * 100)}%`, background: c.color }} />
-              </div>
-              <div className="text-[9px] text-muted mt-1">{Math.round(c.count / Math.max(totalDecls, 1) * 100)}% du total</div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <FadeIn delay={0.1}>
+          <div className="card">
+            <SectionTitle icon="👥">Segmentation des Importateurs</SectionTitle>
+            <ReactECharts option={cohortOption} style={{ height: 240 }} />
+            <div className="mt-3 p-3 rounded-xl" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
+              <div className="text-[10px] text-muted mb-1 font-bold uppercase tracking-widest">💡 Recommandation IA</div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                <span className="font-bold text-white">{cohorts.find((c: Cohort) => c.label === 'Critique / Fraude')?.count ?? 0} opérateurs critiques</span> — inspection systématique requise.
+                Concentrer <span className="font-bold text-white">80%</span> des ressources sur les deux segments à risque élevé.
+              </p>
             </div>
-          ))}
-        </div>
-        <div className="rounded-xl p-4" style={{ background: '#0b1221', border: '1px solid #1e3a5f' }}>
-          <div className="text-xs font-bold text-muted uppercase tracking-widest mb-2">Recommandation IA</div>
-          <p className="text-sm text-slate-300 leading-relaxed">
-            <span className="font-bold text-white">{cohorts.find((c: Cohort) => c.label === 'Critique / Fraude')?.count ?? 0} opérateurs critiques</span> nécessitent une surveillance immédiate avec inspection systématique.
-            Les <span className="font-bold text-white">{cohorts.find((c: Cohort) => c.label === 'Sous Surveillance')?.count ?? 0} opérateurs sous surveillance</span> requièrent un audit documentaire trimestriel.
-            Concentrer 80% des ressources d'inspection sur ces deux segments représentant les risques les plus élevés.
-          </p>
-        </div>
+          </div>
+        </FadeIn>
+        <FadeIn delay={0.15}>
+          <div className="card">
+            <SectionTitle icon="📅">Fraude par Jour de la Semaine</SectionTitle>
+            <ReactECharts option={temporalOption} style={{ height: 200 }} />
+            <div className="mt-3 p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+              <div className="text-[10px] text-red-400 mb-1 font-bold uppercase tracking-widest">⚡ Insight prédictif</div>
+              <p className="text-xs text-slate-400">
+                {(() => { const peak = temporal_patterns.reduce((b: TemporalPattern, d: TemporalPattern) => d.rate > b.rate ? d : b, temporal_patterns[0]); return `Le ${peak?.day} présente le taux de fraude le plus élevé. Renforcer les équipes d'inspection ce jour.`; })()}
+              </p>
+            </div>
+          </div>
+        </FadeIn>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        {/* Temporal patterns */}
-        <div className="card">
-          <SectionTitle icon="📅">Patterns Temporels — Fraude par Jour de la Semaine</SectionTitle>
-          <div className="flex items-end gap-2 h-32 mb-2">
-            {temporal_patterns.map((d: TemporalPattern) => {
-              const h = maxDayRate > 0 ? Math.max(4, Math.round((d.rate / maxDayRate) * 100)) : 4;
-              const c = d.rate > 0.2 ? '#ef4444' : d.rate > 0.1 ? '#f59e0b' : '#3b82f6';
-              return (
-                <div key={d.day} className="flex-1 flex flex-col items-center gap-1 group">
-                  <div className="text-[9px] text-muted opacity-0 group-hover:opacity-100">{Math.round(d.rate * 100)}%</div>
-                  <div className="w-full rounded-t-sm transition-all" style={{ height: `${h}%`, background: c, minHeight: 4 }} />
-                  <div className="text-[10px] text-muted">{d.day}</div>
-                  <div className="text-[9px]" style={{ color: c }}>{d.fraud}</div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="text-[10px] text-muted text-center">Nombre de fraudes détectées par jour · Hauteur = taux relatif</div>
-          <div className="mt-3 rounded-lg p-3" style={{ background: '#0b1221', border: '1px solid #1e3a5f' }}>
-            <div className="text-[10px] text-muted mb-1">🎯 Insight prédictif</div>
-            <div className="text-xs text-slate-300">
-              {(() => {
-                const peak = temporal_patterns.reduce((b: TemporalPattern, d: TemporalPattern) => d.rate > b.rate ? d : b, temporal_patterns[0]);
-                return `Le ${peak?.day ?? '—'} présente le taux de fraude le plus élevé. Recommandé: renforcer les équipes d'inspection ce jour.`;
-              })()}
-            </div>
-          </div>
-        </div>
-
-        {/* Tariff risk matrix */}
-        <div className="card">
-          <SectionTitle icon="🗂️">Matrice Risque — Codes Tarifaires</SectionTitle>
-          <table className="tbl">
-            <thead><tr><th>Code SH</th><th>Déclarations</th><th>Fraudes</th><th>Taux</th><th>CIF Moy.</th><th>Niveau</th></tr></thead>
-            <tbody>
-              {tariff_matrix.slice(0, 8).map((t: TariffRisk) => (
-                <tr key={t.tariff_code}>
-                  <td><code className="text-xs" style={{ color: '#06b6d4' }}>{t.tariff_code}</code></td>
-                  <td><span className="text-sm">{fmt(t.total_declarations)}</span></td>
-                  <td><span className="text-sm font-bold" style={{ color: t.fraud_cases > 0 ? '#ef4444' : '#10b981' }}>{t.fraud_cases}</span></td>
-                  <td>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-10 h-1.5 rounded-full overflow-hidden" style={{ background: '#1e2d40' }}>
-                        <div className="h-full rounded-full" style={{ width: `${Math.min(100, t.fraud_rate * 100 * 3)}%`, background: RISK_LEVEL_COLOR[t.risk_level] ?? '#3b82f6' }} />
-                      </div>
-                      <span className="text-xs" style={{ color: RISK_LEVEL_COLOR[t.risk_level] }}>{(t.fraud_rate * 100).toFixed(1)}%</span>
-                    </div>
-                  </td>
-                  <td><span className="text-xs text-muted">{fmtM(t.avg_cif)}</span></td>
-                  <td>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                      style={{ background: RISK_LEVEL_COLOR[t.risk_level] + '22', color: RISK_LEVEL_COLOR[t.risk_level], border: `1px solid ${RISK_LEVEL_COLOR[t.risk_level]}44` }}>
-                      {t.risk_level}
-                    </span>
-                  </td>
-                </tr>
+        <FadeIn delay={0.2}>
+          <div className="card">
+            <SectionTitle icon="🗂️">Matrice Risque — Codes Tarifaires</SectionTitle>
+            <ReactECharts option={tariffOption} style={{ height: 240 }} />
+            <div className="flex gap-3 mt-2 justify-center">
+              {[['#ef4444','Taux > 25%'],['#f59e0b','Taux 10–25%'],['#3b82f6','Taux < 10%']].map(([c,l])=>(
+                <span key={l} className="flex items-center gap-1 text-[10px] text-muted">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />{l}
+                </span>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Country analysis */}
-      <div className="card">
-        <SectionTitle icon="🌍">Analyse Géographique — Flux par Pays d'Origine</SectionTitle>
-        <div className="space-y-2">
-          {country_analysis.slice(0, 10).map((c: CountryAnalysis) => (
-            <div key={c.country} className="flex items-center gap-3">
-              <div className="w-10 text-sm font-bold text-white text-right flex-shrink-0">{c.country}</div>
-              <div className="flex-1 h-6 rounded-lg overflow-hidden relative" style={{ background: '#0b1221' }}>
-                <div className="h-full rounded-lg transition-all"
-                  style={{ width: `${Math.round((c.revenue / maxCountryRev) * 100)}%`, background: c.fraud_rate > 0.2 ? '#ef444444' : '#3b82f644', border: `1px solid ${c.fraud_rate > 0.2 ? '#ef4444' : '#3b82f6'}33` }} />
-                <div className="absolute inset-0 flex items-center px-2 gap-3">
-                  <span className="text-xs text-white font-semibold">{fmt(c.total)} déclarations</span>
-                  <span className="text-xs" style={{ color: c.fraud_rate > 0.2 ? '#ef4444' : '#64748b' }}>{c.fraud} fraudes ({(c.fraud_rate * 100).toFixed(1)}%)</span>
-                  <span className="ml-auto text-xs font-bold" style={{ color: '#10b981' }}>{fmtM(c.revenue)} FCFA</span>
-                </div>
-              </div>
             </div>
-          ))}
-        </div>
+          </div>
+        </FadeIn>
+        <FadeIn delay={0.25}>
+          <div className="card">
+            <SectionTitle icon="🌍">Flux Géographiques — Pays d'Origine</SectionTitle>
+            <ReactECharts option={countryOption} style={{ height: 260 }} />
+          </div>
+        </FadeIn>
       </div>
     </div>
   );
