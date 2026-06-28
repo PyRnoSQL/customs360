@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from
 import './index.css';
 import { LiveDataProvider, useLiveData } from './context/LiveData';
 import { ParticleBackground } from './components/UI';
+import { FilterProvider } from './context/FilterContext';
+import FilterBar from './components/FilterBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AuthProvider, useAuth, ROLE_PAGES } from './context/AuthContext';
 
@@ -215,7 +217,8 @@ export function PageHeader() {
   const { manualRefresh, refreshing } = useLiveData();
   const meta = PAGE_META[pathname] ?? PAGE_META['/'];
   return (
-    <div className="flex items-start justify-between mb-5">
+    <div className="mb-0">
+      <div className="flex items-start justify-between mb-3">
       <div>
         <h1 className="text-lg font-black text-white leading-tight">{meta.title}</h1>
         <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>{meta.sub}</p>
@@ -272,9 +275,11 @@ export default function App() {
   return (
     <AuthProvider>
       <LiveDataProvider>
+        <FilterProvider>
         <BrowserRouter>
           <AppShell />
         </BrowserRouter>
+        </FilterProvider>
       </LiveDataProvider>
     </AuthProvider>
   );

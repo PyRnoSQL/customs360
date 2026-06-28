@@ -1,3 +1,4 @@
+import { useFilters, applyBureauFilter, applyPeriodFilter, applyStatusFilter, applyRiskFilter } from '../context/FilterContext';
 import { PageHeader } from '../App';
 // ── Fraud Page ────────────────────────────────────────────────────────────────
 import React, { useRef, useEffect, useState } from 'react';
@@ -12,9 +13,12 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 
 export function Fraud() {
   const { data, loading, error, reload } = useApi(api.fraud);
+  const { filters } = useFilters();
   if (loading) return <Loading />;
   if (error)   return <ErrorBox message={error} onRetry={reload} />;
   if (!data)   return null;
+  const filteredCases = applyStatusFilter(applyBureauFilter(applyPeriodFilter(data.cases, filters.period), filters.bureau), filters.status);
+  const totalLoss = filteredCases.reduce((s: number, f: { loss_amount: number }) => s + f.loss_amount, 0);
 
   const typeEntries = Object.entries(data.by_type).sort((a, b) => b[1] - a[1]);
   const colors = ['#ef4444','#f97316','#eab308','#3b82f6','#8b5cf6','#06b6d4'];
@@ -101,9 +105,11 @@ export function Fraud() {
 // ── Delays Page ───────────────────────────────────────────────────────────────
 export function Delays() {
   const { data, loading, error, reload } = useApi(api.delays);
+  const { filters } = useFilters();
   if (loading) return <Loading />;
   if (error)   return <ErrorBox message={error} onRetry={reload} />;
   if (!data)   return null;
+  const filtered = applyBureauFilter(applyPeriodFilter(data, filters.period), filters.bureau);
 
   const avgOvershoot = data.length > 0 ? Math.round(data.reduce((s, d) => s + d.overshoot_hours, 0) / data.length) : 0;
   const worst = data[0];

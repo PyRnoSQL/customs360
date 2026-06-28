@@ -1,3 +1,4 @@
+import { useFilters } from '../context/FilterContext';
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { motion } from 'framer-motion';
@@ -16,6 +17,7 @@ export default function Analytics() {
   if (loading) return <><PageHeader /><Loading rows={5} /></>;
   if (error)   return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
   if (!data) return null;
+  const { filters } = useFilters();
   const { cohorts, tariff_matrix, temporal_patterns, country_analysis } = data;
   const totalDecls = cohorts.reduce((s: number, c: Cohort) => s + c.count, 0);
 

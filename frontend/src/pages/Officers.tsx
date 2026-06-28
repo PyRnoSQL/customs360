@@ -1,3 +1,4 @@
+import { useFilters, applyBureauFilter, applyRiskFilter } from '../context/FilterContext';
 import React, { useState } from 'react';
 import { useApi } from '../hooks/useApi';
 import { api, fmt, fmtM, riskColor } from '../services/api';
@@ -205,7 +206,11 @@ export default function OfficersPage() {
   if (loading) return <><PageHeader /><Loading /></>;
   if (error) return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
   if (!data) return null;
-  const officers: Officer[] = data;
+  const { filters } = useFilters();
+  const officers: Officer[] = applyRiskFilter(
+    data.filter((o: Officer) => filters.bureau === 'ALL' || o.bureau_ids.includes(filters.bureau)),
+    filters.risk
+  );
   if (selected) {
     const o = officers.find((x: Officer) => x.officer_id === selected);
     if (o) return <OfficerDetail o={o} onBack={() => setSelected(null)} />;

@@ -1,3 +1,4 @@
+import { useFilters, applyBureauFilter, applyPeriodFilter, applyRiskFilter } from '../context/FilterContext';
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { motion } from 'framer-motion';
@@ -22,6 +23,7 @@ export default function Predictions() {
   if (error)   return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
   if (!data) return null;
 
+  const { filters } = useFilters();
   const { declaration_anomalies: anomalies, revenue_forecast: forecast, bureau_trajectories: trajectories,
     total_revenue_at_risk: atRisk, high_anomaly_count: highCount, forecast_shortfall: shortfall } = data;
 

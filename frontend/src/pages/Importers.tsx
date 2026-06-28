@@ -1,3 +1,4 @@
+import { useFilters, applyBureauFilter, applyRiskFilter } from '../context/FilterContext';
 import React, { useState } from 'react';
 import { useApi } from '../hooks/useApi';
 import { PageHeader } from '../App';
@@ -96,6 +97,7 @@ function ImporterDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
 export default function Importers() {
   const { data, loading, error, reload } = useApi(api.importers);
+  const { filters } = useFilters();
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
@@ -104,7 +106,7 @@ export default function Importers() {
   if (error)   return <ErrorBox message={error} onRetry={reload} />;
   if (!data)   return null;
 
-  const filtered = data.filter((i: ImporterProfile) => i.importer_id.toLowerCase().includes(search.toLowerCase()));
+  const filtered = applyRiskFilter(applyBureauFilter(data, filters.bureau), filters.risk).filter((i: ImporterProfile) => i.importer_id.toLowerCase().includes(search.toLowerCase()));
   const highRisk = data.filter((i: ImporterProfile) => i.risk_score >= 70).length;
 
   return (
