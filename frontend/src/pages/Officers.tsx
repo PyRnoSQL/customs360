@@ -52,13 +52,38 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
   const sm = STATUS_META[o.career_status] ?? STATUS_META.ACTIF;
   const piColor = o.performance_index >= 75 ? '#10b981' : o.performance_index >= 50 ? '#3b82f6' : '#ef4444';
 
+  // Two-layer radar: Layer 1 = actual scores, Layer 2 = bureau benchmark (fixed 60%)
   const radarData = [
-    { subject: 'Détection Fraude', value: Math.min(100, o.fraud_detection_rate * 300) },
-    { subject: 'Vitesse', value: o.speed_score },
-    { subject: 'Recettes', value: Math.min(100, o.revenue_recovery_rate * 100) },
-    { subject: 'Volume', value: Math.min(100, (o.total_declarations / 80) * 100) },
-    { subject: 'Qualité', value: o.performance_index },
-    { subject: 'Fiabilité', value: o.burnout_risk === 'LOW' ? 90 : o.burnout_risk === 'MEDIUM' ? 55 : 20 },
+    {
+      subject: 'Fraude',
+      score:     Math.round(Math.min(100, o.fraud_detection_rate * 300)),
+      benchmark: 60,
+    },
+    {
+      subject: 'Vitesse',
+      score:     o.speed_score,
+      benchmark: 60,
+    },
+    {
+      subject: 'Recettes',
+      score:     Math.round(Math.min(100, o.revenue_recovery_rate * 100)),
+      benchmark: 60,
+    },
+    {
+      subject: 'Volume',
+      score:     Math.round(Math.min(100, (o.total_declarations / 80) * 100)),
+      benchmark: 60,
+    },
+    {
+      subject: 'Qualité PI',
+      score:     o.performance_index,
+      benchmark: 60,
+    },
+    {
+      subject: 'Fiabilité',
+      score:     o.burnout_risk === 'LOW' ? 90 : o.burnout_risk === 'MEDIUM' ? 55 : 20,
+      benchmark: 60,
+    },
   ];
 
   const trendData = o.monthly_trend.map(m => ({ month: m.month.slice(5), pi: m.pi, decls: m.declarations }));
@@ -111,17 +136,65 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
           </div>
         </div>
 
-        {/* Radar 360° */}
+        {/* Radar 360° — two-layer animated */}
         <div className="card">
           <SectionTitle icon="🎯">Profil 360° — 6 Dimensions</SectionTitle>
-          <ResponsiveContainer width="100%" height={220}>
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="rgba(255,255,255,0.06)" />
-              <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 9 }} />
-              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
-              <Radar name="Agent" dataKey="value" stroke={piColor} fill={piColor} fillOpacity={0.2} strokeWidth={2} dot={{ fill: piColor, r: 3 }} />
+          <ResponsiveContainer width="100%" height={260}>
+            <RadarChart data={radarData} margin={{ top: 10, right: 28, left: 28, bottom: 10 }}>
+              <PolarGrid stroke="#1e3a5f" />
+              <PolarAngleAxis
+                dataKey="subject"
+                tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }}
+              />
+              <PolarRadiusAxis
+                domain={[0, 100]}
+                tick={{ fill: '#475569', fontSize: 8 }}
+                tickCount={4}
+              />
+              {/* Layer 1 — bureau benchmark (grey reference) */}
+              <Radar
+                name="Benchmark Bureau"
+                dataKey="benchmark"
+                stroke="#334155"
+                fill="#334155"
+                fillOpacity={0.15}
+                strokeWidth={1}
+                strokeDasharray="4 2"
+                isAnimationActive
+                animationDuration={800}
+                animationEasing="ease-out"
+              />
+              {/* Layer 2 — agent score (coloured, staggered by 300ms) */}
+              <Radar
+                name="Score Agent"
+                dataKey="score"
+                stroke={piColor}
+                fill={piColor}
+                fillOpacity={0.25}
+                strokeWidth={2}
+                dot={{ fill: piColor, r: 4, strokeWidth: 0 }}
+                isAnimationActive
+                animationBegin={300}
+                animationDuration={1200}
+                animationEasing="ease-out"
+              />
+              <Tooltip
+                contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, color: '#f1f5f9', fontSize: 12 }}
+                formatter={(value: number, name: string) => [`${value}%`, name]}
+              />
             </RadarChart>
           </ResponsiveContainer>
+          {/* Legend */}
+          <div className="flex justify-center gap-5 mt-1">
+            <span className="flex items-center gap-1.5 text-xs text-slate-400">
+              <span className="w-4 h-0.5 rounded" style={{ background: piColor }} />
+              Score Agent
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-slate-400">
+              <span className="w-4 h-0.5 rounded border-t border-dashed" style={{ borderColor: '#334155' }} />
+              Benchmark (60%)
+            </span>
+          </div>
         </div>
 
         {/* Fraud pie */}
