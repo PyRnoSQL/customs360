@@ -162,33 +162,35 @@ export default function Offices() {
         ))}
       </StaggerGrid>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      {/* Charts row — equal height via items-stretch */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-stretch">
 
         {/* Radar 360° for selected office */}
-        <FadeIn delay={0.1}>
-          <div className="card">
+        <FadeIn delay={0.1} className="h-full">
+          <div className="card h-full flex flex-col">
             <SectionTitle icon="🎯">
               Profil 360° — {radarOffice?.name?.split(' ').slice(0,2).join(' ')}
             </SectionTitle>
-            <ResponsiveContainer width="100%" height={260}>
-              <RadarChart data={radarData} margin={{ top:10, right:28, left:28, bottom:10 }}>
-                <PolarGrid stroke="#1e3a5f" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill:'#94a3b8', fontSize:10, fontWeight:600 }} />
-                <PolarRadiusAxis domain={[0,100]} tick={{ fill:'#475569', fontSize:8 }} tickCount={4} />
-                <Radar name="Moyenne Bureaux" dataKey="benchmark"
-                  stroke="#334155" fill="#334155" fillOpacity={0.15}
-                  strokeWidth={1} strokeDasharray="4 2"
-                  isAnimationActive animationDuration={800} animationEasing="ease-out" />
-                <Radar name="Score Bureau" dataKey="score"
-                  stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25}
-                  strokeWidth={2} dot={{ fill:'#3b82f6', r:4, strokeWidth:0 }}
-                  isAnimationActive animationBegin={300} animationDuration={1200} animationEasing="ease-out" />
-                <Tooltip contentStyle={{ background:'rgba(15,23,42,0.95)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:8, color:'#f1f5f9', fontSize:12 }}
-                  formatter={(v:number, name:string) => [`${Math.round(v)}%`, name]} />
-              </RadarChart>
-            </ResponsiveContainer>
-            <div className="flex justify-center gap-5 mt-1">
+            <div className="flex-1">
+              <ResponsiveContainer width="100%" height={340}>
+                <RadarChart data={radarData} margin={{ top:10, right:28, left:28, bottom:10 }}>
+                  <PolarGrid stroke="#1e3a5f" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill:'#94a3b8', fontSize:10, fontWeight:600 }} />
+                  <PolarRadiusAxis domain={[0,100]} tick={{ fill:'#475569', fontSize:8 }} tickCount={4} />
+                  <Radar name="Moyenne Bureaux" dataKey="benchmark"
+                    stroke="#334155" fill="#334155" fillOpacity={0.15}
+                    strokeWidth={1} strokeDasharray="4 2"
+                    isAnimationActive animationDuration={800} animationEasing="ease-out" />
+                  <Radar name="Score Bureau" dataKey="score"
+                    stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25}
+                    strokeWidth={2} dot={{ fill:'#3b82f6', r:4, strokeWidth:0 }}
+                    isAnimationActive animationBegin={300} animationDuration={1200} animationEasing="ease-out" />
+                  <Tooltip contentStyle={{ background:'rgba(15,23,42,0.95)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:8, color:'#f1f5f9', fontSize:12 }}
+                    formatter={(v:number, name:string) => [`${Math.round(v)}%`, name]} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-center gap-5 mt-2">
               <span className="flex items-center gap-1.5 text-xs text-slate-400">
                 <span className="w-4 h-0.5 rounded" style={{ background:'#3b82f6' }}/>Score Bureau
               </span>
@@ -201,23 +203,31 @@ export default function Offices() {
         </FadeIn>
 
         {/* Pareto: revenue + fraud */}
-        <FadeIn delay={0.15} className="xl:col-span-2">
-          <div className="card">
+        <FadeIn delay={0.15} className="xl:col-span-2 h-full">
+          <div className="card h-full flex flex-col">
             <SectionTitle icon="📊">Recettes & Fraudes par Bureau</SectionTitle>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={paretoData} margin={{ left: -10, right: 10, bottom: 20, top: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10 }} angle={-20} textAnchor="end" />
-                <YAxis yAxisId="left" tick={{ fill: '#64748b', fontSize: 10 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fill: '#64748b', fontSize: 10 }} />
-                <Tooltip {...CHART_STYLE.tooltip} />
-                <Legend wrapperStyle={{ color: '#64748b', fontSize: 11 }} />
-                <Bar yAxisId="left" dataKey="revenue" name="Recettes (Mrd)" fill="#3b82f6" fillOpacity={0.7} radius={[4,4,0,0]}>
-                  {paretoData.map((_: unknown, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} fillOpacity={0.7} />)}
-                </Bar>
-                <Bar yAxisId="right" dataKey="fraud" name="Fraudes" fill="#ef4444" fillOpacity={0.6} radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="flex-1">
+              <ResponsiveContainer width="100%" height={340}>
+                <BarChart data={paretoData} margin={{ left: -10, right: 10, bottom: 8, top: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: '#64748b', fontSize: 10 }}
+                    angle={0}
+                    textAnchor="middle"
+                    interval={0}
+                  />
+                  <YAxis yAxisId="left" tick={{ fill: '#64748b', fontSize: 10 }} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fill: '#64748b', fontSize: 10 }} />
+                  <Tooltip {...CHART_STYLE.tooltip} />
+                  <Legend wrapperStyle={{ color: '#64748b', fontSize: 11 }} />
+                  <Bar yAxisId="left" dataKey="revenue" name="Recettes (Mrd)" fill="#3b82f6" fillOpacity={0.7} radius={[4,4,0,0]}>
+                    {paretoData.map((_: unknown, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} fillOpacity={0.7} />)}
+                  </Bar>
+                  <Bar yAxisId="right" dataKey="fraud" name="Fraudes" fill="#ef4444" fillOpacity={0.6} radius={[4,4,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </FadeIn>
       </div>
