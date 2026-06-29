@@ -209,12 +209,12 @@ export const ParticleBackground: React.FC = () => {
 };
 
 // ── Fade In wrapper ───────────────────────────────────────────────────────────
-export const FadeIn: React.FC<{ children: React.ReactNode; delay?: number; direction?: 'up' | 'down' | 'left' | 'right' }> = ({
-  children, delay = 0, direction = 'up'
+export const FadeIn: React.FC<{ children: React.ReactNode; delay?: number; direction?: 'up' | 'down' | 'left' | 'right'; className?: string }> = ({
+  children, delay = 0, direction = 'up', className = ''
 }) => {
   const dirMap = { up: { y: 24 }, down: { y: -24 }, left: { x: 24 }, right: { x: -24 } };
   return (
-    <motion.div initial={{ opacity: 0, ...dirMap[direction] }} animate={{ opacity: 1, x: 0, y: 0 }}
+    <motion.div className={className} initial={{ opacity: 0, ...dirMap[direction] }} animate={{ opacity: 1, x: 0, y: 0 }}
       transition={{ duration: 0.5, delay, ease: [0.4, 0, 0.2, 1] }}>
       {children}
     </motion.div>

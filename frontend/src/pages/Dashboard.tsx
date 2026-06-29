@@ -122,17 +122,17 @@ export default function Dashboard() {
         <KPICard label="Pertes estimées" value={Math.round(filteredLoss / 1e6)} suffix=" M FCFA" icon="⚠️" color="gold" />
       </StaggerGrid>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <FadeIn delay={0.1} className="xl:col-span-2">
-          <div className="card">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 w-full">
+        <FadeIn delay={0.1} className="xl:col-span-2 w-full">
+          <div className="card w-full">
             <SectionTitle icon="📈">Recettes Mensuelles {filters.period !== 'ALL' ? `— ${filters.period}` : ''}</SectionTitle>
             {filteredRevenue.length > 0
               ? <ReactECharts option={revenueOption} style={{ height: 240 }} />
               : <div className="h-60 flex items-center justify-center text-muted text-sm">Aucune donnée pour cette période</div>}
           </div>
         </FadeIn>
-        <FadeIn delay={0.2}>
-          <div className="card">
+        <FadeIn delay={0.2} className="w-full">
+          <div className="card w-full">
             <SectionTitle icon="🗺️">Distribution {filters.bureau !== 'ALL' ? `— ${filters.bureau}` : 'par Bureau'}</SectionTitle>
             <ReactECharts option={officeOption} style={{ height: 240 }} />
           </div>
@@ -140,9 +140,9 @@ export default function Dashboard() {
       </div>
 
       {fraud && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-          <FadeIn delay={0.1} className="xl:col-span-2">
-            <div className="card">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 w-full">
+          <FadeIn delay={0.1} className="xl:col-span-2 w-full">
+            <div className="card w-full">
               <SectionTitle icon="🚨">
                 Cas de Fraude
                 {filters.bureau !== 'ALL' && <span className="ml-2 text-xs text-muted font-normal">· {filters.bureau}</span>}
@@ -177,8 +177,8 @@ export default function Dashboard() {
             </div>
           </FadeIn>
           {radarOption && (
-            <FadeIn delay={0.2}>
-              <div className="card">
+            <FadeIn delay={0.2} className="w-full">
+              <div className="card w-full">
                 <SectionTitle icon="🎯">Répartition des Types de Fraude</SectionTitle>
                 <ReactECharts option={radarOption} style={{ height: 280 }} />
               </div>
