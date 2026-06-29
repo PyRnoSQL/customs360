@@ -600,3 +600,343 @@ export function buildPredictions(sgd: SGDRow[], fraud: FraudRow[]): PredictionSu
     forecast_shortfall: shortfall,
   };
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// PREDICTIVE MODELS — Top 5
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── 1. Importer Risk Drift ────────────────────────────────────────────────────
+export interface RiskDrift {
+  importer_id: string;
+  current_score: number;
+  prev_score: number;
+  drift: number;          // positive = worsening
+  trend: 'ACCELERATING' | 'STABLE' | 'IMPROVING';
+  velocity: number;       // rate of change per month
+  alert: string | null;
+  periods: { month: string; score: number }[];
+}
+
+export function computeRiskDrift(sgd: SGDRow[], fraud: FraudRow[]): RiskDrift[] {
+  const importerIds = [...new Set(sgd.map(s => s.importer_id))];
+  const MONTHS = ['2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02'];
+
+  return importerIds.map(id => {
+    const periods = MONTHS.map(month => {
+      const mSGD = sgd.filter(s => s.importer_id === id && s.date?.startsWith(month));
+      const mFraud = fraud.filter(f => f.importer_id === id && f.date?.startsWith(month));
+      if (!mSGD.length) return { month, score: 0 };
+      const fraudRate = mSGD.filter(s => s.fraud_flag).length / mSGD.length;
+      const revGap = mSGD.reduce((s,r) => s + Math.max(0, r.taxes_declared - r.revenue_collected), 0) /
+                     Math.max(mSGD.reduce((s,r) => s + r.taxes_declared, 0), 1);
+      const score = Math.min(99, Math.round(fraudRate * 60 + revGap * 30 + (mFraud.length > 0 ? 15 : 0)));
+      return { month, score };
+    }).filter(p => p.score > 0);
+
+    if (periods.length < 2) return null;
+
+    const recent = periods.slice(-3).map(p => p.score);
+    const older  = periods.slice(0, -3).map(p => p.score);
+    const currentScore = recent[recent.length - 1] ?? 0;
+    const prevScore    = older.length ? older[older.length - 1] : (recent[0] ?? 0);
+    const drift = currentScore - prevScore;
+
+    // Velocity: linear regression slope
+    const n = recent.length;
+    const xMean = (n - 1) / 2;
+    const yMean = recent.reduce((s, v) => s + v, 0) / n;
+    const velocity = n > 1
+      ? recent.reduce((s, v, i) => s + (i - xMean) * (v - yMean), 0) /
+        recent.reduce((s, _, i) => s + Math.pow(i - xMean, 2), 0)
+      : 0;
+
+    const trend: RiskDrift['trend'] =
+      velocity > 3  ? 'ACCELERATING' :
+      velocity < -3 ? 'IMPROVING'    : 'STABLE';
+
+    const alert =
+      trend === 'ACCELERATING' && currentScore >= 50
+        ? `Risque en accélération (+${Math.round(velocity)}/mois) — surveillance immédiate requise`
+      : drift > 20
+        ? `Hausse brutale de ${drift} points sur la période — vérification recommandée`
+      : null;
+
+    return { importer_id: id, current_score: currentScore, prev_score: prevScore, drift, trend, velocity: Math.round(velocity * 10) / 10, alert, periods };
+  }).filter(Boolean) as RiskDrift[];
+}
+
+// ── 2. Next-Declaration Fraud Probability ─────────────────────────────────────
+export interface NextDeclPrediction {
+  importer_id: string;
+  next_fraud_prob: number;   // 0–100
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  key_signals: string[];
+  recommended_action: string;
+}
+
+export function predictNextDeclaration(sgd: SGDRow[], fraud: FraudRow[]): NextDeclPrediction[] {
+  const importerIds = [...new Set(sgd.map(s => s.importer_id))];
+
+  return importerIds.map(id => {
+    const rows = sgd.filter(s => s.importer_id === id);
+    if (rows.length < 2) return null;
+
+    const recent = rows.slice(-5); // last 5 declarations
+    const fraudRows = fraud.filter(f => f.importer_id === id);
+
+    // Feature engineering on recent behaviour
+    const recentFraudRate  = recent.filter(r => r.fraud_flag).length / recent.length;
+    const allFraudRate     = rows.filter(r => r.fraud_flag).length / rows.length;
+    const recentRevGap     = recent.reduce((s,r) => s + Math.max(0, r.taxes_declared - r.revenue_collected), 0) /
+                             Math.max(recent.reduce((s,r) => s + r.taxes_declared, 0), 1);
+    const decRecency       = fraudRows.length > 0 ? 1 : 0; // had recent confirmed fraud
+    const freqScore        = Math.min(1, rows.length / 50);
+    const uniqDecs         = new Set(recent.map(r => r.declarant_id)).size;
+    const monoDeclarant    = uniqDecs === 1 && recent.length > 3 ? 0.15 : 0;
+    const accelerating     = recentFraudRate > allFraudRate * 1.5 ? 0.2 : 0;
+
+    // Weighted probability
+    let prob = Math.round(
+      recentFraudRate * 35 +
+      allFraudRate    * 20 +
+      recentRevGap    * 25 +
+      decRecency      * 10 +
+      freqScore       *  5 +
+      monoDeclarant   * 100 * 0.15 +
+      accelerating    * 100 * 0.2
+    );
+    prob = Math.min(97, Math.max(1, prob));
+
+    const confidence: NextDeclPrediction['confidence'] =
+      rows.length >= 10 ? 'HIGH' : rows.length >= 5 ? 'MEDIUM' : 'LOW';
+
+    const signals: string[] = [];
+    if (recentFraudRate > 0.3)  signals.push(`${Math.round(recentFraudRate*100)}% des 5 dernières déclarations suspectes`);
+    if (recentRevGap > 0.2)     signals.push(`Écart taxe/recette de ${Math.round(recentRevGap*100)}% récemment`);
+    if (monoDeclarant > 0)      signals.push('Concentration mono-déclarant (signal collusion)');
+    if (accelerating > 0)       signals.push('Taux de fraude récent supérieur à la moyenne historique');
+    if (fraudRows.some(f => f.status === 'CONFIRMED')) signals.push('Fraude confirmée dans l\'historique');
+
+    const action =
+      prob >= 70 ? 'Inspection physique obligatoire avant dédouanement' :
+      prob >= 45 ? 'Vérification documentaire prioritaire' :
+      prob >= 25 ? 'Contrôle renforcé aléatoire' :
+                   'Traitement standard';
+
+    return { importer_id: id, next_fraud_prob: prob, confidence, key_signals: signals, recommended_action: action };
+  }).filter(Boolean).sort((a,b) => b!.next_fraud_prob - a!.next_fraud_prob) as NextDeclPrediction[];
+}
+
+// ── 3. Fraud Velocity Index ───────────────────────────────────────────────────
+export interface FraudVelocity {
+  current_month: string;
+  velocity_index: number;      // 0–200, 100 = baseline
+  acceleration: number;        // % change vs previous month
+  status: 'CRITICAL' | 'WARNING' | 'NORMAL' | 'IMPROVING';
+  fraud_rate_current: number;
+  fraud_rate_previous: number;
+  projected_eom_loss: number;  // projected end-of-month loss
+  alert: string | null;
+  monthly_series: { month: string; label: string; rate: number; velocity: number }[];
+}
+
+export function computeFraudVelocity(sgd: SGDRow[], fraud: FraudRow[]): FraudVelocity {
+  const MONTHS = ['2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02'];
+  const LABELS: Record<string,string> = { '2025-08':'Août','2025-09':'Sep','2025-10':'Oct','2025-11':'Nov','2025-12':'Déc','2026-01':'Jan','2026-02':'Fév' };
+
+  const series = MONTHS.map(m => {
+    const mSGD   = sgd.filter(s => s.date?.startsWith(m));
+    const mFraud = fraud.filter(f => f.date?.startsWith(m));
+    const rate   = mSGD.length > 0 ? mFraud.length / mSGD.length : 0;
+    return { month: m, label: LABELS[m] ?? m, rate, count: mFraud.length, sgdCount: mSGD.length };
+  }).filter(m => m.sgdCount > 0);
+
+  if (series.length < 2) return {
+    current_month: '2026-02', velocity_index: 100, acceleration: 0,
+    status: 'NORMAL', fraud_rate_current: 0, fraud_rate_previous: 0,
+    projected_eom_loss: 0, alert: null, monthly_series: [],
+  };
+
+  const current  = series[series.length - 1];
+  const previous = series[series.length - 2];
+  const baseline = series.reduce((s,m) => s + m.rate, 0) / series.length;
+
+  const velocityIndex    = Math.round((current.rate / Math.max(baseline, 0.001)) * 100);
+  const acceleration     = previous.rate > 0 ? Math.round(((current.rate - previous.rate) / previous.rate) * 100) : 0;
+
+  const status: FraudVelocity['status'] =
+    velocityIndex >= 150 ? 'CRITICAL' :
+    velocityIndex >= 120 ? 'WARNING'  :
+    velocityIndex <= 70  ? 'IMPROVING': 'NORMAL';
+
+  // Projected EOM loss based on current fraud rate × avg loss per case
+  const avgLoss = fraud.length > 0 ? fraud.reduce((s,f) => s + f.loss_amount, 0) / fraud.length : 0;
+  const projectedCases = Math.round(current.rate * current.sgdCount * 1.1);
+  const projectedLoss  = projectedCases * avgLoss;
+
+  const alert =
+    status === 'CRITICAL' ? `Indice vélocité CRITIQUE (${velocityIndex}) — fraude ${acceleration > 0 ? '+' : ''}${acceleration}% vs mois précédent`
+    : status === 'WARNING'  ? `Fraude en hausse (+${acceleration}%) — renforcer les contrôles`
+    : null;
+
+  const monthlySeries = series.map((m, i) => ({
+    ...m, velocity: i === 0 ? 100 : Math.round((m.rate / Math.max(series[0].rate, 0.001)) * 100),
+  }));
+
+  return {
+    current_month: current.month, velocity_index: velocityIndex, acceleration,
+    status, fraud_rate_current: current.rate, fraud_rate_previous: previous.rate,
+    projected_eom_loss: projectedLoss, alert, monthly_series: monthlySeries,
+  };
+}
+
+// ── 4. Delay Cause Classifier ─────────────────────────────────────────────────
+export type DelayCause = 'INTENTIONAL' | 'DOCUMENT_ISSUE' | 'INSPECTION_BACKLOG' | 'SYSTEM_ERROR' | 'NORMAL';
+
+export interface DelayClassification {
+  sgd_id: string;
+  office_id: string;
+  importer_id: string;
+  actual_hours: number;
+  baseline_hours: number;
+  overshoot: number;
+  cause: DelayCause;
+  cause_label: string;
+  confidence: number;
+  action: string;
+}
+
+const CAUSE_LABELS: Record<DelayCause, string> = {
+  INTENTIONAL:       'Retard intentionnel suspect',
+  DOCUMENT_ISSUE:    'Problème documentaire',
+  INSPECTION_BACKLOG:'Congestion inspection',
+  SYSTEM_ERROR:      'Erreur système',
+  NORMAL:            'Délai normal',
+};
+
+const CAUSE_ACTIONS: Record<DelayCause, string> = {
+  INTENTIONAL:       'Alerte superviseur — vérification anti-corruption',
+  DOCUMENT_ISSUE:    'Contacter l\'importateur pour documents manquants',
+  INSPECTION_BACKLOG:'Renforcer les équipes d\'inspection ce bureau',
+  SYSTEM_ERROR:      'Ticket IT — vérifier le système douanier',
+  NORMAL:            'Aucune action requise',
+};
+
+export function classifyDelays(sgd: SGDRow[], fraud: FraudRow[]): DelayClassification[] {
+  const BASELINES: Record<string,number> = { DLA001:36, KBI001:28, DLA002:18, YDE001:22, YDE002:48, NGD001:72 };
+  const fraudImporters = new Set(fraud.filter(f => f.status === 'CONFIRMED').map(f => f.importer_id));
+
+  // Compute office avg clearance for backlog detection
+  const officeAvg: Record<string,number> = {};
+  [...new Set(sgd.map(s => s.office_id))].forEach(oid => {
+    const rows = sgd.filter(s => s.office_id === oid);
+    officeAvg[oid] = rows.reduce((s,r) => s + r.clearance_hours, 0) / Math.max(rows.length, 1);
+  });
+
+  return sgd
+    .map(s => {
+      const baseline = BASELINES[s.office_id] ?? 36;
+      const overshoot = s.clearance_hours - baseline;
+      if (overshoot <= baseline * 0.5) return null; // not delayed enough
+
+      // Classify based on features
+      let cause: DelayCause = 'NORMAL';
+      let confidence = 60;
+
+      const isFraudImporter = fraudImporters.has(s.importer_id);
+      const officeCongest    = officeAvg[s.office_id] > baseline * 1.4;
+      const extremeDelay     = overshoot > baseline * 4;
+      const moderateDelay    = overshoot > baseline * 1.5;
+
+      if (extremeDelay && isFraudImporter) {
+        cause = 'INTENTIONAL'; confidence = 88;
+      } else if (extremeDelay && !isFraudImporter) {
+        cause = 'DOCUMENT_ISSUE'; confidence = 74;
+      } else if (officeCongest && moderateDelay) {
+        cause = 'INSPECTION_BACKLOG'; confidence = 79;
+      } else if (moderateDelay && Math.random() < 0.2) {
+        cause = 'SYSTEM_ERROR'; confidence = 65;
+      } else if (moderateDelay) {
+        cause = 'DOCUMENT_ISSUE'; confidence = 68;
+      }
+
+      return {
+        sgd_id: s.sgd_id, office_id: s.office_id, importer_id: s.importer_id,
+        actual_hours: s.clearance_hours, baseline_hours: baseline,
+        overshoot, cause, cause_label: CAUSE_LABELS[cause],
+        confidence, action: CAUSE_ACTIONS[cause],
+      };
+    })
+    .filter(Boolean)
+    .sort((a,b) => b!.overshoot - a!.overshoot) as DelayClassification[];
+}
+
+// ── 5. Collusion Exposure Score ───────────────────────────────────────────────
+export interface CollusionExposure {
+  officer_id: string;
+  name: string;
+  exposure_score: number;     // 0–100
+  high_risk_count: number;    // declarations from confirmed-fraud importers
+  total_declarations: number;
+  exposure_rate: number;      // % of declarations from high-risk importers
+  shared_declarants: number;  // declarants also linked to fraud cases
+  integrity_flag: 'HIGH' | 'MEDIUM' | 'LOW';
+  alert: string | null;
+}
+
+const OFFICER_NAMES: Record<string,string> = {
+  DEC001:'MBARGA Jean-Paul', DEC002:'TCHOUMBA André', DEC003:'NKENGUE Marie',
+  DEC004:'ESSOMBA Pierre',   DEC005:'BIYA-FOUDA Salatou', DEC006:'MOHAMADOU Alim',
+  DEC007:'KANA Hélène',      DEC008:'FOUDA-BELL Ernest',  DEC009:'ABENA Christine',
+  DEC010:'ONDOUA Patrick',
+};
+
+export function computeCollusionExposure(sgd: SGDRow[], fraud: FraudRow[]): CollusionExposure[] {
+  const confirmedFraudImporters = new Set(
+    fraud.filter(f => f.status === 'CONFIRMED').map(f => f.importer_id)
+  );
+  const fraudDeclarants = new Set(
+    fraud.filter(f => f.status === 'CONFIRMED').map(f => f.declarant_id)
+  );
+
+  const decIds = [...new Set(sgd.map(s => s.declarant_id))];
+
+  return decIds.map(did => {
+    const rows = sgd.filter(s => s.declarant_id === did);
+    if (!rows.length) return null;
+
+    const highRiskDecls  = rows.filter(r => confirmedFraudImporters.has(r.importer_id));
+    const exposureRate   = highRiskDecls.length / rows.length;
+    const sharedFraudDec = fraudDeclarants.has(did) ? 1 : 0;
+
+    // Score: weighted combination
+    const score = Math.min(99, Math.round(
+      exposureRate * 50 +
+      sharedFraudDec * 30 +
+      (highRiskDecls.length > 5 ? 15 : highRiskDecls.length * 2) +
+      (rows.filter(r => r.fraud_flag).length / rows.length) * 20
+    ));
+
+    const flag: CollusionExposure['integrity_flag'] =
+      score >= 60 ? 'HIGH' : score >= 30 ? 'MEDIUM' : 'LOW';
+
+    const alert =
+      flag === 'HIGH'
+        ? `${Math.round(exposureRate*100)}% des déclarations liées à des importateurs frauduleux confirmés`
+        : flag === 'MEDIUM'
+        ? `Exposition modérée — ${highRiskDecls.length} déclarations à risque`
+        : null;
+
+    return {
+      officer_id: did,
+      name: OFFICER_NAMES[did] ?? did,
+      exposure_score: score,
+      high_risk_count: highRiskDecls.length,
+      total_declarations: rows.length,
+      exposure_rate: exposureRate,
+      shared_declarants: sharedFraudDec,
+      integrity_flag: flag,
+      alert,
+    };
+  }).filter(Boolean).sort((a,b) => b!.exposure_score - a!.exposure_score) as CollusionExposure[];
+}

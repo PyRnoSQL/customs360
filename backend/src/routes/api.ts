@@ -267,3 +267,20 @@ router.get('/analytics/cohorts', wrap(async (_req, res) => {
     country_analysis: country_analysis.slice(0, 12),
   });
 }));
+
+// ── GET /api/predictions/advanced ─────────────────────────────────────────────
+router.get('/predictions/advanced', wrap(async (_req, res) => {
+  const { sgd, fraud } = await getSheetData();
+  const {
+    computeRiskDrift, predictNextDeclaration,
+    computeFraudVelocity, classifyDelays, computeCollusionExposure,
+  } = await import('../services/analytics.js');
+
+  res.json({
+    risk_drift:         computeRiskDrift(sgd, fraud).slice(0, 20),
+    next_decl:          predictNextDeclaration(sgd, fraud).slice(0, 20),
+    fraud_velocity:     computeFraudVelocity(sgd, fraud),
+    delay_causes:       classifyDelays(sgd, fraud).slice(0, 50),
+    collusion_exposure: computeCollusionExposure(sgd, fraud),
+  });
+}));
