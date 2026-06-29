@@ -192,12 +192,17 @@ export default function OfficersPage() {
   if (error)   return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
   if (!data)   return null;
 
-  const officers: Officer[] = applyRiskFilter(
-    data.filter((o: Officer) => filters.bureau === 'ALL' || o.bureau_ids.includes(filters.bureau)),
-    filters.risk
-  ).filter((o: Officer) =>
-    search === '' || o.name.toLowerCase().includes(search.toLowerCase()) || o.officer_id.toLowerCase().includes(search.toLowerCase())
-  );
+  // Risk filter maps to performance_index: Critique=low PI, Faible=high PI
+  const PI_RANGE: Record<string,[number,number]> = {
+    ALL:[0,100], CRITIQUE:[0,34], ELEVE:[35,49], MOYEN:[50,74], FAIBLE:[75,100],
+  };
+  const [piLo, piHi] = PI_RANGE[filters.risk] ?? [0,100];
+  const officers: Officer[] = data
+    .filter((o: Officer) => filters.bureau === 'ALL' || o.bureau_ids.includes(filters.bureau))
+    .filter((o: Officer) => filters.risk === 'ALL' || (o.performance_index >= piLo && o.performance_index <= piHi))
+    .filter((o: Officer) =>
+      search === '' || o.name.toLowerCase().includes(search.toLowerCase()) || o.officer_id.toLowerCase().includes(search.toLowerCase())
+    );
 
   if (selected) {
     const o = officers.find((x: Officer) => x.officer_id === selected);

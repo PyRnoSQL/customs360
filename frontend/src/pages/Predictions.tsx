@@ -3,13 +3,14 @@ import ReactECharts from 'echarts-for-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LineChart, Line, ReferenceLine,
-  RadialBarChart, RadialBar, PieChart, Pie,
+  PieChart, Pie,
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApi } from '../hooks/useApi';
 import { PageHeader } from '../App';
 import { KPICard, SectionTitle, Loading, ErrorBox, FadeIn, StaggerGrid, Gauge, AnimatedNumber } from '../components/UI';
 import { fmtM, fmt } from '../services/api';
+import { useFilters } from '../context/FilterContext';
 
 const CHART_TT = {
   contentStyle: { background:'rgba(15,23,42,0.95)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:8, color:'#f1f5f9' },
@@ -315,10 +316,24 @@ function CollusionExposurePanel({ exposures }: { exposures: CollusionExp[] }) {
 
 // ── MAIN PAGE ──────────────────────────────────────────────────────────────────
 export default function Predictions() {
-  const { data: baseData, loading: bLoading, error: bError, reload } = useApi(() => fetch('/api/predictions').then(r => r.json()));
-  const { data: advData, loading: aLoading } = useApi(() => fetch('/api/predictions/advanced').then(r => r.json()));
+  const { filters } = useFilters();
+  const params = new URLSearchParams();
+  if (filters.bureau !== 'ALL') params.set('bureau', filters.bureau);
+  if (filters.period !== 'ALL') params.set('period', filters.period);
+  const qs = params.toString();
 
-  if (bLoading || aLoading) return <><PageHeader /><Loading rows={6}/></>;
+  const { data: baseData, loading: bLoading, error: bError, reload } = useApi(
+    () => fetch(`/api/predictions${qs ? '?' + qs : ''}`).then(r => r.json()),
+    [filters.bureau, filters.period]
+  );
+  const { data: advData, loading: aLoading } = useApi(() =>
+    Promise.race([
+      fetch('/api/predictions/advanced').then(r => r.json()),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 8000))
+    ])
+  );
+
+  if (bLoading) return <><PageHeader /><Loading rows={6}/></>;
   if (bError) return <><PageHeader /><ErrorBox message={bError} onRetry={reload}/></>;
   if (!baseData) return null;
 

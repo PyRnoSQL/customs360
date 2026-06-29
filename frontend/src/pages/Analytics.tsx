@@ -13,7 +13,13 @@ type TemporalPattern = { day: string; total: number; fraud: number; rate: number
 type CountryAnalysis = { country: string; total: number; fraud: number; revenue: number; fraud_rate: number };
 
 export default function Analytics() {
-  const { data, loading, error, reload } = useApi(() => fetch('/api/analytics/cohorts').then(r => r.json()));
+  const { data, loading, error, reload } = useApi(() => {
+    const params = new URLSearchParams();
+    if (filters.bureau !== 'ALL') params.set('bureau', filters.bureau);
+    if (filters.period !== 'ALL') params.set('period', filters.period);
+    const qs = params.toString();
+    return fetch(`/api/analytics/cohorts${qs ? '?' + qs : ''}`).then(r => r.json());
+  }, [filters.bureau, filters.period]);
   if (loading) return <><PageHeader /><Loading rows={5} /></>;
   if (error)   return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
   if (!data) return null;
@@ -27,7 +33,7 @@ export default function Analytics() {
     tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' }, formatter: '{b}: <b>{c}</b> ({d}%)' },
     series: [{
       type: 'pie', radius: ['50%', '78%'], center: ['50%', '50%'],
-      data: cohorts.map((c: Cohort) => ({ name: c.label, value: c.count, itemStyle: { color: c.color } })),
+      data: filteredCohorts.map((c: Cohort) => ({ name: c.label, value: c.count, itemStyle: { color: c.color } })),
       label: { show: true, color: '#94a3b8', fontSize: 10, formatter: '{b}\n{c}' },
       emphasis: { itemStyle: { shadowBlur: 20, shadowColor: 'rgba(0,0,0,0.5)' } },
       animationType: 'expansion', animationEasing: 'cubicOut',
@@ -97,7 +103,7 @@ export default function Analytics() {
             <div className="mt-3 p-3 rounded-xl" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
               <div className="text-[10px] text-muted mb-1 font-bold uppercase tracking-widest">💡 Recommandation IA</div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                <span className="font-bold text-white">{cohorts.find((c: Cohort) => c.label === 'Critique / Fraude')?.count ?? 0} opérateurs critiques</span> — inspection systématique requise.
+                <span className="font-bold text-white">{filteredCohorts.find((c: Cohort) => c.label === 'Critique / Fraude')?.count ?? 0} opérateurs critiques</span> — inspection systématique requise.
                 Concentrer <span className="font-bold text-white">80%</span> des ressources sur les deux segments à risque élevé.
               </p>
             </div>

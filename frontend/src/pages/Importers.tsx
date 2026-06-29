@@ -106,7 +106,12 @@ export default function Importers() {
   if (error)   return <ErrorBox message={error} onRetry={reload} />;
   if (!data)   return null;
 
-  const filtered = applyRiskFilter(applyBureauFilter(data, filters.bureau), filters.risk).filter((i: ImporterProfile) => i.importer_id.toLowerCase().includes(search.toLowerCase()));
+  const filtered = applyRiskFilter(
+    filters.bureau === 'ALL'
+      ? data
+      : data.filter((i: ImporterProfile) => i.offices && i.offices.includes(filters.bureau)),
+    filters.risk
+  ).filter((i: ImporterProfile) => i.importer_id.toLowerCase().includes(search.toLowerCase()));
   const highRisk = data.filter((i: ImporterProfile) => i.risk_score >= 70).length;
 
   return (

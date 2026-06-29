@@ -205,15 +205,32 @@ router.get('/officers/:id', wrap(async (req, res) => {
 }));
 
 // ── GET /api/predictions ───────────────────────────────────────────────────
-router.get('/predictions', wrap(async (_req, res) => {
-  const { sgd, fraud } = await getSheetData();
+router.get('/predictions', wrap(async (req, res) => {
+  const { sgd: allSgd, fraud: allFraud } = await getSheetData();
+  const bureau = req.query.bureau as string | undefined;
+  const period  = req.query.period  as string | undefined;
+  const sgd = allSgd
+    .filter(s => !bureau || s.office_id === bureau)
+    .filter(s => !period || s.date?.startsWith(period));
+  const fraud = allFraud
+    .filter(f => !bureau || f.office_id === bureau)
+    .filter(f => !period || f.date?.startsWith(period));
   const { buildPredictions } = await import('../services/analytics.js');
   res.json(buildPredictions(sgd, fraud));
 }));
 
 // ── GET /api/analytics ─────────────────────────────────────────────────────
-router.get('/analytics/cohorts', wrap(async (_req, res) => {
-  const { sgd, fraud } = await getSheetData();
+router.get('/analytics/cohorts', wrap(async (req, res) => {
+  const { sgd: allSgd, fraud: allFraud } = await getSheetData();
+  // Apply bureau + period filters at row level
+  const bureau = req.query.bureau as string | undefined;
+  const period = req.query.period as string | undefined;
+  const sgd = allSgd
+    .filter(s => !bureau || s.office_id === bureau)
+    .filter(s => !period || s.date?.startsWith(period));
+  const fraud = allFraud
+    .filter(f => !bureau || f.office_id === bureau)
+    .filter(f => !period || f.date?.startsWith(period));
   // Importer behavior cohorts
   const { buildImporterProfiles, buildTariffRisk } = await import('../services/analytics.js');
   const profiles = buildImporterProfiles(sgd, fraud);
@@ -269,18 +286,26 @@ router.get('/analytics/cohorts', wrap(async (_req, res) => {
 }));
 
 // ── GET /api/predictions/advanced ─────────────────────────────────────────────
+let advCache: { data: unknown; ts: number } | null = null;
+const ADV_TTL = 120000; // 2 min cache
+
 router.get('/predictions/advanced', wrap(async (_req, res) => {
+  if (advCache && Date.now() - advCache.ts < ADV_TTL) {
+    return void res.json(advCache.data);
+  }
   const { sgd, fraud } = await getSheetData();
   const {
     computeRiskDrift, predictNextDeclaration,
     computeFraudVelocity, classifyDelays, computeCollusionExposure,
   } = await import('../services/analytics.js');
 
-  res.json({
+  const data = {
     risk_drift:         computeRiskDrift(sgd, fraud).slice(0, 20),
     next_decl:          predictNextDeclaration(sgd, fraud).slice(0, 20),
     fraud_velocity:     computeFraudVelocity(sgd, fraud),
     delay_causes:       classifyDelays(sgd, fraud).slice(0, 50),
     collusion_exposure: computeCollusionExposure(sgd, fraud),
-  });
+  };
+  advCache = { data, ts: Date.now() };
+  res.json(data);
 }));

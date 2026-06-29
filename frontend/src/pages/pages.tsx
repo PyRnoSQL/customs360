@@ -20,7 +20,11 @@ export function Fraud() {
   const filteredCases = applyStatusFilter(applyBureauFilter(applyPeriodFilter(data.cases, filters.period), filters.bureau), filters.status);
   const totalLoss = filteredCases.reduce((s: number, f: { loss_amount: number }) => s + f.loss_amount, 0);
 
-  const typeEntries = Object.entries(data.by_type).sort((a, b) => b[1] - a[1]);
+  // Derive fraud type counts from filteredCases
+  const filteredByType = filteredCases.reduce((acc: Record<string,number>, f: { fraud_type: string }) => {
+    acc[f.fraud_type] = (acc[f.fraud_type] ?? 0) + 1; return acc;
+  }, {});
+  const typeEntries = Object.entries(filteredByType).sort((a, b) => b[1] - a[1]);
   const colors = ['#ef4444','#f97316','#eab308','#3b82f6','#8b5cf6','#06b6d4'];
   const donut = {
     labels: typeEntries.map(([k]) => k),
@@ -31,10 +35,10 @@ export function Fraud() {
     <div className="space-y-5">
       <PageHeader />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Total Cas" value={fmt(data.total_cases)} color="danger" />
-        <KPICard label="Pertes Totales" value={fmtM(data.total_loss) + ' FCFA'} color="gold" />
-        <KPICard label="Confirmés" value={fmt(data.cases.filter(f => f.status === 'CONFIRMED').length)} color="danger" />
-        <KPICard label="En Révision" value={fmt(data.cases.filter(f => f.status === 'UNDER_REVIEW').length)} color="teal" />
+        <KPICard label="Total Cas" value={fmt(filteredCases.length)} color="danger" />
+        <KPICard label="Pertes Totales" value={fmtM(totalLoss) + ' FCFA'} color="gold" />
+        <KPICard label="Confirmés" value={fmt(filteredCases.filter((f: { status: string }) => f.status === 'CONFIRMED').length)} color="danger" />
+        <KPICard label="En Révision" value={fmt(filteredCases.filter((f: { status: string }) => f.status === 'UNDER_REVIEW').length)} color="teal" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
@@ -57,21 +61,32 @@ export function Fraud() {
         </div>
         <div className="card xl:col-span-2">
           <SectionTitle icon="📋">Codes Tarifaires à Risque</SectionTitle>
-          <table className="tbl">
-            <thead><tr><th>Code SH</th><th>Déclarations</th><th>Fraudes</th><th>Taux</th><th>CIF Moy.</th><th>Risque</th></tr></thead>
-            <tbody>
-              {data.tariff_risk.map(t => (
-                <tr key={t.tariff_code}>
-                  <td><Code>{t.tariff_code}</Code></td>
-                  <td>{fmt(t.total_declarations)}</td>
-                  <td><span className="font-bold text-danger">{t.fraud_cases}</span></td>
-                  <td>{(t.fraud_rate * 100).toFixed(1)}%</td>
-                  <td>{fmtM(t.avg_cif)}</td>
-                  <td><StatusBadge status={t.risk_level} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {(() => {
+            const tariffMap: Record<string,{cases:number;total:number}> = {};
+            filteredCases.forEach((f: { tariff_code: string }) => {
+              if (!tariffMap[f.tariff_code]) tariffMap[f.tariff_code] = {cases:0,total:0};
+              tariffMap[f.tariff_code].cases++;
+              tariffMap[f.tariff_code].total++;
+            });
+            const tariffRows = Object.entries(tariffMap)
+              .map(([code, v]) => ({ code, cases: v.cases, rate: v.cases / Math.max(v.total,1) }))
+              .sort((a,b) => b.cases - a.cases);
+            return (
+              <table className="tbl">
+                <thead><tr><th>Code SH</th><th>Fraudes</th><th>Taux</th></tr></thead>
+                <tbody>
+                  {tariffRows.map(t => (
+                    <tr key={t.code}>
+                      <td><Code>{t.code}</Code></td>
+                      <td><span className="font-bold text-danger">{t.cases}</span></td>
+                      <td>{(t.rate * 100).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                  {tariffRows.length === 0 && <tr><td colSpan={3} className="text-center text-muted py-4">Aucun cas pour les filtres sélectionnés</td></tr>}
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
       </div>
 
@@ -80,7 +95,7 @@ export function Fraud() {
         <table className="tbl">
           <thead><tr><th>Cas</th><th>SGD</th><th>Importateur</th><th>Déclarant</th><th>Type</th><th>Perte</th><th>IA %</th><th>Bureau</th><th>Statut</th></tr></thead>
           <tbody>
-            {data.cases.slice(0, 80).map(f => (
+            {filteredCases.slice(0, 80).map((f: { case_id: string; sgd_id: string; importer_id: string; declarant_id: string; fraud_type: string; loss_amount: number; ai_probability: number; office_id: string; status: string }) => (
               <tr key={f.case_id}>
                 <td><Code>{f.case_id}</Code></td>
                 <td><Code color="#3b82f6">{f.sgd_id}</Code></td>
@@ -111,24 +126,24 @@ export function Delays() {
   if (!data)   return null;
   const filtered = applyBureauFilter(applyPeriodFilter(data, filters.period), filters.bureau);
 
-  const avgOvershoot = data.length > 0 ? Math.round(data.reduce((s, d) => s + d.overshoot_hours, 0) / data.length) : 0;
-  const worst = data[0];
+  const avgOvershoot = filtered.length > 0 ? Math.round(filtered.reduce((s: number, d: { overshoot_hours: number }) => s + d.overshoot_hours, 0) / filtered.length) : 0;
+  const worst = filtered[0];
 
   return (
     <div className="space-y-5">
       <PageHeader />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Délais Suspects" value={fmt(data.length)} color="danger" />
+        <KPICard label="Délais Suspects" value={fmt(filtered.length)} color="danger" />
         <KPICard label="Pire Délai" value={worst ? worst.clearance_hours + 'h' : '—'} sub={worst?.sgd_id} color="gold" />
         <KPICard label="Dépassement Moyen" value={avgOvershoot + 'h'} color="teal" />
-        <KPICard label="Bureaux Concernés" value={fmt(new Set(data.map(d => d.office_id)).size)} color="accent" />
+        <KPICard label="Bureaux Concernés" value={fmt(new Set(filtered.map((d: { office_id: string }) => d.office_id)).size)} color="accent" />
       </div>
       <div className="card">
         <SectionTitle icon="⏱️">Déclarations avec Délais Anormaux</SectionTitle>
         <table className="tbl">
           <thead><tr><th>SGD</th><th>Bureau</th><th>Pays</th><th>Délai Standard</th><th>Délai Réel</th><th>Dépassement</th><th>Tarif</th><th>Fraude</th></tr></thead>
           <tbody>
-            {data.map(d => (
+            {filtered.map((d: { sgd_id: string; office_id: string; country: string; declared_hours: number; clearance_hours: number; overshoot_hours: number; tariff_code: string; fraud_flag: number }) => (
               <tr key={d.sgd_id}>
                 <td><Code>{d.sgd_id}</Code></td>
                 <td><span className="text-xs">{d.office_id}</span></td>
@@ -152,20 +167,22 @@ export function Delays() {
 // ── Offices Page ──────────────────────────────────────────────────────────────
 export function Offices() {
   const { data, loading, error, reload } = useApi(api.offices);
+  const { filters } = useFilters();
   if (loading) return <Loading />;
   if (error)   return <ErrorBox message={error} onRetry={reload} />;
   if (!data)   return null;
 
-  const sorted = [...data].sort((a, b) => b.efficiency_score - a.efficiency_score);
+  const filteredOffices = filters.bureau === 'ALL' ? data : data.filter((o: { office_id: string }) => o.office_id === filters.bureau);
+  const sorted = [...filteredOffices].sort((a: { efficiency_score: number }, b: { efficiency_score: number }) => b.efficiency_score - a.efficiency_score);
 
   return (
     <div className="space-y-5">
       <PageHeader />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Bureaux Actifs" value={fmt(data.length)} color="accent" />
-        <KPICard label="Total Recettes" value={fmtM(data.reduce((s, o) => s + o.total_revenue, 0)) + ' FCFA'} color="success" />
-        <KPICard label="Meilleure Efficacité" value={Math.max(...data.map(o => o.efficiency_score)) + '%'} color="teal" />
-        <KPICard label="Total SGDs" value={fmt(data.reduce((s, o) => s + o.total_sgds, 0))} color="gold" />
+        <KPICard label="Bureaux Actifs" value={fmt(filteredOffices.length)} color="accent" />
+        <KPICard label="Total Recettes" value={fmtM(filteredOffices.reduce((s: number, o: { total_revenue: number }) => s + o.total_revenue, 0)) + ' FCFA'} color="success" />
+        <KPICard label="Meilleure Efficacité" value={filteredOffices.length ? Math.max(...filteredOffices.map((o: { efficiency_score: number }) => o.efficiency_score)) + '%' : '—'} color="teal" />
+        <KPICard label="Total SGDs" value={fmt(filteredOffices.reduce((s: number, o: { total_sgds: number }) => s + o.total_sgds, 0))} color="gold" />
       </div>
       <div className="card">
         <SectionTitle icon="🏛️">Classement Bureaux Douaniers</SectionTitle>
