@@ -1,43 +1,44 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFilters, BureauFilter, RiskFilter, PeriodFilter, StatusFilter } from '../context/FilterContext';
 import { useLocation } from 'react-router-dom';
 
-const BUREAUX: { value: BureauFilter; label: string; icon: string }[] = [
-  { value: 'ALL',    label: 'Tous les bureaux', icon: '🌐' },
-  { value: 'DLA001', label: 'Douala Port',       icon: '🚢' },
-  { value: 'KBI001', label: 'Kribi Port',        icon: '⚓' },
-  { value: 'DLA002', label: 'Douala Aéroport',   icon: '✈️' },
-  { value: 'YDE001', label: 'Yaoundé Airport',   icon: '🛫' },
+// ── Data ───────────────────────────────────────────────────────────────────────
+const BUREAUX: { value: BureauFilter; label: string }[] = [
+  { value: 'ALL',    label: 'Tous les bureaux' },
+  { value: 'DLA001', label: 'Douala Port Principal' },
+  { value: 'KBI001', label: 'Kribi Port Autonome' },
+  { value: 'DLA002', label: 'Douala Aéroport' },
+  { value: 'YDE001', label: 'Yaoundé Nsimalen' },
+  { value: 'YDE002', label: 'Yaoundé Centre' },
 ];
 
 const PERIODS: { value: PeriodFilter; label: string }[] = [
   { value: 'ALL',     label: 'Toute période' },
-  { value: '2025-08', label: 'Août 25'  },
-  { value: '2025-09', label: 'Sep 25'   },
-  { value: '2025-10', label: 'Oct 25'   },
-  { value: '2025-11', label: 'Nov 25'   },
-  { value: '2025-12', label: 'Déc 25'   },
-  { value: '2026-01', label: 'Jan 26'   },
-  { value: '2026-02', label: 'Fév 26'   },
+  { value: '2025-08', label: 'Août 2025' },
+  { value: '2025-09', label: 'Septembre 2025' },
+  { value: '2025-10', label: 'Octobre 2025' },
+  { value: '2025-11', label: 'Novembre 2025' },
+  { value: '2025-12', label: 'Décembre 2025' },
+  { value: '2026-01', label: 'Janvier 2026' },
+  { value: '2026-02', label: 'Février 2026' },
 ];
 
 const RISKS: { value: RiskFilter; label: string; color: string }[] = [
-  { value: 'ALL',      label: 'Tous niveaux', color: '#64748b' },
-  { value: 'CRITIQUE', label: 'Critique',     color: '#ef4444' },
-  { value: 'ELEVE',    label: 'Élevé',        color: '#f97316' },
-  { value: 'MOYEN',    label: 'Moyen',        color: '#eab308' },
-  { value: 'FAIBLE',   label: 'Faible',       color: '#10b981' },
+  { value: 'ALL',      label: 'Sévérité',  color: '#64748b' },
+  { value: 'CRITIQUE', label: 'Critique',  color: '#ef4444' },
+  { value: 'ELEVE',    label: 'Élevé',     color: '#f97316' },
+  { value: 'MOYEN',    label: 'Moyen',     color: '#eab308' },
+  { value: 'FAIBLE',   label: 'Faible',    color: '#10b981' },
 ];
 
 const STATUSES: { value: StatusFilter; label: string; color: string }[] = [
-  { value: 'ALL',          label: 'Tous statuts', color: '#64748b' },
-  { value: 'CONFIRMED',    label: 'Confirmé',     color: '#ef4444' },
-  { value: 'UNDER_REVIEW', label: 'En révision',  color: '#a78bfa' },
-  { value: 'SUSPECTED',    label: 'Suspecté',     color: '#f59e0b' },
+  { value: 'ALL',          label: 'Statut',      color: '#64748b' },
+  { value: 'CONFIRMED',    label: 'Confirmé',    color: '#ef4444' },
+  { value: 'UNDER_REVIEW', label: 'En révision', color: '#a78bfa' },
+  { value: 'SUSPECTED',    label: 'Suspecté',    color: '#f59e0b' },
 ];
 
-// Which filters are relevant per page
 const PAGE_FILTERS: Record<string, (keyof ReturnType<typeof useFilters>['filters'])[]> = {
   '/':            ['bureau', 'period'],
   '/importers':   ['bureau', 'risk'],
@@ -52,41 +53,104 @@ const PAGE_FILTERS: Record<string, (keyof ReturnType<typeof useFilters>['filters
   '/graph':       [],
 };
 
-function FilterChip<T extends string>({
-  value, active, label, color, onClick,
-}: { value: T; active: boolean; label: string; color?: string; onClick: () => void }) {
-  return (
-    <motion.button
-      onClick={onClick}
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.97 }}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 whitespace-nowrap"
-      style={{
-        background: active ? (color ? `${color}22` : 'rgba(59,130,246,0.15)') : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${active ? (color ?? '#3b82f6') : 'rgba(255,255,255,0.08)'}`,
-        color: active ? (color ?? '#60a5fa') : '#64748b',
-        boxShadow: active ? `0 0 12px ${(color ?? '#3b82f6')}33` : 'none',
-      }}
-    >
-      {active && (
-        <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-1.5 h-1.5 rounded-full"
-          style={{ background: color ?? '#3b82f6' }} />
-      )}
-      {label}
-    </motion.button>
-  );
-}
+// ── Dropdown component ─────────────────────────────────────────────────────────
+interface DropdownOption { value: string; label: string; color?: string; }
 
-function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function FilterDropdown({
+  value, options, onChange, activeColor,
+}: {
+  value: string;
+  options: DropdownOption[];
+  onChange: (v: string) => void;
+  activeColor?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find(o => o.value === value) ?? options[0];
+  const isActive = value !== 'ALL';
+  const borderColor = isActive ? (selected.color ?? activeColor ?? '#3b82f6') : 'rgba(255,255,255,0.1)';
+  const textColor   = isActive ? (selected.color ?? activeColor ?? '#60a5fa') : '#94a3b8';
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   return (
-    <div className="flex items-center gap-2 flex-shrink-0">
-      <span className="text-[10px] font-bold tracking-widest uppercase whitespace-nowrap"
-        style={{ color: '#334155' }}>{title}</span>
-      <div className="flex items-center gap-1.5 flex-wrap">{children}</div>
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-150 select-none"
+        style={{
+          background: isActive ? `${borderColor}14` : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${borderColor}`,
+          color: textColor,
+          minWidth: 140,
+        }}
+      >
+        {isActive && (
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: borderColor }} />
+        )}
+        <span className="flex-1 text-left truncate">{selected.label}</span>
+        <motion.span
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="flex-shrink-0"
+          style={{ color: '#475569', fontSize: 10 }}
+        >▼</motion.span>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-full left-0 mt-1.5 rounded-xl overflow-hidden z-50"
+            style={{
+              background: 'rgba(9,14,28,0.98)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+              minWidth: 200,
+            }}
+          >
+            {options.map(opt => {
+              const isSelected = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => { onChange(opt.value); setOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-all duration-100"
+                  style={{
+                    background: isSelected ? `${opt.color ?? activeColor ?? '#3b82f6'}15` : 'transparent',
+                    color: isSelected ? (opt.color ?? activeColor ?? '#60a5fa') : '#94a3b8',
+                    borderLeft: `2px solid ${isSelected ? (opt.color ?? activeColor ?? '#3b82f6') : 'transparent'}`,
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = isSelected ? `${opt.color ?? activeColor ?? '#3b82f6'}15` : 'transparent')}
+                >
+                  {opt.color && opt.value !== 'ALL' && (
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: opt.color }} />
+                  )}
+                  <span className="flex-1">{opt.label}</span>
+                  {isSelected && <span style={{ color: opt.color ?? activeColor ?? '#3b82f6', fontSize: 12 }}>✓</span>}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
+// ── Main FilterBar ─────────────────────────────────────────────────────────────
 export default function FilterBar() {
   const { filters, setFilter, resetFilters, activeCount } = useFilters();
   const { pathname } = useLocation();
@@ -100,106 +164,71 @@ export default function FilterBar() {
   const showStatus = activeFilters.includes('status');
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.25 }}
-        className="mb-5 rounded-2xl px-4 py-3 flex items-center gap-4 flex-wrap"
-        style={{
-          background: 'rgba(15,23,42,0.6)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-        }}
-      >
-        {/* Filter icon */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-sm">🔍</span>
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest hidden xl:block">Filtres</span>
-          {activeCount > 0 && (
-            <motion.span
-              initial={{ scale: 0 }} animate={{ scale: 1 }}
-              className="w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center"
-              style={{ background: '#3b82f6', color: '#fff' }}
-            >
-              {activeCount}
-            </motion.span>
-          )}
-        </div>
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="mb-5 flex items-center gap-2 flex-wrap"
+    >
+      {/* Dropdowns */}
+      {showRisk && (
+        <FilterDropdown
+          value={filters.risk}
+          options={RISKS}
+          onChange={v => setFilter('risk', v as RiskFilter)}
+          activeColor="#ef4444"
+        />
+      )}
 
-        <div className="w-px h-4 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      {showStatus && (
+        <FilterDropdown
+          value={filters.status}
+          options={STATUSES}
+          onChange={v => setFilter('status', v as StatusFilter)}
+          activeColor="#a78bfa"
+        />
+      )}
 
-        {/* Bureau filter */}
-        {showBureau && (
-          <FilterGroup title="Bureau">
-            {BUREAUX.map(b => (
-              <FilterChip key={b.value} value={b.value} active={filters.bureau === b.value}
-                label={b.value === 'ALL' ? 'Tous' : b.label} color="#3b82f6"
-                onClick={() => setFilter('bureau', b.value)} />
-            ))}
-          </FilterGroup>
-        )}
+      {showPeriod && (
+        <FilterDropdown
+          value={filters.period}
+          options={PERIODS}
+          onChange={v => setFilter('period', v as PeriodFilter)}
+          activeColor="#8b5cf6"
+        />
+      )}
 
-        {/* Period filter */}
-        {showPeriod && (
-          <>
-            <div className="w-px h-4 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
-            <FilterGroup title="Période">
-              {PERIODS.map(p => (
-                <FilterChip key={p.value} value={p.value} active={filters.period === p.value}
-                  label={p.label} color="#8b5cf6"
-                  onClick={() => setFilter('period', p.value)} />
-              ))}
-            </FilterGroup>
-          </>
-        )}
+      {showBureau && (
+        <FilterDropdown
+          value={filters.bureau}
+          options={BUREAUX}
+          onChange={v => setFilter('bureau', v as BureauFilter)}
+          activeColor="#3b82f6"
+        />
+      )}
 
-        {/* Risk filter */}
-        {showRisk && (
-          <>
-            <div className="w-px h-4 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
-            <FilterGroup title="Risque">
-              {RISKS.map(r => (
-                <FilterChip key={r.value} value={r.value} active={filters.risk === r.value}
-                  label={r.label} color={r.color}
-                  onClick={() => setFilter('risk', r.value)} />
-              ))}
-            </FilterGroup>
-          </>
-        )}
-
-        {/* Status filter */}
-        {showStatus && (
-          <>
-            <div className="w-px h-4 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
-            <FilterGroup title="Statut">
-              {STATUSES.map(s => (
-                <FilterChip key={s.value} value={s.value} active={filters.status === s.value}
-                  label={s.label} color={s.color}
-                  onClick={() => setFilter('status', s.value)} />
-              ))}
-            </FilterGroup>
-          </>
-        )}
-
-        {/* Reset */}
+      {/* Reset */}
+      <AnimatePresence>
         {activeCount > 0 && (
-          <>
-            <div className="ml-auto" />
-            <motion.button
-              onClick={resetFilters}
-              initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }}
-              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0"
-              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}
-            >
-              ✕ Réinitialiser
-            </motion.button>
-          </>
+          <motion.button
+            initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
+            onClick={resetFilters}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold ml-1"
+            style={{
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.25)',
+              color: '#f87171',
+            }}
+            whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+          >
+            ✕ Réinitialiser
+            <span className="w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center ml-1"
+              style={{ background: '#ef4444', color: '#fff' }}>
+              {activeCount}
+            </span>
+          </motion.button>
         )}
-      </motion.div>
-    </AnimatePresence>
+      </AnimatePresence>
+    </motion.div>
   );
 }
