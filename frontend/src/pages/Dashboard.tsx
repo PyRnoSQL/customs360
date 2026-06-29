@@ -140,8 +140,8 @@ export default function Dashboard() {
       </div>
 
       {fraud && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-          <FadeIn delay={0.1}>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+          <FadeIn delay={0.1} className="xl:col-span-2">
             <div className="card">
               <SectionTitle icon="🚨">
                 Cas de Fraude
