@@ -89,11 +89,11 @@ export default function Analytics() {
         <KPICard label="Jour pic fraude" value={temporal_patterns.reduce((b: TemporalPattern, d: TemporalPattern) => d.rate > b.rate ? d : b, temporal_patterns[0])?.day ?? '—'} icon="📅" color="danger" animate={false} />
       </StaggerGrid>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 w-full">
-        <FadeIn delay={0.1} className="w-full">
-          <div className="card w-full">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 w-full items-stretch">
+        <FadeIn delay={0.1} className="w-full h-full">
+          <div className="card w-full h-full flex flex-col">
             <SectionTitle icon="👥">Segmentation des Importateurs</SectionTitle>
-            <ReactECharts option={cohortOption} style={{ height: 240 }} />
+            <ReactECharts option={cohortOption} style={{ height: 310 }} />
             <div className="mt-3 p-3 rounded-xl" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
               <div className="text-[10px] text-muted mb-1 font-bold uppercase tracking-widest">💡 Recommandation IA</div>
               <p className="text-xs text-slate-400 leading-relaxed">
@@ -103,23 +103,24 @@ export default function Analytics() {
             </div>
           </div>
         </FadeIn>
-        <FadeIn delay={0.15} className="xl:col-span-2 w-full">
-          <div className="card w-full">
+        <FadeIn delay={0.15} className="xl:col-span-2 w-full h-full">
+          <div className="card w-full h-full flex flex-col">
             <SectionTitle icon="📅">Fraude par Jour de la Semaine</SectionTitle>
-            <ReactECharts option={temporalOption} style={{ height: 200 }} />
+            <ReactECharts option={temporalOption} style={{ height: 310 }} />
             <div className="mt-3 p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
               <div className="text-[10px] text-red-400 mb-1 font-bold uppercase tracking-widest">⚡ Insight prédictif</div>
               <p className="text-xs text-slate-400">
-                {(() => { const peak = temporal_patterns.reduce((b: TemporalPattern, d: TemporalPattern) => d.rate > b.rate ? d : b, temporal_patterns[0]); return `Le ${peak?.day} présente le taux de fraude le plus élevé. Renforcer les équipes d'inspection ce jour.`; })()}
+                {(() => { const peak = temporal_patterns.reduce((b: TemporalPattern, d: TemporalPattern) => d.rate > b.rate ? d : b, temporal_patterns[0]); const DAY_FULL2: Record<string,string> = { 'Dim':'Dimanche','Lun':'Lundi','Mar':'Mardi','Mer':'Mercredi','Jeu':'Jeudi','Ven':'Vendredi','Sam':'Samedi' };
+          return `Le ${DAY_FULL2[peak?.day] ?? peak?.day} présente le taux de fraude le plus élevé. Renforcer les équipes d'inspection ce jour.`; })()}
               </p>
             </div>
           </div>
         </FadeIn>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 w-full">
-        <FadeIn delay={0.2} className="xl:col-span-2 w-full">
-          <div className="card w-full">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 w-full items-stretch">
+        <FadeIn delay={0.2} className="xl:col-span-2 w-full h-full">
+          <div className="card w-full h-full flex flex-col">
             <SectionTitle icon="🗂️">Matrice Risque — Codes Tarifaires</SectionTitle>
             <ReactECharts option={tariffOption} style={{ height: 360 }} />
             <div className="flex gap-3 mt-2 justify-center">
@@ -131,10 +132,10 @@ export default function Analytics() {
             </div>
           </div>
         </FadeIn>
-        <FadeIn delay={0.25} className="w-full">
-          <div className="card w-full">
+        <FadeIn delay={0.25} className="w-full h-full">
+          <div className="card w-full h-full flex flex-col">
             <SectionTitle icon="🌍">Flux Géographiques — Pays d'Origine</SectionTitle>
-            <ReactECharts option={countryOption} style={{ height: 260 }} />
+            <ReactECharts option={countryOption} style={{ height: 360 }} />
           </div>
         </FadeIn>
       </div>
