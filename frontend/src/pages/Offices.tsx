@@ -111,30 +111,30 @@ export default function Offices() {
       </FadeIn>
 
       {/* Office cards */}
-      <StaggerGrid className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <StaggerGrid className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {sorted.map((o: Office, i: number) => (
           <motion.div key={o.office_id}
             onClick={() => setSelected(o.office_id === selected ? null : o.office_id)}
-            className="card cursor-pointer transition-all duration-200"
+            className="card-sm cursor-pointer transition-all duration-200"
             whileHover={{ scale: 1.02, boxShadow: '0 8px 32px rgba(59,130,246,0.2)' }}
             style={{ borderColor: selected === o.office_id ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.07)' }}>
             <div className="flex items-start justify-between mb-3">
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-lg font-bold" style={{ color: i === 0 ? '#fcd116' : COLORS[i] }}>#{i+1}</span>
-                  <span className="text-sm font-bold text-white">{o.name}</span>
+                  <span className="text-sm font-bold" style={{ color: i === 0 ? '#fcd116' : COLORS[i] }}>#{i+1}</span>
+                  <span className="text-xs font-bold text-white leading-tight">{o.name.split(" ").slice(0,2).join(" ")}</span>
                 </div>
-                <div className="text-xs text-muted">{o.office_id} · {o.pct_of_total}% du trafic</div>
+                <div className="text-[9px] text-muted">{o.office_id} · {o.pct_of_total}%</div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-black" style={{ color: o.efficiency_score >= 90 ? '#10b981' : o.efficiency_score >= 75 ? '#3b82f6' : '#f59e0b' }}>
+                <div className="text-xl font-black" style={{ color: o.efficiency_score >= 90 ? '#10b981' : o.efficiency_score >= 75 ? '#3b82f6' : '#f59e0b' }}>
                   {o.efficiency_score}%
                 </div>
-                <div className="text-[9px] text-muted">Efficacité</div>
+                <div className="text-[8px] text-muted">Efficacité</div>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="grid grid-cols-3 gap-1 mb-2">
               {[
                 { l: 'SGDs', v: fmt(o.total_sgds), c: '#3b82f6' },
                 { l: 'Fraudes', v: o.fraud_cases.toString(), c: '#ef4444' },
@@ -155,7 +155,7 @@ export default function Offices() {
                 style={{ background: o.efficiency_score >= 90 ? '#10b981' : o.efficiency_score >= 75 ? '#3b82f6' : '#f59e0b' }} />
             </div>
 
-            <div className="text-xs mt-2" style={{ color: '#3b82f6' }}>
+            <div className="text-[10px] mt-1.5" style={{ color: '#3b82f6' }}>
               {fmtM(o.total_revenue)} FCFA recettes
             </div>
           </motion.div>
