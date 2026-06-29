@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 import { useApi } from '../hooks/useApi';
 import { api, fmtM, fmt } from '../services/api';
@@ -89,28 +90,18 @@ export default function Dashboard() {
     }],
   };
 
-  const radarOption = fraud ? {
-    backgroundColor: 'transparent',
-    tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' } },
-    radar: {
-      indicator: Object.keys(fraud.by_type).slice(0,5).map((k: string) => ({ name: k.slice(0,14), max: 100 })),
-      splitArea: { areaStyle: { color: ['rgba(59,130,246,0.02)','rgba(59,130,246,0.04)'] } },
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
-      axisName: { color: '#64748b', fontSize: 9 },
-    },
-    series: [{
-      type: 'radar',
-      data: [{
-        value: Object.values(fraud.by_type as Record<string,number>).slice(0,5).map((v: number) =>
-          Math.min(100, (v / Math.max(...Object.values(fraud.by_type as Record<string,number>), 1)) * 100)),
-        name: 'Fraudes',
-        areaStyle: { color: 'rgba(239,68,68,0.15)' },
-        lineStyle: { color: '#ef4444', width: 2 },
-        itemStyle: { color: '#ef4444' },
-      }],
-    }],
-  } : null;
+  // Recharts radar: two layers — actual fraud counts + avg benchmark
+  const radarData = fraud ? (() => {
+    const types = Object.entries(fraud.by_type as Record<string,number>).slice(0, 6);
+    const maxVal = Math.max(...types.map(([,v]) => v), 1);
+    const avg = Math.round(types.reduce((s,[,v]) => s + v, 0) / Math.max(types.length, 1));
+    const avgPct = Math.round((avg / maxVal) * 100);
+    return types.map(([k, v]) => ({
+      subject: k.replace('Sous-évaluation','Sous-éval.').replace('classification','class.').slice(0, 14),
+      score:     Math.round((v / maxVal) * 100),
+      benchmark: avgPct,
+    }));
+  })() : null;
 
   return (
     <div className="space-y-5">
@@ -176,11 +167,35 @@ export default function Dashboard() {
                 )}
             </div>
           </FadeIn>
-          {radarOption && (
+          {radarData && (
             <FadeIn delay={0.2} className="w-full">
               <div className="card w-full">
                 <SectionTitle icon="🎯">Répartition des Types de Fraude</SectionTitle>
-                <ReactECharts option={radarOption} style={{ height: 280 }} />
+                <ResponsiveContainer width="100%" height={260}>
+                  <RadarChart data={radarData} margin={{ top:10, right:28, left:28, bottom:10 }}>
+                    <PolarGrid stroke="#1e3a5f" />
+                    <PolarAngleAxis dataKey="subject" tick={{ fill:'#94a3b8', fontSize:9, fontWeight:600 }} />
+                    <PolarRadiusAxis domain={[0,100]} tick={{ fill:'#475569', fontSize:8 }} tickCount={4} />
+                    <Radar name="Moyenne" dataKey="benchmark"
+                      stroke="#334155" fill="#334155" fillOpacity={0.15}
+                      strokeWidth={1} strokeDasharray="4 2"
+                      isAnimationActive animationDuration={800} animationEasing="ease-out" />
+                    <Radar name="Cas Fraude" dataKey="score"
+                      stroke="#ef4444" fill="#ef4444" fillOpacity={0.25}
+                      strokeWidth={2} dot={{ fill:'#ef4444', r:4, strokeWidth:0 }}
+                      isAnimationActive animationBegin={300} animationDuration={1200} animationEasing="ease-out" />
+                    <Tooltip contentStyle={{ background:'rgba(15,23,42,0.95)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:8, color:'#f1f5f9', fontSize:12 }}
+                      formatter={(v:number, name:string) => [`${v}%`, name]} />
+                  </RadarChart>
+                </ResponsiveContainer>
+                <div className="flex justify-center gap-5 mt-1">
+                  <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <span className="w-4 h-0.5 rounded" style={{ background:'#ef4444' }}/>Cas Fraude
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <span className="w-4 h-0.5 rounded" style={{ background:'#334155', borderTop:'1px dashed #334155' }}/>Moyenne
+                  </span>
+                </div>
               </div>
             </FadeIn>
           )}

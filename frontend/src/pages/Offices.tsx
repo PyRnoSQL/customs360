@@ -51,13 +51,21 @@ export default function Offices() {
 
   // Radar data for selected office
   const radarOffice = selected ? offices.find((o: Office) => o.office_id === selected) ?? best : best;
+  // Compute avg across all offices for benchmark layer
+  const avgEfficiency = Math.round(data.reduce((s: number, o: Office) => s + o.efficiency_score, 0) / Math.max(data.length, 1));
+  const avgPctTotal   = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, o.pct_of_total * 1.5), 0) / Math.max(data.length, 1));
+  const avgRecettes   = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, (o.total_revenue / 15e9) * 100), 0) / Math.max(data.length, 1));
+  const avgSecurite   = Math.round(data.reduce((s: number, o: Office) => s + Math.max(0, 100 - o.fraud_rate * 500), 0) / Math.max(data.length, 1));
+  const avgRapidite   = Math.round(data.reduce((s: number, o: Office) => s + Math.max(0, 100 - (o.avg_clearance_hours / 72) * 100), 0) / Math.max(data.length, 1));
+  const avgVolume     = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, (o.total_sgds / 400) * 100), 0) / Math.max(data.length, 1));
+
   const radarData = radarOffice ? [
-    { subject: 'Efficacité',  value: radarOffice.efficiency_score },
-    { subject: 'Débit SGDs', value: Math.min(100, radarOffice.pct_of_total * 1.5) },
-    { subject: 'Recettes',   value: Math.min(100, (radarOffice.total_revenue / 15e9) * 100) },
-    { subject: 'Sécurité',   value: Math.max(0, 100 - radarOffice.fraud_rate * 500) },
-    { subject: 'Rapidité',   value: Math.max(0, 100 - (radarOffice.avg_clearance_hours / 72) * 100) },
-    { subject: 'Volume',     value: Math.min(100, (radarOffice.total_sgds / 400) * 100) },
+    { subject: 'Efficacité',  score: radarOffice.efficiency_score,                                         benchmark: avgEfficiency },
+    { subject: 'Débit SGDs',  score: Math.min(100, radarOffice.pct_of_total * 1.5),                        benchmark: avgPctTotal   },
+    { subject: 'Recettes',    score: Math.min(100, (radarOffice.total_revenue / 15e9) * 100),              benchmark: avgRecettes   },
+    { subject: 'Sécurité',    score: Math.max(0, 100 - radarOffice.fraud_rate * 500),                      benchmark: avgSecurite   },
+    { subject: 'Rapidité',    score: Math.max(0, 100 - (radarOffice.avg_clearance_hours / 72) * 100),      benchmark: avgRapidite   },
+    { subject: 'Volume',      score: Math.min(100, (radarOffice.total_sgds / 400) * 100),                  benchmark: avgVolume     },
   ] : [];
 
   // Pareto chart: offices by revenue + cumulative fraud
@@ -163,14 +171,31 @@ export default function Offices() {
             <SectionTitle icon="🎯">
               Profil 360° — {radarOffice?.name?.split(' ').slice(0,2).join(' ')}
             </SectionTitle>
-            <ResponsiveContainer width="100%" height={240}>
-              <RadarChart data={radarData}>
-                <PolarGrid stroke="rgba(255,255,255,0.06)" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 10 }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#475569', fontSize: 9 }} />
-                <Radar name="Score" dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} />
+            <ResponsiveContainer width="100%" height={260}>
+              <RadarChart data={radarData} margin={{ top:10, right:28, left:28, bottom:10 }}>
+                <PolarGrid stroke="#1e3a5f" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill:'#94a3b8', fontSize:10, fontWeight:600 }} />
+                <PolarRadiusAxis domain={[0,100]} tick={{ fill:'#475569', fontSize:8 }} tickCount={4} />
+                <Radar name="Moyenne Bureaux" dataKey="benchmark"
+                  stroke="#334155" fill="#334155" fillOpacity={0.15}
+                  strokeWidth={1} strokeDasharray="4 2"
+                  isAnimationActive animationDuration={800} animationEasing="ease-out" />
+                <Radar name="Score Bureau" dataKey="score"
+                  stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25}
+                  strokeWidth={2} dot={{ fill:'#3b82f6', r:4, strokeWidth:0 }}
+                  isAnimationActive animationBegin={300} animationDuration={1200} animationEasing="ease-out" />
+                <Tooltip contentStyle={{ background:'rgba(15,23,42,0.95)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:8, color:'#f1f5f9', fontSize:12 }}
+                  formatter={(v:number, name:string) => [`${Math.round(v)}%`, name]} />
               </RadarChart>
             </ResponsiveContainer>
+            <div className="flex justify-center gap-5 mt-1">
+              <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span className="w-4 h-0.5 rounded" style={{ background:'#3b82f6' }}/>Score Bureau
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span className="w-4 h-0.5 rounded" style={{ borderTop:'1px dashed #334155', borderColor:'#334155' }}/>Moyenne
+              </span>
+            </div>
             <div className="text-center text-xs text-muted mt-1">Cliquez sur un bureau pour voir son profil</div>
           </div>
         </FadeIn>
