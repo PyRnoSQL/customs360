@@ -236,7 +236,7 @@ export default function Offices() {
       <FadeIn delay={0.2}>
         <div className="card">
           <SectionTitle icon="📐">Efficacité vs Délai de Dédouanement — Analyse Comparative</SectionTitle>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={340}>
             <ScatterChart margin={{ left: 10, right: 30, bottom: 10, top: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis type="number" dataKey="x" name="Délai (h)" tick={{ fill: '#64748b', fontSize: 10 }} label={{ value: 'Délai moyen (h)', position: 'insideBottom', offset: -5, fill: '#475569', fontSize: 10 }} />

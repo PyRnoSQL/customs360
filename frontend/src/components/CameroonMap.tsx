@@ -44,8 +44,8 @@ export default function CameroonMap({ selectedBureau = 'ALL', onSelect, officeSt
       });
 
       const map = L.map(mapRef.current!, {
-        center: [5.0, 12.0],
-        zoom: 6,
+        center: [5.5, 12.35],
+        zoom: 5,
         zoomControl: true,
         attributionControl: false,
       });
@@ -157,7 +157,7 @@ export default function CameroonMap({ selectedBureau = 'ALL', onSelect, officeSt
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}
-      className="relative rounded-2xl overflow-hidden" style={{ height: 340 }}>
+      className="relative rounded-2xl overflow-hidden" style={{ height: 420 }}>
 
       {/* Map container */}
       <div ref={mapRef} style={{ height: '100%', width: '100%', background: '#020817' }} />
