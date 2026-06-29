@@ -239,7 +239,7 @@ export default function OfficersPage() {
       <FadeIn delay={0.1}>
         <div className="card">
           <SectionTitle icon="📐">Performance Index vs Taux Détection Fraude — Attrition Map</SectionTitle>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={380}>
             <ScatterChart margin={{ left: 10, right: 30, bottom: 10, top: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis type="number" dataKey="x" name="Taux fraude %" tick={{ fill: '#64748b', fontSize: 10 }}
