@@ -39,7 +39,10 @@ export default function Analytics() {
     backgroundColor: 'transparent',
     tooltip: { trigger: 'axis', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' } },
     grid: { left: 8, right: 8, bottom: 20, top: 10, containLabel: true },
-    xAxis: { type: 'category', data: temporal_patterns.map((d: TemporalPattern) => d.day), axisLabel: { color: '#475569', fontSize: 11 }, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }, axisTick: { show: false } },
+    xAxis: { type: 'category', data: temporal_patterns.map((d: TemporalPattern) => {
+          const DAY_FULL: Record<string,string> = { 'Dim':'Dimanche','Lun':'Lundi','Mar':'Mardi','Mer':'Mercredi','Jeu':'Jeudi','Ven':'Vendredi','Sam':'Samedi' };
+          return DAY_FULL[d.day] ?? d.day;
+        }), axisLabel: { color: '#475569', fontSize: 11 }, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }, axisTick: { show: false } },
     yAxis: { type: 'value', axisLabel: { color: '#475569', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLine: { show: false } },
     series: [
       { name: 'Total', type: 'bar', data: temporal_patterns.map((d: TemporalPattern) => d.total), itemStyle: { color: 'rgba(59,130,246,0.25)', borderRadius: [3,3,0,0] } },
@@ -86,9 +89,9 @@ export default function Analytics() {
         <KPICard label="Jour pic fraude" value={temporal_patterns.reduce((b: TemporalPattern, d: TemporalPattern) => d.rate > b.rate ? d : b, temporal_patterns[0])?.day ?? '—'} icon="📅" color="danger" animate={false} />
       </StaggerGrid>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        <FadeIn delay={0.1}>
-          <div className="card">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 w-full">
+        <FadeIn delay={0.1} className="w-full">
+          <div className="card w-full">
             <SectionTitle icon="👥">Segmentation des Importateurs</SectionTitle>
             <ReactECharts option={cohortOption} style={{ height: 240 }} />
             <div className="mt-3 p-3 rounded-xl" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
@@ -100,8 +103,8 @@ export default function Analytics() {
             </div>
           </div>
         </FadeIn>
-        <FadeIn delay={0.15}>
-          <div className="card">
+        <FadeIn delay={0.15} className="xl:col-span-2 w-full">
+          <div className="card w-full">
             <SectionTitle icon="📅">Fraude par Jour de la Semaine</SectionTitle>
             <ReactECharts option={temporalOption} style={{ height: 200 }} />
             <div className="mt-3 p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
@@ -114,11 +117,11 @@ export default function Analytics() {
         </FadeIn>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        <FadeIn delay={0.2}>
-          <div className="card">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 w-full">
+        <FadeIn delay={0.2} className="xl:col-span-2 w-full">
+          <div className="card w-full">
             <SectionTitle icon="🗂️">Matrice Risque — Codes Tarifaires</SectionTitle>
-            <ReactECharts option={tariffOption} style={{ height: 240 }} />
+            <ReactECharts option={tariffOption} style={{ height: 360 }} />
             <div className="flex gap-3 mt-2 justify-center">
               {[['#ef4444','Taux > 25%'],['#f59e0b','Taux 10–25%'],['#3b82f6','Taux < 10%']].map(([c,l])=>(
                 <span key={l} className="flex items-center gap-1 text-[10px] text-muted">
@@ -128,8 +131,8 @@ export default function Analytics() {
             </div>
           </div>
         </FadeIn>
-        <FadeIn delay={0.25}>
-          <div className="card">
+        <FadeIn delay={0.25} className="w-full">
+          <div className="card w-full">
             <SectionTitle icon="🌍">Flux Géographiques — Pays d'Origine</SectionTitle>
             <ReactECharts option={countryOption} style={{ height: 260 }} />
           </div>
