@@ -203,11 +203,9 @@ export default function Welcome() {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
               <span className="text-[10px] font-bold tracking-widest text-emerald-400">SYSTÈME ACTIF · DONNÉES EN DIRECT</span>
             </div>
-            <div className="rounded-xl p-4 mb-4" style={{ background:'rgba(255,255,255,0.03)',border:'1px solid rgba(59,130,246,0.2)',borderLeft:'3px solid #3b82f6' }}>
-              <p className="text-sm font-semibold text-white leading-relaxed">
-                CUSTOMS360 est la réponse institutionnelle des Douanes Camerounaises aux défis de modernisation du contrôle douanier. Conçue comme un système nerveux numérique, cette plateforme unifie pour la première fois toutes les dimensions stratégiques de l'administration douanière.
-              </p>
-            </div>
+            <p className="text-xl font-bold text-white leading-relaxed mb-4">
+              CUSTOMS360 est la réponse institutionnelle des Douanes Camerounaises aux défis de modernisation du contrôle douanier. Conçue comme un système nerveux numérique, cette plateforme unifie pour la première fois toutes les dimensions stratégiques de l'administration douanière.
+            </p>
             <div className="flex gap-3">
               <button onClick={() => navigate('/')} className="btn btn-primary px-5 py-2 text-sm font-bold flex items-center gap-2">📊 Tableau de bord</button>
               <button onClick={() => navigate('/fraud')} className="btn btn-ghost px-5 py-2 text-sm font-bold flex items-center gap-2">🚨 Détection Fraude</button>

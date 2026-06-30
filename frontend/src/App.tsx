@@ -143,7 +143,6 @@ function Sidebar() {
         {user && !isCollapsed && (
           <>
             <div className="text-sm font-bold text-white leading-tight">{user.displayName}</div>
-            <div className="text-[10px] font-mono tracking-widest" style={{ color: '#64748b' }}>{user.roleLabel}</div>
           </>
         )}
         <button onClick={logout}
@@ -188,9 +187,6 @@ function Header() {
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}>
                 {user.displayName}
-              </div>
-              <div className="text-[9px] font-mono tracking-widest uppercase mt-0.5" style={{ color: '#475569' }}>
-                {user.roleLabel}
               </div>
             </>
           )}
