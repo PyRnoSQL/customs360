@@ -6,6 +6,7 @@ import { ParticleBackground } from './components/UI';
 import { FilterProvider } from './context/FilterContext';
 import FilterBar from './components/FilterBar';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AuthProvider, useAuth, ROLE_PAGES } from './context/AuthContext';
 
 import Login from './pages/Login';
@@ -84,20 +85,31 @@ function Sidebar() {
   const { pathname } = useLocation();
   const { user, logout, canAccess } = useAuth();
   const { sgdCount, demoMode } = useLiveData();
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const groups = [...new Set(ALL_NAV.map(n => n.group))];
 
   return (
-    <aside className="w-[220px] flex flex-col flex-shrink-0 z-10" style={{ background:"rgba(9,14,28,0.85)", backdropFilter:"blur(20px)", borderRight:"1px solid rgba(255,255,255,0.06)" }}>
-      <div className="px-4 py-4 border-b border-border">
+    <aside className={`${isCollapsed ? 'w-[68px]' : 'w-[220px]'} flex flex-col flex-shrink-0 z-10 transition-all duration-200`} style={{ background:"rgba(9,14,28,0.85)", backdropFilter:"blur(20px)", borderRight:"1px solid rgba(255,255,255,0.06)" }}>
+      <div className="px-4 py-4 border-b border-border relative">
         <div className="flex items-center gap-3">
           <img src={COAT_OF_ARMS} alt="Armoiries" className="h-10 w-10 object-contain flex-shrink-0" />
-          <div>
-            <div className="text-lg font-black tracking-widest leading-none">
-              <span className="text-accent">CUSTOMS</span><span className="text-gold">360</span>
+          {!isCollapsed && (
+            <div>
+              <div className="text-lg font-black tracking-widest leading-none">
+                <span className="text-accent">CUSTOMS</span><span className="text-gold">360</span>
+              </div>
+              <div className="text-[9px] text-muted tracking-[1.5px] uppercase mt-0.5">Douanes Camerounaises</div>
             </div>
-            <div className="text-[9px] text-muted tracking-[1.5px] uppercase mt-0.5">Douanes Camerounaises</div>
-          </div>
+          )}
         </div>
+        <button
+          onClick={() => setIsCollapsed(c => !c)}
+          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center transition-colors"
+          style={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.1)', color: '#64748b' }}
+          title={isCollapsed ? 'Développer' : 'Réduire'}
+        >
+          {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+        </button>
       </div>
       <nav className="flex-1 overflow-auto py-2">
         {groups.map(g => {
@@ -105,13 +117,15 @@ function Sidebar() {
           if (!items.length) return null;
           return (
             <div key={g}>
-              <div className="px-3 pt-4 pb-1 text-[10px] text-muted font-semibold tracking-[1.5px] uppercase">{g}</div>
+              {!isCollapsed && <div className="px-3 pt-4 pb-1 text-[10px] text-muted font-semibold tracking-[1.5px] uppercase">{g}</div>}
+              {isCollapsed && <div className="pt-4" />}
               {items.map(n => (
                 <button key={n.path}
-                  className={`nav-item mx-1.5 ${pathname === n.path ? 'active' : ''}`}
-                  onClick={() => navigate(n.path)}>
+                  className={`nav-item mx-1.5 ${pathname === n.path ? 'active' : ''} ${isCollapsed ? 'justify-center px-0' : ''}`}
+                  onClick={() => navigate(n.path)}
+                  title={isCollapsed ? n.label : undefined}>
                   <span className="text-base">{n.icon}</span>
-                  <span>{n.label}</span>
+                  {!isCollapsed && <span>{n.label}</span>}
                 </button>
               ))}
             </div>
@@ -119,21 +133,23 @@ function Sidebar() {
         })}
       </nav>
       <div className="px-4 py-4 border-t border-border space-y-2.5">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted">🌐 FR</span>
-          {demoMode && <span className="text-[10px] text-gold font-bold ml-auto">⚡ DÉMO</span>}
-        </div>
-        <div className="text-[10px] text-muted">{sgdCount} SGDs en base</div>
-        {user && (
+        {!isCollapsed && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted">🌐 FR</span>
+            {demoMode && <span className="text-[10px] text-gold font-bold ml-auto">⚡ DÉMO</span>}
+          </div>
+        )}
+        {!isCollapsed && <div className="text-[10px] text-muted">{sgdCount} SGDs en base</div>}
+        {user && !isCollapsed && (
           <>
             <div className="text-sm font-bold text-white leading-tight">{user.displayName}</div>
             <div className="text-[10px] font-mono tracking-widest" style={{ color: '#64748b' }}>{user.roleLabel}</div>
           </>
         )}
         <button onClick={logout}
-          className="flex items-center gap-2 text-sm font-semibold mt-1 transition-colors hover:opacity-80"
-          style={{ color: '#ef4444' }}>
-          <span>⎋</span> Logout
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors w-full">
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          {!isCollapsed && <span className="text-sm font-medium">Logout</span>}
         </button>
       </div>
     </aside>
