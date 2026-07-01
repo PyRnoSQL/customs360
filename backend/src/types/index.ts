@@ -4,31 +4,72 @@ export interface SGDRow {
   sgd_id: string;
   date: string;
   importer_id: string;
+  importer_name: string;
+  importer_risk_profile: 'LOW' | 'MEDIUM' | 'HIGH';
   declarant_id: string;
-  country: string;
+  declarant_name: string;
+  inspector_id: string;
+  inspector_name: string;
   office_id: string;
+  office_name: string;
+  country: string;
   tariff_code: string;
+  tariff_description: string;
   quantity: number;
-  weight: number;
+  weight_kg: number;
   cif_value: number;
   taxes_declared: number;
+  taxes_assessed: number;
   revenue_collected: number;
+  tax_gap: number;
   clearance_hours: number;
+  inspection_type: string;
+  inspection_result: string;
+  seizure_value: number;
+  transit_country: string;
+  payment_mode: string;
+  regime_code: string;
+  processing_days: number;
+  officer_override: string;
+  channel: string;
   fraud_flag: number; // 0 | 1
+  fraud_type: string;
+  risk_score_system: number;
 }
 
 export interface FraudRow {
   case_id: string;
   sgd_id: string;
+  date_detection: string;
+  date_ouverture_dossier: string;
+  date_cloture: string;
   importer_id: string;
+  importer_name: string;
   declarant_id: string;
-  fraud_type: string;
-  loss_amount: number;
-  ai_probability: number;
-  status: 'CONFIRMED' | 'UNDER_REVIEW' | 'SUSPECTED';
+  inspector_id: string;
   office_id: string;
+  fraud_type: string;
   tariff_code: string;
-  date: string;
+  country_origin: string;
+  declared_value: number;
+  assessed_value: number;
+  tax_evasion_amount: number;
+  penalty_amount: number;
+  total_amount_due: number;
+  amount_recovered: number;
+  recovery_rate: number;
+  loss_net: number;
+  status: 'EN_COURS' | 'CLOTURE_AMIABLE' | 'CLOTURE_CONTENTIEUX' | 'TRANSMIS_JUSTICE' | 'ABANDONNE';
+  resolution_mode: string;
+  ai_risk_score: number;
+  was_system_flagged: string;
+  collusion_suspected: string;
+  repeat_offender: string;
+  seizure_made: string;
+  seizure_value: number;
+  evidence_type: string;
+  referral_to_justice: string;
+  notes: string;
 }
 
 // ── Derived/aggregated types (computed at runtime) ────────────────────────────
