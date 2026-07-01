@@ -25,7 +25,7 @@ export function computeDATEFactors(
   const impSGDs = sgds.filter(s => s.importer_id === importerId);
   const impFrauds = fraudRows.filter(f => f.importer_id === importerId);
   const fraudRate = impSGDs.length > 0
-    ? impSGDs.filter(s => s.fraud_flag === 1).length / impSGDs.length : 0;
+    ? impSGDs.filter(s => isFraud(s.fraud_flag)).length / impSGDs.length : 0;
   const uniqueDeclarants = new Set(impSGDs.map(s => s.declarant_id)).size;
   const avgCifWeight = impSGDs.length > 0
     ? impSGDs.reduce((s, r) => s + r.cif_value / Math.max(r.weight_kg, 1), 0) / impSGDs.length : 0;
@@ -85,7 +85,7 @@ export function buildImporterProfiles(sgd: SGDRow[], fraud: FraudRow[]): Importe
       total_cif_value: rows.reduce((s, r) => s + r.cif_value, 0),
       total_revenue: rows.reduce((s, r) => s + r.revenue_collected, 0),
       fraud_cases: fraudRows.length,
-      fraud_rate: rows.length > 0 ? rows.filter(r => r.fraud_flag === 1).length / rows.length : 0,
+      fraud_rate: rows.length > 0 ? rows.filter(r => isFraud(r.fraud_flag)).length / rows.length : 0,
       risk_score,
       offices: [...new Set(rows.map(r => r.office_id))],
       countries: [...new Set(rows.map(r => r.country))],
@@ -275,6 +275,11 @@ function dateMatchesMonth(dateStr: string, monthPrefix: string): boolean {
   return monthLabel(dateStr) === monthPrefix;
 }
 
+// Handles fraud_flag as number (1) or string ('1') or boolean (true)
+function isFraud(flag: number | string | boolean | undefined): boolean {
+  return flag === 1 || flag === '1' || flag === true;
+}
+
 export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMetrics[] {
   // Group SGD rows by inspector_id (the actual customs agent who processed them)
   const insIds = [...new Set(sgd.map(s => s.inspector_id).filter(Boolean))];
@@ -294,7 +299,7 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
     const baseline = BUREAU_BASELINES[primaryBureau] ?? 36;
 
     // Fraud detection: rows where this inspector found fraud (fraud_flag=1 on their SGDs)
-    const fraudRows = rows.filter(r => r.fraud_flag === 1);
+    const fraudRows = rows.filter(r => isFraud(r.fraud_flag));
     const fraudDetected = fraudRows.length;
     const fraudRate = rows.length > 0 ? fraudDetected / rows.length : 0;
 
@@ -349,7 +354,7 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
       monthMap[m].revenue  += r.revenue_collected;
       monthMap[m].assessed += (r.taxes_assessed ?? 0);
       monthMap[m].hours    += r.clearance_hours;
-      if (r.fraud_flag) {
+      if (isFraud(r.fraud_flag)) {
         monthMap[m].fraud++;
         monthMap[m].tax_gap += (r.tax_gap ?? 0);
         if (r.channel !== 'ROUGE') monthMap[m].proactive++;
@@ -525,7 +530,7 @@ export function scoreDeclarationAnomalies(sgd: SGDRow[], fraud: FraudRow[]): Dec
   const insDetectionRate: Record<string, number> = {};
   [...new Set(sgd.map(s => s.inspector_id).filter(Boolean))].forEach(iid => {
     const rows = sgd.filter(s => s.inspector_id === iid);
-    insDetectionRate[iid] = rows.length > 0 ? rows.filter(r => r.fraud_flag).length / rows.length : 0;
+    insDetectionRate[iid] = rows.length > 0 ? rows.filter(r => r => isFraud(r.fraud_flag)).length / rows.length : 0;
   });
 
   const scores: DeclarationAnomalyScore[] = sgd.map(s => {
@@ -745,7 +750,7 @@ export function computeRiskDrift(sgd: SGDRow[], fraud: FraudRow[]): RiskDrift[] 
       const mSGD = sgd.filter(s => s.importer_id === id && dateMatchesMonth(s.date, month));
       const mFraud = fraud.filter(f => f.importer_id === id && dateMatchesMonth(f.date_detection, month));
       if (!mSGD.length) return { month, score: 0 };
-      const fraudRate = mSGD.filter(s => s.fraud_flag).length / mSGD.length;
+      const fraudRate = mSGD.filter(s => s => isFraud(s.fraud_flag)).length / mSGD.length;
       const revGap = mSGD.reduce((s,r) => s + Math.max(0, r.taxes_declared - r.revenue_collected), 0) /
                      Math.max(mSGD.reduce((s,r) => s + r.taxes_declared, 0), 1);
       const score = Math.min(99, Math.round(fraudRate * 60 + revGap * 30 + (mFraud.length > 0 ? 15 : 0)));
@@ -804,8 +809,8 @@ export function predictNextDeclaration(sgd: SGDRow[], fraud: FraudRow[]): NextDe
     const fraudRows = fraud.filter(f => f.importer_id === id);
 
     // Feature engineering on recent behaviour
-    const recentFraudRate  = recent.filter(r => r.fraud_flag).length / recent.length;
-    const allFraudRate     = rows.filter(r => r.fraud_flag).length / rows.length;
+    const recentFraudRate  = recent.filter(r => r => isFraud(r.fraud_flag)).length / recent.length;
+    const allFraudRate     = rows.filter(r => r => isFraud(r.fraud_flag)).length / rows.length;
     const recentRevGap     = recent.reduce((s,r) => s + Math.max(0, r.taxes_declared - r.revenue_collected), 0) /
                              Math.max(recent.reduce((s,r) => s + r.taxes_declared, 0), 1);
     const decRecency       = fraudRows.length > 0 ? 1 : 0; // had recent confirmed fraud
@@ -1025,7 +1030,7 @@ export function computeCollusionExposure(sgd: SGDRow[], fraud: FraudRow[]): Coll
     const highRiskDecls = rows.filter(r => fraudImporters.has(r.importer_id));
     const exposureRate  = highRiskDecls.length / rows.length;
     const isCollusion   = collusionInspectors.has(iid) ? 1 : 0;
-    const fraudOnRows   = rows.filter(r => r.fraud_flag).length;
+    const fraudOnRows   = rows.filter(r => r => isFraud(r.fraud_flag)).length;
 
     const score = Math.min(99, Math.round(
       exposureRate * 40 +
