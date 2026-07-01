@@ -43,7 +43,7 @@ router.get('/fraud', wrap(async (_req, res) => {
     acc[f.fraud_type] = (acc[f.fraud_type] ?? 0) + 1;
     return acc;
   }, {});
-  const totalLoss = fraud.reduce((s, f) => s + f.loss_amount, 0);
+  const totalLoss = fraud.reduce((s, f) => s + f.loss_net, 0);
   const tariffRisk = buildTariffRisk(sgd, fraud);
   res.json({
     cases: fraud.slice(0, 150),
@@ -117,7 +117,7 @@ router.post('/ai', wrap(async (req, res) => {
   const { sgd, fraud } = await getSheetData();
   const profiles = buildImporterProfiles(sgd, fraud);
   const highRisk = profiles.filter(p => p.risk_score >= 70).map(p => `${p.importer_id}(${p.risk_score}%)`).join(', ');
-  const totalLoss = fraud.reduce((s, f) => s + f.loss_amount, 0);
+  const totalLoss = fraud.reduce((s, f) => s + f.loss_net, 0);
   const byType = fraud.reduce<Record<string, number>>((a, f) => { a[f.fraud_type] = (a[f.fraud_type] ?? 0) + 1; return a; }, {});
   const topTypes = Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k}:${v}`).join(', ');
   const offices = buildOfficeStats(sgd, fraud).map(o => `${o.office_id}(eff:${o.efficiency_score}%,${o.pct_of_total}%du trafic)`).join('; ');
@@ -214,7 +214,7 @@ router.get('/predictions', wrap(async (req, res) => {
     .filter(s => !period || s.date?.startsWith(period));
   const fraud = allFraud
     .filter(f => !bureau || f.office_id === bureau)
-    .filter(f => !period || f.date?.startsWith(period));
+    .filter(f => !period || f.date_detection?.startsWith(period));
   const { buildPredictions } = await import('../services/analytics.js');
   res.json(buildPredictions(sgd, fraud));
 }));
@@ -230,7 +230,7 @@ router.get('/analytics/cohorts', wrap(async (req, res) => {
     .filter(s => !period || s.date?.startsWith(period));
   const fraud = allFraud
     .filter(f => !bureau || f.office_id === bureau)
-    .filter(f => !period || f.date?.startsWith(period));
+    .filter(f => !period || f.date_detection?.startsWith(period));
   // Importer behavior cohorts
   const { buildImporterProfiles, buildTariffRisk } = await import('../services/analytics.js');
   const profiles = buildImporterProfiles(sgd, fraud);

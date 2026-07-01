@@ -28,13 +28,13 @@ export function computeDATEFactors(
     ? impSGDs.filter(s => s.fraud_flag === 1).length / impSGDs.length : 0;
   const uniqueDeclarants = new Set(impSGDs.map(s => s.declarant_id)).size;
   const avgCifWeight = impSGDs.length > 0
-    ? impSGDs.reduce((s, r) => s + r.cif_value / Math.max(r.weight, 1), 0) / impSGDs.length : 0;
+    ? impSGDs.reduce((s, r) => s + r.cif_value / Math.max(r.weight_kg, 1), 0) / impSGDs.length : 0;
 
   const factors: DATEFactor[] = [
     {
       label: 'Historique de fraude confirmée',
       weight: 35,
-      triggered: impFrauds.filter(f => f.status === 'CONFIRMED').length >= 2,
+      triggered: impFrauds.filter(f => (f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX')).length >= 2,
     },
     {
       label: 'Taux déclarations suspectes > 30%',
@@ -142,9 +142,9 @@ export function buildMonthlyRevenue(sgd: SGDRow[], fraud: FraudRow[]): MonthlyRe
   const months = Object.keys(LABELS);
   return months.map(month => {
     const mSGD = sgd.filter(s => s.date?.startsWith(month));
-    const mFraud = fraud.filter(f => f.date?.startsWith(month));
+    const mFraud = fraud.filter(f => f.date_detection?.startsWith(month));
     const collected = mSGD.reduce((s, r) => s + r.revenue_collected, 0);
-    const lost_fraud = mFraud.reduce((s, r) => s + r.loss_amount, 0);
+    const lost_fraud = mFraud.reduce((s, r) => s + r.loss_net, 0);
     return {
       month,
       label: LABELS[month],
@@ -160,8 +160,8 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
   return {
     total_sgd: sgd.length,
     total_revenue: sgd.reduce((s, r) => s + r.revenue_collected, 0),
-    fraud_confirmed: fraud.filter(f => f.status === 'CONFIRMED').length,
-    revenue_loss: fraud.reduce((s, f) => s + f.loss_amount, 0),
+    fraud_confirmed: fraud.filter(f => (f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX')).length,
+    revenue_loss: fraud.reduce((s, f) => s + f.loss_net, 0),
     high_risk_importers: buildImporterProfiles(sgd, fraud).filter(i => i.risk_score >= 70).length,
     avg_clearance_hours: sgd.length > 0
       ? Math.round(sgd.reduce((s, r) => s + r.clearance_hours, 0) / sgd.length) : 0,
@@ -456,11 +456,11 @@ export function scoreDeclarationAnomalies(sgd: SGDRow[], fraud: FraudRow[]): Dec
   const tariffStats: Record<string, { avgCIF: number; stdCIF: number; avgWeight: number }> = {};
   const tariffCodes = [...new Set(sgd.map(s => s.tariff_code))];
   tariffCodes.forEach(tc => {
-    const peers = sgd.filter(s => s.tariff_code === tc && s.cif_value > 0 && s.weight > 0);
+    const peers = sgd.filter(s => s.tariff_code === tc && s.cif_value > 0 && s.weight_kg > 0);
     if (peers.length < 2) { tariffStats[tc] = { avgCIF: 0, stdCIF: 1, avgWeight: 0 }; return; }
     const avgCIF = peers.reduce((s, p) => s + p.cif_value / p.quantity, 0) / peers.length;
     const variance = peers.reduce((s, p) => s + Math.pow(p.cif_value / p.quantity - avgCIF, 2), 0) / peers.length;
-    const avgWeight = peers.reduce((s, p) => s + p.weight / p.quantity, 0) / peers.length;
+    const avgWeight = peers.reduce((s, p) => s + p.weight_kg / p.quantity, 0) / peers.length;
     tariffStats[tc] = { avgCIF, stdCIF: Math.sqrt(variance) || 1, avgWeight };
   });
 
@@ -686,7 +686,7 @@ export function computeRiskDrift(sgd: SGDRow[], fraud: FraudRow[]): RiskDrift[] 
   return importerIds.map(id => {
     const periods = MONTHS.map(month => {
       const mSGD = sgd.filter(s => s.importer_id === id && s.date?.startsWith(month));
-      const mFraud = fraud.filter(f => f.importer_id === id && f.date?.startsWith(month));
+      const mFraud = fraud.filter(f => f.importer_id === id && f.date_detection?.startsWith(month));
       if (!mSGD.length) return { month, score: 0 };
       const fraudRate = mSGD.filter(s => s.fraud_flag).length / mSGD.length;
       const revGap = mSGD.reduce((s,r) => s + Math.max(0, r.taxes_declared - r.revenue_collected), 0) /
@@ -780,7 +780,7 @@ export function predictNextDeclaration(sgd: SGDRow[], fraud: FraudRow[]): NextDe
     if (recentRevGap > 0.2)     signals.push(`Écart taxe/recette de ${Math.round(recentRevGap*100)}% récemment`);
     if (monoDeclarant > 0)      signals.push('Concentration mono-déclarant (signal collusion)');
     if (accelerating > 0)       signals.push('Taux de fraude récent supérieur à la moyenne historique');
-    if (fraudRows.some(f => f.status === 'CONFIRMED')) signals.push('Fraude confirmée dans l\'historique');
+    if (fraudRows.some(f => (f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX'))) signals.push('Fraude confirmée dans l\'historique');
 
     const action =
       prob >= 70 ? 'Inspection physique obligatoire avant dédouanement' :
@@ -811,7 +811,7 @@ export function computeFraudVelocity(sgd: SGDRow[], fraud: FraudRow[]): FraudVel
 
   const series = MONTHS.map(m => {
     const mSGD   = sgd.filter(s => s.date?.startsWith(m));
-    const mFraud = fraud.filter(f => f.date?.startsWith(m));
+    const mFraud = fraud.filter(f => f.date_detection?.startsWith(m));
     const rate   = mSGD.length > 0 ? mFraud.length / mSGD.length : 0;
     return { month: m, label: LABELS[m] ?? m, rate, count: mFraud.length, sgdCount: mSGD.length };
   }).filter(m => m.sgdCount > 0);
@@ -835,7 +835,7 @@ export function computeFraudVelocity(sgd: SGDRow[], fraud: FraudRow[]): FraudVel
     velocityIndex <= 70  ? 'IMPROVING': 'NORMAL';
 
   // Projected EOM loss based on current fraud rate × avg loss per case
-  const avgLoss = fraud.length > 0 ? fraud.reduce((s,f) => s + f.loss_amount, 0) / fraud.length : 0;
+  const avgLoss = fraud.length > 0 ? fraud.reduce((s,f) => s + f.loss_net, 0) / fraud.length : 0;
   const projectedCases = Math.round(current.rate * current.sgdCount * 1.1);
   const projectedLoss  = projectedCases * avgLoss;
 
@@ -889,7 +889,7 @@ const CAUSE_ACTIONS: Record<DelayCause, string> = {
 
 export function classifyDelays(sgd: SGDRow[], fraud: FraudRow[]): DelayClassification[] {
   const BASELINES: Record<string,number> = { DLA001:36, KBI001:28, DLA002:18, YDE001:22, YDE002:48, NGD001:72 };
-  const fraudImporters = new Set(fraud.filter(f => f.status === 'CONFIRMED').map(f => f.importer_id));
+  const fraudImporters = new Set(fraud.filter(f => (f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX')).map(f => f.importer_id));
 
   // Compute office avg clearance for backlog detection
   const officeAvg: Record<string,number> = {};
