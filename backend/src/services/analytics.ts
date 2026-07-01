@@ -250,9 +250,29 @@ const INSPECTOR_INFO: Record<string, { name: string; grade: string }> = {
   INS020: { name: 'NTYAM Louise',         grade: 'Inspecteur' },
 };
 
-function monthLabel(dateStr: string): string {
+// ── Date helpers (dataset uses M/D/YYYY format) ──────────────────────────────
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  // Try native parse first (handles ISO strings)
   const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? '?' : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  if (!isNaN(d.getTime())) return d;
+  // Explicit M/D/YYYY fallback
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    const d2 = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+    if (!isNaN(d2.getTime())) return d2;
+  }
+  return null;
+}
+
+function monthLabel(dateStr: string): string {
+  const d = parseDate(dateStr);
+  if (!d) return '?';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function dateMatchesMonth(dateStr: string, monthPrefix: string): boolean {
+  return monthLabel(dateStr) === monthPrefix;
 }
 
 export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMetrics[] {
