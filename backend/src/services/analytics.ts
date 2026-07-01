@@ -34,7 +34,7 @@ export function computeDATEFactors(
     {
       label: 'Historique de fraude confirmée',
       weight: 35,
-      triggered: impFrauds.filter(f => (f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX')).length >= 2,
+      triggered: impFrauds.filter(f => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE').length >= 2,
     },
     {
       label: 'Taux déclarations suspectes > 30%',
@@ -141,8 +141,8 @@ export function buildMonthlyRevenue(sgd: SGDRow[], fraud: FraudRow[]): MonthlyRe
   };
   const months = Object.keys(LABELS);
   return months.map(month => {
-    const mSGD = sgd.filter(s => s.date?.startsWith(month));
-    const mFraud = fraud.filter(f => f.date_detection?.startsWith(month));
+    const mSGD = sgd.filter(s => dateMatchesMonth(s.date, month));
+    const mFraud = fraud.filter(f => dateMatchesMonth(f.date_detection, month));
     const collected = mSGD.reduce((s, r) => s + r.revenue_collected, 0);
     const lost_fraud = mFraud.reduce((s, r) => s + r.loss_net, 0);
     return {
@@ -160,7 +160,7 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
   return {
     total_sgd: sgd.length,
     total_revenue: sgd.reduce((s, r) => s + r.revenue_collected, 0),
-    fraud_confirmed: fraud.filter(f => (f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX')).length,
+    fraud_confirmed: fraud.filter(f => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE').length,
     revenue_loss: fraud.reduce((s, f) => s + f.loss_net, 0),
     high_risk_importers: buildImporterProfiles(sgd, fraud).filter(i => i.risk_score >= 70).length,
     avg_clearance_hours: sgd.length > 0
@@ -685,8 +685,8 @@ export function computeRiskDrift(sgd: SGDRow[], fraud: FraudRow[]): RiskDrift[] 
 
   return importerIds.map(id => {
     const periods = MONTHS.map(month => {
-      const mSGD = sgd.filter(s => s.importer_id === id && s.date?.startsWith(month));
-      const mFraud = fraud.filter(f => f.importer_id === id && f.date_detection?.startsWith(month));
+      const mSGD = sgd.filter(s => s.importer_id === id && dateMatchesMonth(s.date, month));
+      const mFraud = fraud.filter(f => f.importer_id === id && dateMatchesMonth(f.date_detection, month));
       if (!mSGD.length) return { month, score: 0 };
       const fraudRate = mSGD.filter(s => s.fraud_flag).length / mSGD.length;
       const revGap = mSGD.reduce((s,r) => s + Math.max(0, r.taxes_declared - r.revenue_collected), 0) /
@@ -780,7 +780,7 @@ export function predictNextDeclaration(sgd: SGDRow[], fraud: FraudRow[]): NextDe
     if (recentRevGap > 0.2)     signals.push(`Écart taxe/recette de ${Math.round(recentRevGap*100)}% récemment`);
     if (monoDeclarant > 0)      signals.push('Concentration mono-déclarant (signal collusion)');
     if (accelerating > 0)       signals.push('Taux de fraude récent supérieur à la moyenne historique');
-    if (fraudRows.some(f => (f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX'))) signals.push('Fraude confirmée dans l\'historique');
+    if (fraudRows.some(f => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE')) signals.push('Fraude confirmée dans l\'historique');
 
     const action =
       prob >= 70 ? 'Inspection physique obligatoire avant dédouanement' :
@@ -810,8 +810,8 @@ export function computeFraudVelocity(sgd: SGDRow[], fraud: FraudRow[]): FraudVel
   const LABELS: Record<string,string> = { '2025-08':'Août','2025-09':'Sep','2025-10':'Oct','2025-11':'Nov','2025-12':'Déc','2026-01':'Jan','2026-02':'Fév' };
 
   const series = MONTHS.map(m => {
-    const mSGD   = sgd.filter(s => s.date?.startsWith(m));
-    const mFraud = fraud.filter(f => f.date_detection?.startsWith(m));
+    const mSGD   = sgd.filter(s => dateMatchesMonth(s.date, m));
+    const mFraud = fraud.filter(f => dateMatchesMonth(f.date_detection, m));
     const rate   = mSGD.length > 0 ? mFraud.length / mSGD.length : 0;
     return { month: m, label: LABELS[m] ?? m, rate, count: mFraud.length, sgdCount: mSGD.length };
   }).filter(m => m.sgdCount > 0);
@@ -889,7 +889,7 @@ const CAUSE_ACTIONS: Record<DelayCause, string> = {
 
 export function classifyDelays(sgd: SGDRow[], fraud: FraudRow[]): DelayClassification[] {
   const BASELINES: Record<string,number> = { DLA001:36, KBI001:28, DLA002:18, YDE001:22, YDE002:48, NGD001:72 };
-  const fraudImporters = new Set(fraud.filter(f => (f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX')).map(f => f.importer_id));
+  const fraudImporters = new Set(fraud.filter(f => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE').map(f => f.importer_id));
 
   // Compute office avg clearance for backlog detection
   const officeAvg: Record<string,number> = {};

@@ -200,7 +200,7 @@ router.get('/officers/:id', wrap(async (req, res) => {
   const all = buildOfficerMetrics(sgd, fraud);
   const officer = all.find(o => o.officer_id === req.params.id);
   if (!officer) return void res.status(404).json({ error: 'Officer not found' });
-  const officerSGDs = sgd.filter(s => s.declarant_id === req.params.id);
+  const officerSGDs = sgd.filter(s => s.inspector_id === req.params.id);
   res.json({ ...officer, recent_sgds: officerSGDs.slice(0, 30) });
 }));
 
@@ -211,10 +211,10 @@ router.get('/predictions', wrap(async (req, res) => {
   const period  = req.query.period  as string | undefined;
   const sgd = allSgd
     .filter(s => !bureau || s.office_id === bureau)
-    .filter(s => !period || s.date?.startsWith(period));
+    .filter(s => !period || (s.date && (() => { try { const d = new Date(s.date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === period; } catch { return false; } })()));
   const fraud = allFraud
     .filter(f => !bureau || f.office_id === bureau)
-    .filter(f => !period || f.date_detection?.startsWith(period));
+    .filter(f => !period || (f.date_detection && (() => { try { const d = new Date(f.date_detection); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === period; } catch { return false; } })()));
   const { buildPredictions } = await import('../services/analytics.js');
   res.json(buildPredictions(sgd, fraud));
 }));
@@ -227,10 +227,10 @@ router.get('/analytics/cohorts', wrap(async (req, res) => {
   const period = req.query.period as string | undefined;
   const sgd = allSgd
     .filter(s => !bureau || s.office_id === bureau)
-    .filter(s => !period || s.date?.startsWith(period));
+    .filter(s => !period || (s.date && (() => { try { const d = new Date(s.date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === period; } catch { return false; } })()));
   const fraud = allFraud
     .filter(f => !bureau || f.office_id === bureau)
-    .filter(f => !period || f.date_detection?.startsWith(period));
+    .filter(f => !period || (f.date_detection && (() => { try { const d = new Date(f.date_detection); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === period; } catch { return false; } })()));
   // Importer behavior cohorts
   const { buildImporterProfiles, buildTariffRisk } = await import('../services/analytics.js');
   const profiles = buildImporterProfiles(sgd, fraud);
