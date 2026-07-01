@@ -186,12 +186,6 @@ export default function Welcome() {
           <div className="flex-1" style={{ background:'#fcd116' }}/>
         </div>
         <div className="relative z-10 px-8 pt-7 pb-6 flex items-start gap-6">
-          {/* Coat of arms */}
-          <div className="flex flex-col items-center gap-1 flex-shrink-0">
-            <img src={COAT_OF_ARMS} alt="Armoiries" className="h-20 w-20 object-contain drop-shadow-2xl" />
-            <div className="text-[9px] font-bold tracking-[2px] uppercase text-center" style={{ color:'#fcd116' }}>République du Cameroun</div>
-            <div className="text-[8px] tracking-[1px] text-center" style={{ color:'#475569' }}>Paix · Travail · Patrie</div>
-          </div>
           {/* Main message */}
           <div className="flex-1">
             <div className="text-[10px] font-bold tracking-[3px] uppercase mb-1.5" style={{ color:'#3b82f6' }}>Direction Générale des Douanes du Cameroun</div>
@@ -203,39 +197,15 @@ export default function Welcome() {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
               <span className="text-[10px] font-bold tracking-widest text-emerald-400">SYSTÈME ACTIF · DONNÉES EN DIRECT</span>
             </div>
-            <p className="text-xl font-bold text-white leading-relaxed mb-4">
-              CUSTOMS360 est la réponse institutionnelle des Douanes Camerounaises aux défis de modernisation du contrôle douanier. Conçue comme un système nerveux numérique, cette plateforme unifie pour la première fois toutes les dimensions stratégiques de l'administration douanière.
-            </p>
+            <div className="rounded-xl p-4 mb-4" style={{ background:'rgba(255,255,255,0.03)',border:'1px solid rgba(59,130,246,0.2)',borderLeft:'3px solid #3b82f6' }}>
+              <p className="text-xl font-bold text-white leading-relaxed">
+                CUSTOMS360 est la réponse institutionnelle des Douanes Camerounaises aux défis de modernisation du contrôle douanier. Conçue comme un système nerveux numérique, cette plateforme unifie pour la première fois toutes les dimensions stratégiques de l'administration douanière.
+              </p>
+            </div>
             <div className="flex gap-3">
               <button onClick={() => navigate('/')} className="btn btn-primary px-5 py-2 text-sm font-bold flex items-center gap-2">📊 Tableau de bord</button>
               <button onClick={() => navigate('/fraud')} className="btn btn-ghost px-5 py-2 text-sm font-bold flex items-center gap-2">🚨 Détection Fraude</button>
             </div>
-          </div>
-          {/* Clock + KPIs */}
-          <div className="flex-shrink-0 flex flex-col gap-2.5" style={{ minWidth:160 }}>
-            <div className="rounded-xl p-3 text-right" style={{ background:'rgba(0,0,0,0.4)',border:'1px solid #1e3a5f' }}>
-              <div className="text-2xl font-black font-mono text-white tracking-wider">{timeStr}</div>
-              <div className="text-[10px] mt-0.5 capitalize" style={{ color:'#64748b' }}>{dateStr}</div>
-              <div className="flex items-center justify-end gap-1 mt-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
-                <span className="text-[9px] font-bold text-emerald-400">OPÉRATIONNEL</span>
-              </div>
-            </div>
-            {data && (
-              <div className="grid grid-cols-2 gap-1.5">
-                {[
-                  { v: fmt(data.total_sgd),       l:'SGDs',    c:'#3b82f6' },
-                  { v: fmt(data.fraud_confirmed),  l:'Fraudes', c:'#ef4444' },
-                  { v: fmtM(data.total_revenue),   l:'Recettes',c:'#10b981' },
-                  { v: fmtM(data.revenue_loss),    l:'Pertes',  c:'#f59e0b' },
-                ].map(k=>(
-                  <div key={k.l} className="rounded-lg p-2 text-center" style={{ background:'rgba(0,0,0,0.4)',border:'1px solid #1e3a5f' }}>
-                    <div className="text-sm font-black leading-none" style={{ color:k.c }}>{k.v}</div>
-                    <div className="text-[9px] mt-0.5" style={{ color:'#475569' }}>{k.l}</div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-1 flex">
