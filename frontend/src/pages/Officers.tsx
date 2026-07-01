@@ -12,13 +12,17 @@ import { fmt, fmtM } from '../services/api';
 import { useFilters, applyRiskFilter } from '../context/FilterContext';
 
 type Officer = {
-  officer_id: string; name: string; bureau_ids: string[];
-  total_declarations: number; fraud_detected: number; fraud_detection_rate: number;
+  officer_id: string; name: string; grade: string; bureau_ids: string[];
+  total_declarations: number; fraud_detected: number; proactive_detections: number;
+  fraud_detection_rate: number;
   avg_clearance_hours: number; bureau_baseline_hours: number; speed_score: number;
-  revenue_recovered: number; revenue_recovery_rate: number; performance_index: number;
+  revenue_recovered: number; revenue_recovery_rate: number;
+  total_tax_gap_recovered: number; avg_risk_score: number;
+  high_risk_tariff_count: number; seizures_made: number;
+  performance_index: number;
   career_status: string; promotion_readiness: number; burnout_risk: string;
-  monthly_trend: { month: string; pi: number; declarations: number }[];
-  rank_in_bureau: number; total_in_bureau: number;
+  monthly_trend: { month: string; pi: number; declarations: number; fraud: number }[];
+  rank_in_bureau: number; total_in_bureau: number; revenue_vs_taxes_gap: number;
 };
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
@@ -60,6 +64,11 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
       benchmark: 60,
     },
     {
+      subject: 'Proactivité',
+      score:     Math.round(Math.min(100, (o.proactive_detections / Math.max(o.total_declarations, 1)) * 500)),
+      benchmark: 40,
+    },
+    {
       subject: 'Vitesse',
       score:     o.speed_score,
       benchmark: 60,
@@ -70,14 +79,9 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
       benchmark: 60,
     },
     {
-      subject: 'Volume',
-      score:     Math.round(Math.min(100, (o.total_declarations / 80) * 100)),
-      benchmark: 60,
-    },
-    {
-      subject: 'Qualité PI',
-      score:     o.performance_index,
-      benchmark: 60,
+      subject: 'Écart Fiscal',
+      score:     Math.round(Math.min(100, (o.total_tax_gap_recovered / Math.max(o.revenue_recovered, 1)) * 200)),
+      benchmark: 40,
     },
     {
       subject: 'Fiabilité',
@@ -120,11 +124,16 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
           <div className="text-xs text-muted mb-3">{o.officer_id} · {o.bureau_ids.join(', ')}</div>
           <div className="space-y-1.5 text-left">
             {[
-              ['Déclarations', fmt(o.total_declarations)],
+              ['Grade', o.grade],
+              ['Déclarations traitées', fmt(o.total_declarations)],
               ['Fraudes détectées', o.fraud_detected.toString()],
+              ['Détections proactives', o.proactive_detections.toString()],
               ['Taux détection', (o.fraud_detection_rate * 100).toFixed(1) + '%'],
-              ['Délai moyen', o.avg_clearance_hours + 'h vs ' + o.bureau_baseline_hours + 'h'],
+              ['Saisies effectuées', o.seizures_made.toString()],
+              ['Délai moyen', o.avg_clearance_hours + 'h (base ' + o.bureau_baseline_hours + 'h)'],
               ['Recettes recouvrées', fmtM(o.revenue_recovered) + ' FCFA'],
+              ['Écart fiscal récupéré', fmtM(o.total_tax_gap_recovered) + ' FCFA'],
+              ['Score risque moyen', o.avg_risk_score + '/100'],
               ['Rang bureau', `#${o.rank_in_bureau}/${o.total_in_bureau}`],
               ['Risque surmenage', o.burnout_risk],
             ].map(([k, v]) => (
@@ -296,6 +305,10 @@ export default function OfficersPage() {
     name: o.name,
     id: o.officer_id,
     status: o.career_status,
+    grade: o.grade,
+    proactive: o.proactive_detections,
+    seizures: o.seizures_made,
+    taxGap: fmtM(o.total_tax_gap_recovered),
   }));
 
   const STATUS_COLORS: Record<string,string> = {
@@ -309,8 +322,14 @@ export default function OfficersPage() {
       <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <KPICard label="Total Agents" value={officers.length} icon="👤" color="accent" />
         <KPICard label="PI Moyen" value={avgPI} suffix="/100" icon="📊" color="teal" />
+        <KPICard label="Fraudes Détectées" value={officers.reduce((s: number, o: Officer) => s + o.fraud_detected, 0)} icon="🎯" color="danger" />
+        <KPICard label="Détections Proactives" value={officers.reduce((s: number, o: Officer) => s + o.proactive_detections, 0)} icon="⚡" color="success" />
+      </StaggerGrid>
+      <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <KPICard label="Eligible Promotion" value={eligible} icon="🏆" color="success" />
         <KPICard label="Alerte Surmenage" value={burnoutHigh} icon="🔴" color="danger" />
+        <KPICard label="Saisies Totales" value={officers.reduce((s: number, o: Officer) => s + o.seizures_made, 0)} icon="🔒" color="accent" />
+        <KPICard label="Écart Fiscal Récupéré" value={fmtM(officers.reduce((s: number, o: Officer) => s + o.total_tax_gap_recovered, 0))} suffix=" MFCFA" icon="💰" color="teal" />
       </StaggerGrid>
 
       {/* Scatter: PI vs fraud rate */}
@@ -333,8 +352,12 @@ export default function OfficersPage() {
                   return (
                     <div style={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '10px 14px', color: '#f1f5f9', fontSize: 12 }}>
                       <div className="font-bold mb-1">{d.name}</div>
+                      <div className="text-[10px] text-slate-400 mb-1">{d.grade}</div>
                       <div>PI Score: <b style={{ color: '#60a5fa' }}>{d.y}</b></div>
-                      <div>Taux fraude: <b style={{ color: '#f87171' }}>{d.x}%</b></div>
+                      <div>Taux détection: <b style={{ color: '#f87171' }}>{d.x}%</b></div>
+                      <div>Détections proactives: <b style={{ color: '#10b981' }}>{d.proactive}</b></div>
+                      <div>Saisies: <b>{d.seizures}</b></div>
+                      <div>Écart fiscal récupéré: <b style={{ color: '#f59e0b' }}>{d.taxGap} MFCFA</b></div>
                       <div>Déclarations: <b>{d.z}</b></div>
                       <div style={{ color: sm.color, marginTop: 4 }}>{sm.icon} {sm.label}</div>
                     </div>

@@ -310,6 +310,7 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
 
     // Seizures made
     const seizuresMade = rows.filter(r => r.inspection_result === 'SAISIE').length;
+    const assessedTotal = rows.reduce((s, r) => s + (r.taxes_assessed ?? 0), 0);
 
     const avgClearance = rows.length > 0
       ? rows.reduce((s, r) => s + r.clearance_hours, 0) / rows.length : baseline;
@@ -327,44 +328,59 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
     const fraudScore = Math.min(100, fraudRate * 300);
     // Proactive bonus: catching fraud the system missed is the gold metric
     const proactiveScore = Math.min(100, (proactiveDetections / Math.max(rows.length, 1)) * 500);
-    // Revenue recovery score
-    const revenueScore = Math.min(100, revRate * 100);
-    // Volume score
-    const volumeScore = Math.min(100, (rows.length / 150) * 100);
-    // Tax gap score: how much under-declared tax they recovered
-    const taxGapScore = Math.min(100, (totalTaxGapRecovered / Math.max(revenue, 1)) * 50);
+    // Revenue score: revenue_collected / taxes_assessed (not taxes_declared)
+    // taxes_assessed = what inspector determined was owed; revenue = what was collected
+    const revenueScore = Math.min(100, (revenue / Math.max(assessedTotal, 1)) * 100);
+    // Volume score: dynamic — normalised against all inspectors (computed below)
+    // placeholder, overridden after all officers built
+    const volumeScoreRaw = rows.length; // store raw count, normalise after
+    // Tax gap score: tax_gap / taxes_assessed → what % the inspector recovered above declared
+    const taxGapScore = Math.min(100, (totalTaxGapRecovered / Math.max(assessedTotal, 1)) * 200);
 
-    const pi = Math.round(
-      fraudScore     * 0.25 +
-      proactiveScore * 0.20 +
-      speedScore     * 0.20 +
-      revenueScore   * 0.15 +
-      taxGapScore    * 0.10 +
-      volumeScore    * 0.10
-    );
+    // Store PI components — final PI computed after all officers built (for volume normalisation)
+    const _piComponents = { fraudScore, proactiveScore, speedScore, revenueScore, taxGapScore, volumeScoreRaw };
 
     // Monthly trend
-    const monthMap: Record<string, { decls: number; fraud: number; revenue: number; hours: number; tax_gap: number }> = {};
+    const monthMap: Record<string, { decls: number; fraud: number; proactive: number; revenue: number; assessed: number; hours: number; tax_gap: number }> = {};
     rows.forEach(r => {
       const m = monthLabel(r.date);
-      if (!monthMap[m]) monthMap[m] = { decls: 0, fraud: 0, revenue: 0, hours: 0, tax_gap: 0 };
+      if (!monthMap[m]) monthMap[m] = { decls: 0, fraud: 0, proactive: 0, revenue: 0, assessed: 0, hours: 0, tax_gap: 0 };
       monthMap[m].decls++;
-      monthMap[m].revenue += r.revenue_collected;
-      monthMap[m].hours += r.clearance_hours;
-      if (r.fraud_flag) { monthMap[m].fraud++; monthMap[m].tax_gap += (r.tax_gap ?? 0); }
+      monthMap[m].revenue  += r.revenue_collected;
+      monthMap[m].assessed += (r.taxes_assessed ?? 0);
+      monthMap[m].hours    += r.clearance_hours;
+      if (r.fraud_flag) {
+        monthMap[m].fraud++;
+        monthMap[m].tax_gap += (r.tax_gap ?? 0);
+        if (r.channel !== 'ROUGE') monthMap[m].proactive++;
+      }
     });
     const monthly_trend = Object.entries(monthMap)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, v]) => ({
-        month,
-        declarations: v.decls,
-        pi: Math.round(
-          (Math.min(100, (v.fraud / Math.max(v.decls, 1)) * 300) * 0.25) +
-          (Math.max(0, Math.min(100, 100 - ((v.hours / Math.max(v.decls,1) - baseline) / baseline) * 50)) * 0.20) +
-          (Math.min(100, (v.revenue / Math.max(v.decls,1) / 5000000) * 100) * 0.15) +
-          (Math.min(100, (v.decls / 20) * 100) * 0.10)
-        ),
-      }));
+      .map(([month, v]) => {
+        const mFraudRate    = v.fraud / Math.max(v.decls, 1);
+        const mAvgHours     = v.hours / Math.max(v.decls, 1);
+        const mProactiveRate= v.proactive / Math.max(v.decls, 1);
+        const mFraudScore   = Math.min(100, mFraudRate * 300);
+        const mProactScore  = Math.min(100, mProactiveRate * 500);
+        const mSpeedScore   = Math.max(0, Math.min(100, 100 - ((mAvgHours - baseline) / baseline) * 50));
+        const mRevScore     = Math.min(100, (v.revenue / Math.max(v.assessed, 1)) * 100);
+        const mGapScore     = Math.min(100, (v.tax_gap / Math.max(v.assessed, 1)) * 200);
+        const mVolScore     = Math.min(100, (v.decls / 20) * 100);
+        return {
+          month,
+          declarations: v.decls,
+          fraud: v.fraud,
+          pi: Math.round(
+            mFraudScore  * 0.25 +
+            mProactScore * 0.20 +
+            mSpeedScore  * 0.20 +
+            mRevScore    * 0.15 +
+            mGapScore    * 0.10 +
+            mVolScore    * 0.10
+          ),
+        };
+      });
 
     // Burnout risk
     const recentMonths = monthly_trend.slice(-3);
@@ -398,20 +414,49 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
       bureau_baseline_hours: baseline,
       speed_score: Math.round(speedScore),
       revenue_recovered: revenue,
-      revenue_recovery_rate: revRate,
+      revenue_recovery_rate: assessedTotal > 0 ? revenue / assessedTotal : 0,
       total_tax_gap_recovered: totalTaxGapRecovered,
       avg_risk_score: Math.round(avgRiskScore),
       high_risk_tariff_count: highRiskCount,
       seizures_made: seizuresMade,
-      performance_index: pi,
-      career_status,
-      promotion_readiness: Math.round(promotion_readiness),
+      performance_index: 0,      // computed below after volume normalisation
+      _piComponents,             // temporary — stripped after PI computed
+      career_status: 'ACTIF' as OfficerMetrics['career_status'],  // recomputed below
+      promotion_readiness: 0,    // recomputed below
       burnout_risk,
       monthly_trend,
       rank_in_bureau: 0,
       total_in_bureau: 0,
-      revenue_vs_taxes_gap: taxes - revenue,
-    };
+      revenue_vs_taxes_gap: assessedTotal - revenue,
+    } as unknown as OfficerMetrics & { _piComponents: typeof _piComponents };
+  });
+
+  // ── Post-process: compute final PI with volume normalised to actual max ──────
+  const rawOfficers = officers as unknown as (OfficerMetrics & { _piComponents: { fraudScore:number; proactiveScore:number; speedScore:number; revenueScore:number; taxGapScore:number; volumeScoreRaw:number } })[];
+  const maxVol = Math.max(...rawOfficers.map(o => o._piComponents.volumeScoreRaw), 1);
+
+  rawOfficers.forEach(o => {
+    const c = o._piComponents;
+    const volumeScore = Math.min(100, (c.volumeScoreRaw / maxVol) * 100);
+    const pi = Math.round(
+      c.fraudScore     * 0.25 +
+      c.proactiveScore * 0.20 +
+      c.speedScore     * 0.20 +
+      c.revenueScore   * 0.15 +
+      c.taxGapScore    * 0.10 +
+      volumeScore      * 0.10
+    );
+    o.performance_index = pi;
+    // Career status based on final PI
+    const pr = Math.min(100, pi * 1.1 + (o.monthly_trend.length >= 3 ? 5 : 0));
+    o.promotion_readiness = Math.round(pr);
+    o.career_status =
+      o.burnout_risk === 'HIGH'  ? 'BURNOUT_ALERT'
+      : pi >= 75                 ? 'ELIGIBLE_PROMOTION'
+      : pi < 35                  ? 'REDEPLOYMENT_RISK'
+      : 'ACTIF';
+    // Remove temp field
+    delete (o as Record<string,unknown>)['_piComponents'];
   });
 
   // Add bureau ranks
