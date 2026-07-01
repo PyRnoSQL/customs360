@@ -190,22 +190,27 @@ export function buildDelays(sgd: SGDRow[]): (SGDRow & { overshoot_hours: number;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// OFFICER INTELLIGENCE — derived from SGD_DECLARATIONS via declarant_id
+// OFFICER INTELLIGENCE — derived from SGD_DECLARATIONS via inspector_id
 // ════════════════════════════════════════════════════════════════════════════
 
 export interface OfficerMetrics {
   officer_id: string;
   name: string;
+  grade: string;
   bureau_ids: string[];
   total_declarations: number;
   fraud_detected: number;
+  proactive_detections: number;  // caught without system flag (channel != ROUGE)
   fraud_detection_rate: number;
   avg_clearance_hours: number;
   bureau_baseline_hours: number;
   speed_score: number;           // 0-100 (100 = fastest)
   revenue_recovered: number;
   revenue_recovery_rate: number;
+  total_tax_gap_recovered: number; // sum of tax_gap on their fraud rows
+  avg_risk_score: number;        // avg system risk score of their SGDs
   high_risk_tariff_count: number;
+  seizures_made: number;
   performance_index: number;     // 0-100 composite
   career_status: 'ELIGIBLE_PROMOTION' | 'ACTIF' | 'REDEPLOYMENT_RISK' | 'BURNOUT_ALERT';
   promotion_readiness: number;   // 0-100
@@ -218,14 +223,31 @@ export interface OfficerMetrics {
 
 const BUREAU_BASELINES: Record<string, number> = {
   DLA001: 36, KBI001: 28, DLA002: 18, YDE001: 22, YDE002: 48, NGD001: 72,
+  BFR001: 60, GRA001: 24,
 };
 
-const DECLARANT_NAMES: Record<string, string> = {
-  DEC001: 'MBARGA Jean-Paul',     DEC002: 'TCHOUMBA André',
-  DEC003: 'NKENGUE Marie',        DEC004: 'ESSOMBA Pierre',
-  DEC005: 'BIYA-FOUDA Salatou',   DEC006: 'MOHAMADOU Alim',
-  DEC007: 'KANA Hélène',          DEC008: 'FOUDA-BELL Ernest',
-  DEC009: 'ABENA Christine',      DEC010: 'ONDOUA Patrick',
+// Inspector lookup: id → { name, grade } — sourced from dataset
+const INSPECTOR_INFO: Record<string, { name: string; grade: string }> = {
+  INS001: { name: 'MBARGA Jean-Paul',     grade: 'Inspecteur Principal' },
+  INS002: { name: 'TCHOUMBA André',       grade: 'Inspecteur' },
+  INS003: { name: 'NKENGUE Marie',        grade: 'Inspecteur Principal' },
+  INS004: { name: 'ESSOMBA Pierre',       grade: 'Contrôleur' },
+  INS005: { name: 'BIYA-FOUDA Salatou',   grade: 'Inspecteur Principal' },
+  INS006: { name: 'MOHAMADOU Alim',       grade: 'Inspecteur' },
+  INS007: { name: 'KANA Hélène',          grade: 'Inspecteur' },
+  INS008: { name: 'FOUDA-BELL Ernest',    grade: 'Contrôleur' },
+  INS009: { name: 'ABENA Christine',      grade: 'Inspecteur Principal' },
+  INS010: { name: 'ONDOUA Patrick',       grade: 'Inspecteur' },
+  INS011: { name: 'NJOYA Ibrahim',        grade: 'Inspecteur' },
+  INS012: { name: 'ATANGA Sylvie',        grade: 'Contrôleur' },
+  INS013: { name: 'BELL Martin',          grade: 'Inspecteur' },
+  INS014: { name: 'NGOUMOU Théodore',     grade: 'Contrôleur' },
+  INS015: { name: 'EYINGA Rachel',        grade: 'Inspecteur' },
+  INS016: { name: 'MEKOULOU Samuel',      grade: 'Contrôleur' },
+  INS017: { name: 'KOUM Basile',          grade: 'Inspecteur' },
+  INS018: { name: 'DANG Fatima',          grade: 'Contrôleur' },
+  INS019: { name: 'OWONA Célestin',       grade: 'Inspecteur' },
+  INS020: { name: 'NTYAM Louise',         grade: 'Inspecteur' },
 };
 
 function monthLabel(dateStr: string): string {
@@ -234,18 +256,41 @@ function monthLabel(dateStr: string): string {
 }
 
 export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMetrics[] {
-  const decIds = [...new Set(sgd.map(s => s.declarant_id))];
-  const fraudByDec = fraud.reduce<Record<string, number>>((a, f) => {
-    a[f.declarant_id] = (a[f.declarant_id] ?? 0) + 1; return a;
+  // Group SGD rows by inspector_id (the actual customs agent who processed them)
+  const insIds = [...new Set(sgd.map(s => s.inspector_id).filter(Boolean))];
+
+  // Fraud cases detected by each inspector (from FRAUD_CASES, linked by inspector_id)
+  const fraudByIns = fraud.reduce<Record<string, FraudRow[]>>((a, f) => {
+    if (!a[f.inspector_id]) a[f.inspector_id] = [];
+    a[f.inspector_id].push(f);
+    return a;
   }, {});
 
-  const officers: OfficerMetrics[] = decIds.map(did => {
-    const rows = sgd.filter(s => s.declarant_id === did);
+  const officers: OfficerMetrics[] = insIds.map(iid => {
+    const rows = sgd.filter(s => s.inspector_id === iid);
+    // Inspector is always at their assigned bureau — use first row's office_id
     const bureaus = [...new Set(rows.map(r => r.office_id))];
     const primaryBureau = bureaus[0] ?? 'DLA001';
     const baseline = BUREAU_BASELINES[primaryBureau] ?? 36;
-    const fraudDetected = fraudByDec[did] ?? 0;
+
+    // Fraud detection: rows where this inspector found fraud (fraud_flag=1 on their SGDs)
+    const fraudRows = rows.filter(r => r.fraud_flag === 1);
+    const fraudDetected = fraudRows.length;
     const fraudRate = rows.length > 0 ? fraudDetected / rows.length : 0;
+
+    // Proactive detections: inspector caught fraud despite system NOT flagging ROUGE
+    const proactiveDetections = fraudRows.filter(r => r.channel !== 'ROUGE').length;
+
+    // Tax gap recovered: sum of tax_gap on fraud rows (what the inspector found)
+    const totalTaxGapRecovered = fraudRows.reduce((s, r) => s + (r.tax_gap ?? 0), 0);
+
+    // Average system risk score across all their SGDs
+    const avgRiskScore = rows.length > 0
+      ? rows.reduce((s, r) => s + (r.risk_score_system ?? 0), 0) / rows.length : 0;
+
+    // Seizures made
+    const seizuresMade = rows.filter(r => r.inspection_result === 'SAISIE').length;
+
     const avgClearance = rows.length > 0
       ? rows.reduce((s, r) => s + r.clearance_hours, 0) / rows.length : baseline;
     const revenue = rows.reduce((s, r) => s + r.revenue_collected, 0);
@@ -255,34 +300,38 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
       ['85044000','62046200','85176200','87032390','84715000'].includes(r.tariff_code)
     ).length;
 
-    // Speed score: how much faster than baseline (capped 0-100)
+    // ── Performance Index (PI) — 0-100 ───────────────────────────────────────
+    // Speed score: faster than bureau baseline = better
     const speedScore = Math.max(0, Math.min(100, 100 - ((avgClearance - baseline) / baseline) * 50));
-    // Fraud detection score (0-100)
+    // Fraud detection score: rate × multiplier, capped 100
     const fraudScore = Math.min(100, fraudRate * 300);
-    // Revenue recovery score (0-100)
+    // Proactive bonus: catching fraud the system missed is the gold metric
+    const proactiveScore = Math.min(100, (proactiveDetections / Math.max(rows.length, 1)) * 500);
+    // Revenue recovery score
     const revenueScore = Math.min(100, revRate * 100);
-    // Volume score (normalize by top performer)
-    const volumeScore = Math.min(100, (rows.length / 100) * 100);
-    // Tariff awareness score
-    const tariffScore = rows.length > 0 ? Math.min(100, (highRiskCount / rows.length) * 200) : 0;
+    // Volume score
+    const volumeScore = Math.min(100, (rows.length / 150) * 100);
+    // Tax gap score: how much under-declared tax they recovered
+    const taxGapScore = Math.min(100, (totalTaxGapRecovered / Math.max(revenue, 1)) * 50);
 
     const pi = Math.round(
-      fraudScore   * 0.30 +
-      speedScore   * 0.20 +
-      revenueScore * 0.25 +
-      volumeScore  * 0.15 +
-      tariffScore  * 0.10
+      fraudScore     * 0.25 +
+      proactiveScore * 0.20 +
+      speedScore     * 0.20 +
+      revenueScore   * 0.15 +
+      taxGapScore    * 0.10 +
+      volumeScore    * 0.10
     );
 
     // Monthly trend
-    const monthMap: Record<string, { decls: number; fraud: number; revenue: number; hours: number }> = {};
+    const monthMap: Record<string, { decls: number; fraud: number; revenue: number; hours: number; tax_gap: number }> = {};
     rows.forEach(r => {
       const m = monthLabel(r.date);
-      if (!monthMap[m]) monthMap[m] = { decls: 0, fraud: 0, revenue: 0, hours: 0 };
+      if (!monthMap[m]) monthMap[m] = { decls: 0, fraud: 0, revenue: 0, hours: 0, tax_gap: 0 };
       monthMap[m].decls++;
       monthMap[m].revenue += r.revenue_collected;
       monthMap[m].hours += r.clearance_hours;
-      if (r.fraud_flag) monthMap[m].fraud++;
+      if (r.fraud_flag) { monthMap[m].fraud++; monthMap[m].tax_gap += (r.tax_gap ?? 0); }
     });
     const monthly_trend = Object.entries(monthMap)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -290,14 +339,14 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
         month,
         declarations: v.decls,
         pi: Math.round(
-          (Math.min(100, (v.fraud / Math.max(v.decls, 1)) * 300) * 0.30) +
+          (Math.min(100, (v.fraud / Math.max(v.decls, 1)) * 300) * 0.25) +
           (Math.max(0, Math.min(100, 100 - ((v.hours / Math.max(v.decls,1) - baseline) / baseline) * 50)) * 0.20) +
-          (Math.min(100, (v.revenue / Math.max(v.decls,1) / 5000000) * 100) * 0.25) +
-          (Math.min(100, (v.decls / 20) * 100) * 0.25)
+          (Math.min(100, (v.revenue / Math.max(v.decls,1) / 5000000) * 100) * 0.15) +
+          (Math.min(100, (v.decls / 20) * 100) * 0.10)
         ),
       }));
 
-    // Burnout risk: high volume + slow clearance trend
+    // Burnout risk
     const recentMonths = monthly_trend.slice(-3);
     const avgRecentDecls = recentMonths.reduce((s, m) => s + m.declarations, 0) / Math.max(recentMonths.length, 1);
     const piTrend = recentMonths.length >= 2
@@ -314,19 +363,26 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
       : pi < 35 ? 'REDEPLOYMENT_RISK'
       : 'ACTIF';
 
+    const info = INSPECTOR_INFO[iid] ?? { name: iid, grade: 'Inspecteur' };
+
     return {
-      officer_id: did,
-      name: DECLARANT_NAMES[did] ?? did,
+      officer_id: iid,
+      name: info.name,
+      grade: info.grade,
       bureau_ids: bureaus,
       total_declarations: rows.length,
       fraud_detected: fraudDetected,
+      proactive_detections: proactiveDetections,
       fraud_detection_rate: fraudRate,
       avg_clearance_hours: Math.round(avgClearance),
       bureau_baseline_hours: baseline,
       speed_score: Math.round(speedScore),
       revenue_recovered: revenue,
       revenue_recovery_rate: revRate,
+      total_tax_gap_recovered: totalTaxGapRecovered,
+      avg_risk_score: Math.round(avgRiskScore),
       high_risk_tariff_count: highRiskCount,
+      seizures_made: seizuresMade,
       performance_index: pi,
       career_status,
       promotion_readiness: Math.round(promotion_readiness),
@@ -408,48 +464,54 @@ export function scoreDeclarationAnomalies(sgd: SGDRow[], fraud: FraudRow[]): Dec
     tariffStats[tc] = { avgCIF, stdCIF: Math.sqrt(variance) || 1, avgWeight };
   });
 
-  // Declarant fraud history
-  const decFraudRate: Record<string, number> = {};
-  [...new Set(sgd.map(s => s.declarant_id))].forEach(did => {
-    const rows = sgd.filter(s => s.declarant_id === did);
-    decFraudRate[did] = rows.length > 0 ? rows.filter(r => r.fraud_flag).length / rows.length : 0;
+  // Inspector fraud detection history (replaces declarant history)
+  const insDetectionRate: Record<string, number> = {};
+  [...new Set(sgd.map(s => s.inspector_id).filter(Boolean))].forEach(iid => {
+    const rows = sgd.filter(s => s.inspector_id === iid);
+    insDetectionRate[iid] = rows.length > 0 ? rows.filter(r => r.fraud_flag).length / rows.length : 0;
   });
 
   const scores: DeclarationAnomalyScore[] = sgd.map(s => {
-    const stats = tariffStats[s.tariff_code] ?? { avgCIF: s.cif_value, stdCIF: 1, avgWeight: s.weight };
+    const stats = tariffStats[s.tariff_code] ?? { avgCIF: s.cif_value, stdCIF: 1, avgWeight: s.weight_kg };
     const cifPerUnit = s.quantity > 0 ? s.cif_value / s.quantity : s.cif_value;
-    const weightPerUnit = s.quantity > 0 ? s.weight / s.quantity : s.weight;
     const zScoreCIF = stats.stdCIF > 0 ? Math.abs(cifPerUnit - stats.avgCIF) / stats.stdCIF : 0;
 
     const factors: string[] = [];
     let score = 0;
 
-    // Factor 1: CIF undervaluation (z-score vs peer cohort)
+    // Factor 1: CIF undervaluation vs peer cohort
     if (cifPerUnit < stats.avgCIF * 0.5) { factors.push('Sous-évaluation CIF détectée'); score += 35; }
     else if (zScoreCIF > 2) { factors.push('Valeur CIF anormale (>2σ)'); score += 20; }
 
-    // Factor 2: High-risk tariff code
+    // Factor 2: Tax gap signal (assessed > declared = under-declaration found)
+    if ((s.tax_gap ?? 0) > 0) {
+      const gapRate = s.taxes_declared > 0 ? (s.tax_gap ?? 0) / s.taxes_declared : 0;
+      if (gapRate > 0.3) { factors.push(`Écart fiscal de ${Math.round(gapRate*100)}% détecté`); score += 25; }
+    }
+
+    // Factor 3: High-risk tariff code
     if (HIGH_RISK_SET.has(s.tariff_code)) {
       const rate = FRAUD_TARIFF_RATE[s.tariff_code] ?? 0.2;
       score += Math.round(rate * 40);
       factors.push(`Tarif à risque élevé (taux fraude ${Math.round(rate * 100)}%)`);
     }
 
-    // Factor 3: Country risk
+    // Factor 4: Country risk
     const countryRisk = COUNTRY_RISK[s.country] ?? 0.3;
     if (countryRisk > 0.5) { factors.push(`Pays d'origine à risque (${s.country})`); score += Math.round(countryRisk * 20); }
 
-    // Factor 4: Declarant fraud history
-    const dFraud = decFraudRate[s.declarant_id] ?? 0;
-    if (dFraud > 0.3) { factors.push('Déclarant avec historique fraude élevé'); score += Math.round(dFraud * 25); }
-
-    // Factor 5: Revenue gap
-    const revGap = s.taxes_declared > 0 ? (s.taxes_declared - s.revenue_collected) / s.taxes_declared : 0;
-    if (revGap > 0.3) { factors.push(`Écart taxe/recette de ${Math.round(revGap * 100)}%`); score += Math.round(revGap * 20); }
+    // Factor 5: System risk score
+    if ((s.risk_score_system ?? 0) > 70) {
+      factors.push(`Score de risque système élevé (${s.risk_score_system})`);
+      score += Math.round(((s.risk_score_system ?? 0) - 70) / 30 * 15);
+    }
 
     // Factor 6: Abnormal clearance
     const baseline = BUREAU_BASELINES[s.office_id] ?? 36;
     if (s.clearance_hours > baseline * 3) { factors.push('Délai de dédouanement anormal'); score += 10; }
+
+    // Factor 7: ROUGE channel = system already suspects this
+    if (s.channel === 'ROUGE') { factors.push('Canal ROUGE — contrôle renforcé'); score += 10; }
 
     const anomaly_score = Math.min(99, score);
     const predicted_fraud_prob = Math.min(0.97, anomaly_score / 100 * 1.1);
@@ -462,7 +524,7 @@ export function scoreDeclarationAnomalies(sgd: SGDRow[], fraud: FraudRow[]): Dec
     return {
       sgd_id: s.sgd_id, importer_id: s.importer_id, declarant_id: s.declarant_id,
       office_id: s.office_id, tariff_code: s.tariff_code, cif_value: s.cif_value,
-      weight: s.weight, clearance_hours: s.clearance_hours,
+      weight: s.weight_kg, clearance_hours: s.clearance_hours,
       anomaly_score, risk_factors: factors, predicted_fraud_prob,
       revenue_at_risk, recommended_action,
     };
@@ -692,7 +754,9 @@ export function predictNextDeclaration(sgd: SGDRow[], fraud: FraudRow[]): NextDe
     const decRecency       = fraudRows.length > 0 ? 1 : 0; // had recent confirmed fraud
     const freqScore        = Math.min(1, rows.length / 50);
     const uniqDecs         = new Set(recent.map(r => r.declarant_id)).size;
+    const uniqInspectors   = new Set(recent.map(r => r.inspector_id)).size;
     const monoDeclarant    = uniqDecs === 1 && recent.length > 3 ? 0.15 : 0;
+    const monoInspector    = uniqInspectors === 1 && recent.length > 3 ? 0.10 : 0;
     const accelerating     = recentFraudRate > allFraudRate * 1.5 ? 0.2 : 0;
 
     // Weighted probability
@@ -702,7 +766,8 @@ export function predictNextDeclaration(sgd: SGDRow[], fraud: FraudRow[]): NextDe
       recentRevGap    * 25 +
       decRecency      * 10 +
       freqScore       *  5 +
-      monoDeclarant   * 100 * 0.15 +
+      monoDeclarant   * 100 * 0.10 +
+      monoInspector   * 100 * 0.10 +
       accelerating    * 100 * 0.2
     );
     prob = Math.min(97, Math.max(1, prob));
@@ -884,37 +949,32 @@ export interface CollusionExposure {
   alert: string | null;
 }
 
-const OFFICER_NAMES: Record<string,string> = {
-  DEC001:'MBARGA Jean-Paul', DEC002:'TCHOUMBA André', DEC003:'NKENGUE Marie',
-  DEC004:'ESSOMBA Pierre',   DEC005:'BIYA-FOUDA Salatou', DEC006:'MOHAMADOU Alim',
-  DEC007:'KANA Hélène',      DEC008:'FOUDA-BELL Ernest',  DEC009:'ABENA Christine',
-  DEC010:'ONDOUA Patrick',
-};
-
 export function computeCollusionExposure(sgd: SGDRow[], fraud: FraudRow[]): CollusionExposure[] {
-  const confirmedFraudImporters = new Set(
-    fraud.filter(f => f.status === 'CONFIRMED').map(f => f.importer_id)
-  );
-  const fraudDeclarants = new Set(
-    fraud.filter(f => f.status === 'CONFIRMED').map(f => f.declarant_id)
+  // Now tracks inspectors: flag those whose inspector+declarant pair appears in 3+ fraud cases
+  const fraudImporters = new Set(fraud.map(f => f.importer_id));
+
+  // collusion_suspected pairs from FRAUD_CASES (pre-computed in dataset)
+  const collusionInspectors = new Set(
+    fraud.filter(f => f.collusion_suspected === 'TRUE').map(f => f.inspector_id)
   );
 
-  const decIds = [...new Set(sgd.map(s => s.declarant_id))];
+  const insIds = [...new Set(sgd.map(s => s.inspector_id).filter(Boolean))];
 
-  return decIds.map(did => {
-    const rows = sgd.filter(s => s.declarant_id === did);
+  return insIds.map(iid => {
+    const rows = sgd.filter(s => s.inspector_id === iid);
     if (!rows.length) return null;
 
-    const highRiskDecls  = rows.filter(r => confirmedFraudImporters.has(r.importer_id));
-    const exposureRate   = highRiskDecls.length / rows.length;
-    const sharedFraudDec = fraudDeclarants.has(did) ? 1 : 0;
+    const info = INSPECTOR_INFO[iid] ?? { name: iid, grade: 'Inspecteur' };
+    const highRiskDecls = rows.filter(r => fraudImporters.has(r.importer_id));
+    const exposureRate  = highRiskDecls.length / rows.length;
+    const isCollusion   = collusionInspectors.has(iid) ? 1 : 0;
+    const fraudOnRows   = rows.filter(r => r.fraud_flag).length;
 
-    // Score: weighted combination
     const score = Math.min(99, Math.round(
-      exposureRate * 50 +
-      sharedFraudDec * 30 +
+      exposureRate * 40 +
+      isCollusion  * 35 +
       (highRiskDecls.length > 5 ? 15 : highRiskDecls.length * 2) +
-      (rows.filter(r => r.fraud_flag).length / rows.length) * 20
+      (fraudOnRows / rows.length) * 20
     ));
 
     const flag: CollusionExposure['integrity_flag'] =
@@ -922,19 +982,19 @@ export function computeCollusionExposure(sgd: SGDRow[], fraud: FraudRow[]): Coll
 
     const alert =
       flag === 'HIGH'
-        ? `${Math.round(exposureRate*100)}% des déclarations liées à des importateurs frauduleux confirmés`
+        ? `Paire inspecteur-déclarant suspecte — ${Math.round(exposureRate*100)}% de déclarations à risque`
         : flag === 'MEDIUM'
-        ? `Exposition modérée — ${highRiskDecls.length} déclarations à risque`
+        ? `Exposition modérée — ${highRiskDecls.length} déclarations liées à des importateurs frauduleux`
         : null;
 
     return {
-      officer_id: did,
-      name: OFFICER_NAMES[did] ?? did,
+      officer_id: iid,
+      name: info.name,
       exposure_score: score,
       high_risk_count: highRiskDecls.length,
       total_declarations: rows.length,
       exposure_rate: exposureRate,
-      shared_declarants: sharedFraudDec,
+      shared_declarants: isCollusion,
       integrity_flag: flag,
       alert,
     };

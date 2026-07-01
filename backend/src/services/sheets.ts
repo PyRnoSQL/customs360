@@ -30,8 +30,16 @@ function parseRow<T>(headers: string[], values: string[]): T {
     const v = (values[i] ?? '').trim();
     // Numeric columns
     const numericCols = new Set([
-      'quantity','weight','cif_value','taxes_declared','revenue_collected',
-      'clearance_hours','fraud_flag','loss_amount','ai_probability'
+      // SGD_DECLARATIONS numeric columns
+      'quantity','weight_kg','cif_value','taxes_declared','taxes_assessed',
+      'revenue_collected','tax_gap','clearance_hours','processing_days',
+      'fraud_flag','risk_score_system','seizure_value',
+      // FRAUD_CASES numeric columns
+      'declared_value','assessed_value','tax_evasion_amount','penalty_amount',
+      'total_amount_due','amount_recovered','recovery_rate','loss_net',
+      'ai_risk_score',
+      // legacy names kept for safety
+      'weight','loss_amount','ai_probability'
     ]);
     obj[h] = numericCols.has(h) ? (isNaN(Number(v)) ? 0 : Number(v)) : v;
   });
