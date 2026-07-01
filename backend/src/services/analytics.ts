@@ -391,14 +391,6 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
       avgRecentDecls > 50 && piTrend < -10 ? 'HIGH'
       : avgRecentDecls > 30 && piTrend < -5 ? 'MEDIUM' : 'LOW';
 
-    // Career status
-    const promotion_readiness = Math.min(100, pi * 1.1 + (monthly_trend.length >= 3 ? 5 : 0));
-    const career_status: OfficerMetrics['career_status'] =
-      burnout_risk === 'HIGH' ? 'BURNOUT_ALERT'
-      : pi >= 75 ? 'ELIGIBLE_PROMOTION'
-      : pi < 35 ? 'REDEPLOYMENT_RISK'
-      : 'ACTIF';
-
     const info = INSPECTOR_INFO[iid] ?? { name: iid, grade: 'Inspecteur' };
 
     return {
@@ -456,7 +448,7 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
       : pi < 35                  ? 'REDEPLOYMENT_RISK'
       : 'ACTIF';
     // Remove temp field
-    delete (o as Record<string,unknown>)['_piComponents'];
+    delete (o as unknown as Record<string,unknown>)['_piComponents'];
   });
 
   // Add bureau ranks
