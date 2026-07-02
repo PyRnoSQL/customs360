@@ -211,14 +211,15 @@ router.get('/officers/:id', wrap(async (req, res) => {
 // ── GET /api/predictions ───────────────────────────────────────────────────
 router.get('/predictions', wrap(async (req, res) => {
   const { sgd: allSgd, fraud: allFraud } = await getSheetData();
-  const bureau = req.query.bureau as string | undefined;
-  const period  = req.query.period  as string | undefined;
+  const bureau = (req.query.bureau as string) || 'ALL';
+  const period  = (req.query.period  as string) || 'ALL';
+  const toMonth = (d: string) => { try { const dt = new Date(d); return isNaN(dt.getTime()) ? '' : `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; } catch { return ''; } };
   const sgd = allSgd
-    .filter(s => !bureau || s.office_id === bureau)
-    .filter(s => !period || (s.date && (() => { try { const d = new Date(s.date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === period; } catch { return false; } })()));
+    .filter(s => bureau === 'ALL' || s.office_id === bureau)
+    .filter(s => period === 'ALL' || toMonth(s.date) === period);
   const fraud = allFraud
-    .filter(f => !bureau || f.office_id === bureau)
-    .filter(f => !period || (f.date_detection && (() => { try { const d = new Date(f.date_detection); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === period; } catch { return false; } })()));
+    .filter(f => bureau === 'ALL' || f.office_id === bureau)
+    .filter(f => period === 'ALL' || toMonth(f.date_detection) === period);
   const { buildPredictions } = await import('../services/analytics.js');
   res.json(buildPredictions(sgd, fraud));
 }));
@@ -229,12 +230,13 @@ router.get('/analytics/cohorts', wrap(async (req, res) => {
   // Apply bureau + period filters at row level
   const bureau = req.query.bureau as string | undefined;
   const period = req.query.period as string | undefined;
+  const toMonth2 = (d: string) => { try { const dt = new Date(d); return isNaN(dt.getTime()) ? '' : `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; } catch { return ''; } };
   const sgd = allSgd
-    .filter(s => !bureau || s.office_id === bureau)
-    .filter(s => !period || (s.date && (() => { try { const d = new Date(s.date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === period; } catch { return false; } })()));
+    .filter(s => !bureau || bureau === 'ALL' || s.office_id === bureau)
+    .filter(s => !period || period === 'ALL' || toMonth2(s.date) === period);
   const fraud = allFraud
-    .filter(f => !bureau || f.office_id === bureau)
-    .filter(f => !period || (f.date_detection && (() => { try { const d = new Date(f.date_detection); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === period; } catch { return false; } })()));
+    .filter(f => !bureau || bureau === 'ALL' || f.office_id === bureau)
+    .filter(f => !period || period === 'ALL' || toMonth2(f.date_detection) === period);
   // Importer behavior cohorts
   const { buildImporterProfiles, buildTariffRisk } = await import('../services/analytics.js');
   const profiles = buildImporterProfiles(sgd, fraud);
@@ -292,26 +294,21 @@ router.get('/analytics/cohorts', wrap(async (req, res) => {
 // ── GET /api/predictions/advanced ─────────────────────────────────────────────
 router.get('/predictions/advanced', wrap(async (req, res) => {
   const { sgd: allSgd, fraud: allFraud } = await getSheetData();
+  const bureau = (req.query.bureau as string) || 'ALL';
+  const period  = (req.query.period  as string) || 'ALL';
 
-  // Apply bureau + period filters so metrics respond to user selection
-  const bureau = req.query.bureau as string | undefined;
-  const period  = req.query.period  as string | undefined;
-
-  const filterDate = (dateStr: string) => {
-    if (!dateStr) return false;
-    try {
-      const d = new Date(dateStr);
-      const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      return m === period;
-    } catch { return false; }
+  const toMonth = (d: string) => {
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? '' : `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
   };
 
-  const sgd = allSgd
-    .filter(s => !bureau || bureau === 'ALL' || s.office_id === bureau)
-    .filter(s => !period || period === 'ALL' || filterDate(s.date));
-  const fraud = allFraud
-    .filter(f => !bureau || bureau === 'ALL' || f.office_id === bureau)
-    .filter(f => !period || period === 'ALL' || filterDate(f.date_detection));
+  // Bureau filter applies to all functions
+  const sgdByBureau   = bureau === 'ALL' ? allSgd   : allSgd.filter(s => s.office_id === bureau);
+  const fraudByBureau = bureau === 'ALL' ? allFraud : allFraud.filter(f => f.office_id === bureau);
+
+  // Period filter for point-in-time functions (risk drift, next decl, delays, collusion)
+  const sgdFiltered   = period === 'ALL' ? sgdByBureau   : sgdByBureau.filter(s => toMonth(s.date) === period);
+  const fraudFiltered = period === 'ALL' ? fraudByBureau : fraudByBureau.filter(f => toMonth(f.date_detection) === period);
 
   const {
     computeRiskDrift, predictNextDeclaration,
@@ -319,11 +316,13 @@ router.get('/predictions/advanced', wrap(async (req, res) => {
   } = await import('../services/analytics.js');
 
   const data = {
-    risk_drift:         computeRiskDrift(sgd, fraud).slice(0, 20),
-    next_decl:          predictNextDeclaration(sgd, fraud).slice(0, 20),
-    fraud_velocity:     computeFraudVelocity(sgd, fraud),
-    delay_causes:       classifyDelays(sgd, fraud).slice(0, 50),
-    collusion_exposure: computeCollusionExposure(sgd, fraud),
+    // Time-series functions: always use full bureau data (need multiple months to compute)
+    fraud_velocity:     computeFraudVelocity(sgdByBureau, fraudByBureau),
+    // Point-in-time functions: use period filter too
+    risk_drift:         computeRiskDrift(sgdFiltered, fraudFiltered).slice(0, 20),
+    next_decl:          predictNextDeclaration(sgdFiltered, fraudFiltered).slice(0, 20),
+    delay_causes:       classifyDelays(sgdFiltered, fraudFiltered).slice(0, 50),
+    collusion_exposure: computeCollusionExposure(sgdFiltered, fraudFiltered),
   };
   res.json(data);
 }));

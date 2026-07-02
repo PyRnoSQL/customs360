@@ -13,15 +13,34 @@ const BUREAUX: { value: BureauFilter; label: string }[] = [
   { value: 'YDE002', label: 'Yaoundé Centre' },
 ];
 
-const PERIODS: { value: PeriodFilter; label: string }[] = [
+const PERIODS: { value: PeriodFilter; label: string; group?: string }[] = [
   { value: 'ALL',     label: 'Toute période' },
-  { value: '2025-08', label: 'Août 2025' },
-  { value: '2025-09', label: 'Septembre 2025' },
-  { value: '2025-10', label: 'Octobre 2025' },
-  { value: '2025-11', label: 'Novembre 2025' },
-  { value: '2025-12', label: 'Décembre 2025' },
-  { value: '2026-01', label: 'Janvier 2026' },
-  { value: '2026-02', label: 'Février 2026' },
+  // 2023
+  { value: '2023-01', label: 'Jan 2023', group: '2023' },
+  { value: '2023-02', label: 'Fév 2023', group: '2023' },
+  { value: '2023-03', label: 'Mar 2023', group: '2023' },
+  { value: '2023-04', label: 'Avr 2023', group: '2023' },
+  { value: '2023-05', label: 'Mai 2023', group: '2023' },
+  { value: '2023-06', label: 'Jun 2023', group: '2023' },
+  { value: '2023-07', label: 'Jul 2023', group: '2023' },
+  { value: '2023-08', label: 'Aoû 2023', group: '2023' },
+  { value: '2023-09', label: 'Sep 2023', group: '2023' },
+  { value: '2023-10', label: 'Oct 2023', group: '2023' },
+  { value: '2023-11', label: 'Nov 2023', group: '2023' },
+  { value: '2023-12', label: 'Déc 2023', group: '2023' },
+  // 2024
+  { value: '2024-01', label: 'Jan 2024', group: '2024' },
+  { value: '2024-02', label: 'Fév 2024', group: '2024' },
+  { value: '2024-03', label: 'Mar 2024', group: '2024' },
+  { value: '2024-04', label: 'Avr 2024', group: '2024' },
+  { value: '2024-05', label: 'Mai 2024', group: '2024' },
+  { value: '2024-06', label: 'Jun 2024', group: '2024' },
+  { value: '2024-07', label: 'Jul 2024', group: '2024' },
+  { value: '2024-08', label: 'Aoû 2024', group: '2024' },
+  { value: '2024-09', label: 'Sep 2024', group: '2024' },
+  { value: '2024-10', label: 'Oct 2024', group: '2024' },
+  { value: '2024-11', label: 'Nov 2024', group: '2024' },
+  { value: '2024-12', label: 'Déc 2024', group: '2024' },
 ];
 
 const RISKS: { value: RiskFilter; label: string; color: string }[] = [
@@ -33,10 +52,12 @@ const RISKS: { value: RiskFilter; label: string; color: string }[] = [
 ];
 
 const STATUSES: { value: StatusFilter; label: string; color: string }[] = [
-  { value: 'ALL',          label: 'Statut',      color: '#64748b' },
-  { value: 'CONFIRMED',    label: 'Confirmé',    color: '#ef4444' },
-  { value: 'UNDER_REVIEW', label: 'En révision', color: '#a78bfa' },
-  { value: 'SUSPECTED',    label: 'Suspecté',    color: '#f59e0b' },
+  { value: 'ALL',                 label: 'Statut',          color: '#64748b' },
+  { value: 'EN_COURS',            label: 'En cours',        color: '#3b82f6' },
+  { value: 'CLOTURE_AMIABLE',     label: 'Clôturé amiable', color: '#10b981' },
+  { value: 'CLOTURE_CONTENTIEUX', label: 'Contentieux',     color: '#f59e0b' },
+  { value: 'TRANSMIS_JUSTICE',    label: 'Justice',         color: '#ef4444' },
+  { value: 'ABANDONNE',           label: 'Abandonné',       color: '#64748b' },
 ];
 
 const PAGE_FILTERS: Record<string, (keyof ReturnType<typeof useFilters>['filters'])[]> = {

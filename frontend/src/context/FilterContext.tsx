@@ -1,9 +1,14 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
-export type BureauFilter = 'ALL' | 'DLA001' | 'KBI001' | 'DLA002' | 'YDE001' | 'YDE002';
+// ── Types ─────────────────────────────────────────────────────────────────────
+export type BureauFilter = 'ALL' | 'DLA001' | 'KBI001' | 'DLA002' | 'YDE001' | 'YDE002' | 'NGD001' | 'BFR001' | 'GRA001';
 export type RiskFilter   = 'ALL' | 'CRITIQUE' | 'ELEVE' | 'MOYEN' | 'FAIBLE';
-export type PeriodFilter = 'ALL' | '2025-08' | '2025-09' | '2025-10' | '2025-11' | '2025-12' | '2026-01' | '2026-02';
-export type StatusFilter = 'ALL' | 'CONFIRMED' | 'UNDER_REVIEW' | 'SUSPECTED';
+export type PeriodFilter = 'ALL'
+  | '2023-01' | '2023-02' | '2023-03' | '2023-04' | '2023-05' | '2023-06'
+  | '2023-07' | '2023-08' | '2023-09' | '2023-10' | '2023-11' | '2023-12'
+  | '2024-01' | '2024-02' | '2024-03' | '2024-04' | '2024-05' | '2024-06'
+  | '2024-07' | '2024-08' | '2024-09' | '2024-10' | '2024-11' | '2024-12';
+export type StatusFilter = 'ALL' | 'EN_COURS' | 'CLOTURE_AMIABLE' | 'CLOTURE_CONTENTIEUX' | 'TRANSMIS_JUSTICE' | 'ABANDONNE';
 
 export interface Filters {
   bureau: BureauFilter;
@@ -32,15 +37,11 @@ export const useFilters = () => useContext(Ctx);
 
 export function FilterProvider({ children }: { children: React.ReactNode }) {
   const [filters, setFilters] = useState<Filters>(DEFAULT);
-
   const setFilter = useCallback(<K extends keyof Filters>(key: K, value: Filters[K]) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   }, []);
-
   const resetFilters = useCallback(() => setFilters(DEFAULT), []);
-
   const activeCount = Object.values(filters).filter(v => v !== 'ALL').length;
-
   return (
     <Ctx.Provider value={{ filters, setFilter, resetFilters, activeCount }}>
       {children}
@@ -48,24 +49,39 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Filter helpers ─────────────────────────────────────────────────────────────
+// ── Date helpers ──────────────────────────────────────────────────────────────
+// Dataset dates are M/D/YYYY; extract YYYY-MM for period comparison
+function toMonthKey(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// ── Filter helpers ────────────────────────────────────────────────────────────
 export function applyBureauFilter<T extends { office_id?: string; bureau_ids?: string[] }>(
   data: T[], bureau: BureauFilter
 ): T[] {
   if (bureau === 'ALL') return data;
   return data.filter(d =>
-    d.office_id === bureau || (d.bureau_ids && d.bureau_ids.includes(bureau))
+    d.office_id === bureau || (d.bureau_ids?.includes(bureau))
   );
 }
 
-export function applyPeriodFilter<T extends { date?: string; month?: string }>(
+// Works for both SGD rows (date: M/D/YYYY) and revenue rows (month: YYYY-MM)
+export function applyPeriodFilter<T extends Record<string, unknown>>(
   data: T[], period: PeriodFilter
 ): T[] {
   if (period === 'ALL') return data;
-  return data.filter(d =>
-    (d.date && d.date.startsWith(period)) ||
-    (d.month && d.month === period)
-  );
+  return data.filter(d => {
+    // revenue/monthly rows have a 'month' field in YYYY-MM format
+    if (typeof d['month'] === 'string') return d['month'] === period;
+    // SGD rows have 'date' in M/D/YYYY format
+    if (typeof d['date'] === 'string') return toMonthKey(d['date'] as string) === period;
+    // Fraud rows have 'date_detection' in M/D/YYYY format
+    if (typeof d['date_detection'] === 'string') return toMonthKey(d['date_detection'] as string) === period;
+    return true;
+  });
 }
 
 export function applyRiskFilter<T extends { risk_score?: number; anomaly_score?: number; risk_level?: string }>(
@@ -81,7 +97,7 @@ export function applyRiskFilter<T extends { risk_score?: number; anomaly_score?:
   };
   const levelMap: Record<RiskFilter, string[]> = {
     ALL:      [],
-    CRITIQUE: ['CRITICAL','HIGH'],
+    CRITIQUE: ['CRITICAL', 'HIGH'],
     ELEVE:    ['HIGH'],
     MOYEN:    ['MEDIUM'],
     FAIBLE:   ['LOW'],
