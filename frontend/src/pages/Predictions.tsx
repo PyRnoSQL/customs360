@@ -188,11 +188,11 @@ function NextDeclPanel({ predictions }: { predictions: NextDecl[] }) {
         `<span style="color:#f1f5f9"><b>${p.name}</b><br/>Importateurs: <b style="color:#fff">${p.value}</b> &nbsp;<span style="color:#94a3b8">(${p.percent}%)</span></span>`,
     },
     legend: {
-      orient: 'vertical',
-      right: 4,
-      top: 'middle',
-      itemWidth: 10, itemHeight: 10, itemGap: 8,
-      textStyle: { color: '#94a3b8', fontSize: 11 },
+      orient: 'horizontal',
+      bottom: 0,
+      left: 'center',
+      itemWidth: 10, itemHeight: 10, itemGap: 14,
+      textStyle: { color: '#94a3b8', fontSize: 10 },
       formatter: (name: string) => {
         const seg = pieSegments.find(s => s.name === name);
         const val = seg?.value ?? 0;
@@ -202,19 +202,31 @@ function NextDeclPanel({ predictions }: { predictions: NextDecl[] }) {
     },
     series: [{
       type: 'pie',
-      radius: ['45%', '68%'],
-      center: ['34%', '50%'],
+      radius: ['32%', '54%'],
+      center: ['50%', '38%'],
       avoidLabelOverlap: true,
       label: {
-        show: true, position: 'outside', color: '#94a3b8', fontSize: 10,
-        formatter: (p: {name:string;percent:string}) => `${p.name}
-${p.percent}%`,
+        show: true,
+        position: 'outside',
+        color: '#94a3b8',
+        fontSize: 10,
+        fontWeight: '500',
+        formatter: (p: {name:string;percent:string;value:number}) =>
+          p.value > 0 ? `${p.name}
+${p.percent}%` : '',
       },
-      labelLine: { show: true, length: 10, length2: 6, lineStyle: { color: 'rgba(148,163,184,0.4)' } },
-      emphasis: { scale: true, scaleSize: 5 },
+      labelLine: {
+        show: true,
+        length: 12, length2: 8,
+        lineStyle: { color: 'rgba(148,163,184,0.5)', width: 1 },
+        showAbove: true,
+      },
+      emphasis: { scale: true, scaleSize: 6 },
       data: pieSegments.map(d => ({
         name: d.name, value: d.value,
         itemStyle: { color: d.color, borderRadius: 3, borderWidth: 2, borderColor: 'rgba(15,23,42,0.9)' },
+        label: { show: d.value > 0 },
+        labelLine: { show: d.value > 0 },
       })),
     }],
   };
@@ -228,7 +240,7 @@ ${p.percent}%`,
         <div>
           {pieTotal === 0
             ? <div className="h-[220px] flex items-center justify-center text-muted text-sm">Aucune donnée disponible</div>
-            : <ReactECharts option={pieOption} style={{ height: 220 }} />
+            : <ReactECharts option={pieOption} style={{ height: 280 }} />
           }
         </div>
 
