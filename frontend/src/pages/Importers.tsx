@@ -85,7 +85,7 @@ function ImporterDetail({ id, onBack }: { id: string; onBack: () => void }) {
                   <td><span className="text-xs">{s.office_id}</span></td>
                   <td><span className="text-sm font-semibold">{fmtM(s.cif_value)}</span></td>
                   <td><span className="text-xs">{s.clearance_hours}h</span></td>
-                  <td>{(s.fraud_flag === 1 || s.fraud_flag === '1') ? <span className="badge badge-danger text-[10px]">SUSPECT</span> : <span className="badge badge-success text-[10px]">NORMAL</span></td>
+                  <td>{(s.fraud_flag === 1 || s.fraud_flag === '1') ? <span className="badge badge-danger text-[10px]">SUSPECT</span> : <span className="badge badge-success text-[10px]">NORMAL</span>}</td>
                 </tr>
               ))}
             </tbody>
