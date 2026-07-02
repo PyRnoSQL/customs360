@@ -633,8 +633,12 @@ export function scoreDeclarationAnomalies(sgd: SGDRow[], fraud: FraudRow[]): Dec
       : 'Contrôle aléatoire standard';
 
     return {
-      sgd_id: s.sgd_id, importer_id: s.importer_id, declarant_id: s.declarant_id,
-      office_id: s.office_id, tariff_code: s.tariff_code, cif_value: s.cif_value,
+      sgd_id: s.sgd_id,
+      importer_id: s.importer_id, importer_name: s.importer_name ?? s.importer_id,
+      declarant_id: s.declarant_id,
+      office_id: s.office_id, office_name: s.office_name ?? s.office_id,
+      tariff_code: s.tariff_code, tariff_description: s.tariff_description ?? '',
+      cif_value: s.cif_value,
       weight: s.weight_kg, clearance_hours: s.clearance_hours,
       anomaly_score, risk_factors: factors, predicted_fraud_prob,
       revenue_at_risk, recommended_action,
