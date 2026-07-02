@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useApi } from '../hooks/useApi';
 import { PageHeader } from '../App';
 import { api, fmtM, fmt, riskColor } from '../services/api';
-import { KPICard, RiskBadge, Gauge, SectionTitle, Loading, ErrorBox, Code } from '../components/UI';
+import { KPICard, RiskBadge, Gauge, SectionTitle, Loading, ErrorBox, Code, PaginatedTable } from '../components/UI';
 import type { ImporterProfile } from '../types';
 
 function ImporterDetail({ id, onBack }: { id: string; onBack: () => void }) {
@@ -19,16 +19,16 @@ function ImporterDetail({ id, onBack }: { id: string; onBack: () => void }) {
     <div className="space-y-5">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="btn btn-ghost text-xs">← Retour</button>
-        <span className="text-sm font-bold text-white">Profil 360° — {data.importer_id}</span>
+        <span className="text-sm font-bold text-white">Profil 360° — {data.name ?? data.importer_id}</span>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         <div className="card">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <div className="text-lg font-bold text-white">{data.importer_id}</div>
-              {data.name && <div className="text-sm text-sub mt-0.5">{data.name}</div>}
-              <div className="text-xs text-muted mt-1">{data.countries.join(', ')} · {data.offices.join(', ')}</div>
+              <div className="text-lg font-bold text-white">{data.name ?? data.importer_id}</div>
+              <div className="text-xs text-muted mt-0.5">{data.importer_id}</div>
+              <div className="text-xs text-muted mt-1">{data.countries.join(', ')} · {(data.office_names ?? data.offices).join(', ')}</div>
             </div>
             <div className="text-right">
               <div className="text-3xl font-black" style={{ color: riskColor(data.risk_score) }}>{data.risk_score}%</div>
@@ -133,35 +133,34 @@ export default function Importers() {
             value={search} onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <table className="tbl">
-          <thead><tr>
+        <PaginatedTable
+          pageSize={15}
+          headers={<tr>
             <th>#</th><th>Importateur</th><th>Pays</th><th>Bureaux</th>
             <th>Déclarations</th><th>Valeur CIF</th><th>Score DATE</th><th>Fraudes</th><th></th>
-          </tr></thead>
-          <tbody>
-            {filtered.map((imp: ImporterProfile, i: number) => (
-              <tr key={imp.importer_id}>
-                <td><span className="text-muted text-xs font-bold">{i + 1}</span></td>
-                <td>
-                  <div className="text-sm font-semibold text-white">{imp.importer_id}</div>
-                  <div className="text-xs text-muted">{imp.unique_declarants.length} déclarant(s)</div>
-                </td>
-                <td><span className="text-sm">{imp.countries.slice(0, 2).join(', ')}</span></td>
-                <td><span className="text-xs text-sub">{imp.offices.join(', ')}</span></td>
-                <td><span className="text-sm font-semibold">{fmt(imp.total_declarations)}</span></td>
-                <td><span className="text-sm font-semibold">{fmtM(imp.total_cif_value)}</span></td>
-                <td>
-                  <div className="flex items-center gap-2">
-                    <div className="w-16 gauge-track"><div className="gauge-fill h-1.5" style={{ width: `${imp.risk_score}%`, background: riskColor(imp.risk_score) }} /></div>
-                    <span className="text-xs font-bold min-w-[28px]" style={{ color: riskColor(imp.risk_score) }}>{imp.risk_score}%</span>
-                  </div>
-                </td>
-                <td><span className={`text-sm font-bold ${imp.fraud_cases > 0 ? 'text-danger' : 'text-success'}`}>{imp.fraud_cases}</span></td>
-                <td><button onClick={() => setSelected(imp.importer_id)} className="btn btn-primary text-xs py-1 px-3">Voir 360°</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          </tr>}
+          rows={filtered.map((imp: ImporterProfile, i: number) => (
+            <tr key={imp.importer_id}>
+              <td><span className="text-muted text-xs font-bold">{i + 1}</span></td>
+              <td>
+                <div className="text-sm font-semibold text-white">{imp.name ?? imp.importer_id}</div>
+                <div className="text-[10px] text-muted">{imp.importer_id} · {imp.unique_declarants.length} déclarant(s)</div>
+              </td>
+              <td><span className="text-sm">{imp.countries.slice(0, 2).join(', ')}</span></td>
+              <td><span className="text-xs text-sub">{(imp.office_names ?? imp.offices).slice(0,2).join(', ')}</span></td>
+              <td><span className="text-sm font-semibold">{fmt(imp.total_declarations)}</span></td>
+              <td><span className="text-sm font-semibold">{fmtM(imp.total_cif_value)}</span></td>
+              <td>
+                <div className="flex items-center gap-2">
+                  <div className="w-16 gauge-track"><div className="gauge-fill h-1.5" style={{ width: `${imp.risk_score}%`, background: riskColor(imp.risk_score) }} /></div>
+                  <span className="text-xs font-bold min-w-[28px]" style={{ color: riskColor(imp.risk_score) }}>{imp.risk_score}%</span>
+                </div>
+              </td>
+              <td><span className={`text-sm font-bold ${imp.fraud_cases > 0 ? 'text-danger' : 'text-success'}`}>{imp.fraud_cases}</span></td>
+              <td><button onClick={() => setSelected(imp.importer_id)} className="btn btn-primary text-xs py-1 px-3">Voir 360°</button></td>
+            </tr>
+          ))}
+        />
       </div>
     </div>
   );

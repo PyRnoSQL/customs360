@@ -19,7 +19,7 @@ export interface MonthlyRevenue {
 
 export interface ImporterProfile {
   importer_id: string;
-  name?: string;
+  name: string;
   total_declarations: number;
   total_cif_value: number;
   total_revenue: number;
@@ -30,6 +30,8 @@ export interface ImporterProfile {
   countries: string[];
   tariff_codes: string[];
   unique_declarants: string[];
+  unique_declarant_names: string[];
+  office_names: string[];
   date_factors: DATEFactor[];
   recent_sgds?: SGDRow[];
   fraud_cases_detail?: FraudRow[];

@@ -8,7 +8,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApi } from '../hooks/useApi';
 import { PageHeader } from '../App';
-import { KPICard, SectionTitle, Loading, ErrorBox, FadeIn, StaggerGrid, Gauge, AnimatedNumber } from '../components/UI';
+import { KPICard, SectionTitle, Loading, ErrorBox, FadeIn, StaggerGrid, Gauge, AnimatedNumber, PaginatedTable } from '../components/UI';
 import { fmtM, fmt } from '../services/api';
 import { useFilters } from '../context/FilterContext';
 
@@ -126,7 +126,7 @@ function RiskDriftPanel({ drifts }: { drifts: RiskDrift[] }) {
                 style={{ background: selected?.importer_id === d.importer_id ? `${dm.color}18` : 'rgba(255,255,255,0.03)', border:`1px solid ${dm.color}33` }}>
                 <span className="text-sm">{dm.icon}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{d.importer_id}</div>
+                  <div className="text-xs font-bold text-white truncate">{(d as RiskDrift & {importer_name?:string}).importer_name ?? d.importer_id}</div>
                   <div className="text-[10px]" style={{ color: dm.color }}>{dm.label} · {d.velocity > 0 ? '+' : ''}{d.velocity}/mois</div>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -145,7 +145,7 @@ function RiskDriftPanel({ drifts }: { drifts: RiskDrift[] }) {
           <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:'auto' }} exit={{ opacity:0, height:0 }}
             className="mt-4 p-4 rounded-xl overflow-hidden"
             style={{ background:'rgba(59,130,246,0.06)', border:'1px solid rgba(59,130,246,0.2)' }}>
-            <div className="text-xs font-bold text-white mb-2">{selected.importer_id} — Évolution du Score de Risque</div>
+            <div className="text-xs font-bold text-white mb-2">{(selected as RiskDrift & {importer_name?:string}).importer_name ?? selected.importer_id} — Évolution du Score de Risque</div>
             <ResponsiveContainer width="100%" height={80}>
               <LineChart data={selected.periods}>
                 <XAxis dataKey="month" tick={{ fill:'#475569', fontSize:9 }} tickFormatter={(v:string) => v.slice(5)}/>
@@ -205,7 +205,7 @@ function NextDeclPanel({ predictions }: { predictions: NextDecl[] }) {
             <tbody>
               {predictions.slice(0, 15).map(p => (
                 <motion.tr key={p.importer_id} initial={{ opacity:0 }} animate={{ opacity:1 }}>
-                  <td><span className="text-xs font-bold text-white">{p.importer_id}</span></td>
+                  <td><div className="text-xs font-bold text-white">{(p as NextDecl & {importer_name?:string}).importer_name ?? p.importer_id}</div><div className="text-[10px] text-muted">{p.importer_id}</div></td>
                   <td>
                     <div className="flex items-center gap-2">
                       <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,0.06)' }}>
@@ -257,7 +257,7 @@ function DelayClassifierPanel({ delays }: { delays: DelayCause[] }) {
               {delays.slice(0, 15).map(d => (
                 <motion.tr key={d.sgd_id} initial={{ opacity:0 }} animate={{ opacity:1 }}>
                   <td><code style={{ color:'#22d3ee', fontSize:11 }}>{d.sgd_id}</code></td>
-                  <td><span className="text-xs text-muted">{d.office_id}</span></td>
+                  <td><span className="text-xs text-muted">{(d as DelayCause & {office_name?:string}).office_name ?? d.office_id}</span></td>
                   <td><span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background:CAUSE_COLOR[d.cause]+'18', color:CAUSE_COLOR[d.cause], border:`1px solid ${CAUSE_COLOR[d.cause]}33` }}>{d.cause_label}</span></td>
                   <td><span className="text-xs font-bold" style={{ color: d.overshoot>100?'#ef4444':'#f59e0b' }}>+{d.overshoot}h</span></td>
                   <td><span className="text-xs" style={{ color: d.confidence>=80?'#10b981':'#f59e0b' }}>{d.confidence}%</span></td>
@@ -444,24 +444,32 @@ export default function Predictions() {
       <FadeIn delay={0.15}>
         <div className="card">
           <SectionTitle icon="🔬">Scoring Anomalies — Déclarations Prioritaires</SectionTitle>
-          <table className="tbl">
-            <thead><tr><th>SGD</th><th>Importateur</th><th>Tarif</th><th>Bureau</th><th>Score</th><th>Prob. Fraude</th><th>Revenu à risque</th><th>Action</th></tr></thead>
-            <tbody>
-              {(anomalies as Anomaly[]).slice(0,15).map((a,i)=>{
-                const ac=(s:string)=>s.includes('immédiate')?'#ef4444':s.includes('prioritaire')?'#f59e0b':'#3b82f6';
-                return <motion.tr key={a.sgd_id} initial={{opacity:0,x:-8}} animate={{opacity:1,x:0}} transition={{delay:i*0.03}}>
+          <PaginatedTable
+            pageSize={15}
+            headers={<tr><th>SGD</th><th>Importateur</th><th>Tarif</th><th>Bureau</th><th>Score</th><th>Prob. Fraude</th><th>Revenu à risque</th><th>Action</th></tr>}
+            rows={(anomalies as Anomaly[]).map((a) => {
+              const ac=(s:string)=>s.includes('immédiate')?'#ef4444':s.includes('prioritaire')?'#f59e0b':'#3b82f6';
+              return (
+                <tr key={a.sgd_id}>
                   <td><code style={{color:'#22d3ee',fontSize:11}}>{a.sgd_id}</code></td>
-                  <td><span className="text-xs">{a.importer_id}</span></td>
-                  <td><code style={{color:'#22d3ee',fontSize:11}}>{a.tariff_code}</code></td>
-                  <td><span className="text-xs text-muted">{a.office_id}</span></td>
-                  <td><div className="flex items-center gap-1.5"><div className="w-12 h-1.5 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}><motion.div className="h-full rounded-full" initial={{width:0}} animate={{width:`${a.anomaly_score}%`}} transition={{delay:i*0.03+0.3,duration:0.6}} style={{background:a.anomaly_score>=70?'#ef4444':a.anomaly_score>=45?'#f59e0b':'#3b82f6'}}/></div><span className="text-xs font-bold" style={{color:a.anomaly_score>=70?'#f87171':a.anomaly_score>=45?'#fbbf24':'#60a5fa'}}>{a.anomaly_score}</span></div></td>
+                  <td>
+                    <div className="text-xs font-semibold text-white">{(a as Anomaly & {importer_name?:string}).importer_name ?? a.importer_id}</div>
+                    <div className="text-[10px] text-muted">{a.importer_id}</div>
+                  </td>
+                  <td>
+                    <code style={{color:'#22d3ee',fontSize:11}}>{a.tariff_code}</code>
+                  </td>
+                  <td>
+                    <div className="text-xs text-muted">{(a as Anomaly & {office_name?:string}).office_name ?? a.office_id}</div>
+                  </td>
+                  <td><div className="flex items-center gap-1.5"><div className="w-12 h-1.5 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}><div className="h-full rounded-full" style={{width:`${a.anomaly_score}%`,background:a.anomaly_score>=70?'#ef4444':a.anomaly_score>=45?'#f59e0b':'#3b82f6'}}/></div><span className="text-xs font-bold" style={{color:a.anomaly_score>=70?'#f87171':a.anomaly_score>=45?'#fbbf24':'#60a5fa'}}>{a.anomaly_score}</span></div></td>
                   <td><span className="text-xs font-bold" style={{color:a.predicted_fraud_prob>=0.7?'#f87171':'#fbbf24'}}>{Math.round(a.predicted_fraud_prob*100)}%</span></td>
                   <td><span className="text-xs font-bold text-red-400">{fmtM(a.revenue_at_risk)} FCFA</span></td>
                   <td><span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{background:ac(a.recommended_action)+'18',color:ac(a.recommended_action),border:`1px solid ${ac(a.recommended_action)}35`}}>{a.recommended_action}</span></td>
-                </motion.tr>;
-              })}
-            </tbody>
-          </table>
+                </tr>
+              );
+            })}
+          />
         </div>
       </FadeIn>
     </div>

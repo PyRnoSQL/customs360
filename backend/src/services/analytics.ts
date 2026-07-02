@@ -91,6 +91,7 @@ export function buildImporterProfiles(sgd: SGDRow[], fraud: FraudRow[]): Importe
     const risk_score = computeRiskScore(factors);
     return {
       importer_id: id,
+      name: rows[0]?.importer_name ?? id,
       total_declarations: rows.length,
       total_cif_value: rows.reduce((s, r) => s + r.cif_value, 0),
       total_revenue: rows.reduce((s, r) => s + r.revenue_collected, 0),
@@ -98,9 +99,11 @@ export function buildImporterProfiles(sgd: SGDRow[], fraud: FraudRow[]): Importe
       fraud_rate: rows.length > 0 ? rows.filter(r => isFraud(r.fraud_flag)).length / rows.length : 0,
       risk_score,
       offices: [...new Set(rows.map(r => r.office_id))],
+      office_names: [...new Set(rows.map(r => r.office_name ?? r.office_id))],
       countries: [...new Set(rows.map(r => r.country))],
       tariff_codes: [...new Set(rows.map(r => r.tariff_code))],
       unique_declarants: [...new Set(rows.map(r => r.declarant_id))],
+      unique_declarant_names: [...new Set(rows.map(r => r.declarant_name ?? r.declarant_id))],
       date_factors: factors,
     };
   }).sort((a, b) => b.risk_score - a.risk_score);
@@ -217,7 +220,15 @@ export function buildDelays(sgd: SGDRow[]): (SGDRow & { overshoot_hours: number;
     .map(s => {
       const baseline = OFFICE_BASELINE[s.office_id] ?? 36;
       const overshoot = s.clearance_hours - baseline;
-      return { ...s, declared_hours: baseline, overshoot_hours: overshoot, is_suspicious: overshoot > baseline };
+      return {
+        ...s,
+        office_name: s.office_name ?? s.office_id,
+        importer_name: s.importer_name ?? s.importer_id,
+        tariff_description: s.tariff_description ?? '',
+        declared_hours: baseline,
+        overshoot_hours: Math.round(overshoot * 10) / 10,
+        is_suspicious: overshoot > baseline,
+      };
     })
     .filter(s => s.is_suspicious)
     .sort((a, b) => b.overshoot_hours - a.overshoot_hours);
@@ -824,7 +835,8 @@ export function computeRiskDrift(sgd: SGDRow[], fraud: FraudRow[]): RiskDrift[] 
         ? `Hausse brutale de ${drift} points sur la période — vérification recommandée`
       : null;
 
-    return { importer_id: id, current_score: currentScore, prev_score: prevScore, drift, trend, velocity: Math.round(velocity * 10) / 10, alert, periods };
+    const dRows = sgd.filter(s => s.importer_id === id);
+    return { importer_id: id, importer_name: dRows[0]?.importer_name ?? id, current_score: currentScore, prev_score: prevScore, drift, trend, velocity: Math.round(velocity * 10) / 10, alert, periods };
   }).filter(Boolean) as RiskDrift[];
 }
 
@@ -889,7 +901,8 @@ export function predictNextDeclaration(sgd: SGDRow[], fraud: FraudRow[]): NextDe
       prob >= 25 ? 'Contrôle renforcé aléatoire' :
                    'Traitement standard';
 
-    return { importer_id: id, next_fraud_prob: prob, confidence, key_signals: signals, recommended_action: action };
+    const nRows = sgd.filter(s => s.importer_id === id);
+    return { importer_id: id, importer_name: nRows[0]?.importer_name ?? id, next_fraud_prob: prob, confidence, key_signals: signals, recommended_action: action };
   }).filter(Boolean).sort((a,b) => b!.next_fraud_prob - a!.next_fraud_prob) as NextDeclPrediction[];
 }
 
@@ -1031,7 +1044,8 @@ export function classifyDelays(sgd: SGDRow[], fraud: FraudRow[]): DelayClassific
       }
 
       return {
-        sgd_id: s.sgd_id, office_id: s.office_id, importer_id: s.importer_id,
+        sgd_id: s.sgd_id, office_id: s.office_id, office_name: s.office_name ?? s.office_id,
+        importer_id: s.importer_id, importer_name: s.importer_name ?? s.importer_id,
         actual_hours: s.clearance_hours, baseline_hours: baseline,
         overshoot, cause, cause_label: CAUSE_LABELS[cause],
         confidence, action: CAUSE_ACTIONS[cause],

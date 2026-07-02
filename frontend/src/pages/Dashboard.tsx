@@ -4,7 +4,7 @@ import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Tooltip,
 import { motion } from 'framer-motion';
 import { useApi } from '../hooks/useApi';
 import { api, fmtM, fmt } from '../services/api';
-import { KPICard, SectionTitle, Loading, ErrorBox, StatusBadge, FadeIn, StaggerGrid } from '../components/UI';
+import { KPICard, SectionTitle, Loading, ErrorBox, StatusBadge, FadeIn, StaggerGrid, PaginatedTable } from '../components/UI';
 import { PageHeader } from '../App';
 import { useFilters, applyPeriodFilter, applyBureauFilter } from '../context/FilterContext';
 
@@ -142,28 +142,30 @@ export default function Dashboard() {
               {filteredCases.length === 0
                 ? <div className="py-8 text-center text-muted text-sm">Aucun cas pour les filtres sélectionnés</div>
                 : (
-                  <table className="tbl">
-                    <thead><tr><th>Cas</th><th>SGD</th><th>Type</th><th>Perte</th><th>IA %</th><th>Statut</th></tr></thead>
-                    <tbody>
-                      {filteredCases.slice(0, 8).map((f: { case_id: string; sgd_id: string; fraud_type: string; loss_net: number; ai_risk_score: number; status: string }, i: number) => (
-                        <motion.tr key={f.case_id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                          <td><code style={{ color: '#22d3ee', fontSize: 11 }}>{f.case_id}</code></td>
-                          <td><code style={{ color: '#60a5fa', fontSize: 11 }}>{f.sgd_id}</code></td>
-                          <td><span className="text-xs text-slate-400">{f.fraud_type}</span></td>
-                          <td><span className="text-xs font-bold text-red-400">{fmtM(f.loss_net)}</span></td>
-                          <td>
-                            <div className="flex items-center gap-1.5">
-                              <div className="h-1 w-10 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                                <div className="h-full rounded-full" style={{ width: `${f.ai_risk_score}%`, background: f.ai_risk_score >= 80 ? '#ef4444' : '#f59e0b' }} />
-                              </div>
-                              <span className="text-xs font-bold" style={{ color: f.ai_risk_score >= 80 ? '#f87171' : '#fbbf24' }}>{f.ai_risk_score}%</span>
+                  <PaginatedTable
+                    pageSize={15}
+                    headers={<tr><th>Cas</th><th>Importateur</th><th>Type</th><th>Évasion</th><th>Score IA</th><th>Statut</th></tr>}
+                    rows={filteredCases.map((f: { case_id: string; sgd_id: string; importer_id: string; importer_name?: string; fraud_type: string; loss_net: number; ai_risk_score: number; status: string }) => (
+                      <tr key={f.case_id}>
+                        <td><code style={{ color: '#22d3ee', fontSize: 11 }}>{f.case_id}</code></td>
+                        <td>
+                          <div className="text-xs font-semibold text-white">{f.importer_name ?? f.importer_id}</div>
+                          <div className="text-[10px] text-muted">{f.importer_id}</div>
+                        </td>
+                        <td><span className="text-xs text-slate-400">{f.fraud_type?.replace(/_/g,' ')}</span></td>
+                        <td><span className="text-xs font-bold text-red-400">{fmtM(f.loss_net)} FCFA</span></td>
+                        <td>
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-1 w-10 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                              <div className="h-full rounded-full" style={{ width: `${f.ai_risk_score}%`, background: f.ai_risk_score >= 70 ? '#ef4444' : '#f59e0b' }} />
                             </div>
-                          </td>
-                          <td><StatusBadge status={f.status} /></td>
-                        </motion.tr>
-                      ))}
-                    </tbody>
-                  </table>
+                            <span className="text-xs font-bold" style={{ color: f.ai_risk_score >= 70 ? '#f87171' : '#fbbf24' }}>{f.ai_risk_score}</span>
+                          </div>
+                        </td>
+                        <td><StatusBadge status={f.status} /></td>
+                      </tr>
+                    ))}
+                  />
                 )}
             </div>
           </FadeIn>

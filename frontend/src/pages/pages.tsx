@@ -4,7 +4,7 @@ import { PageHeader } from '../App';
 import React, { useRef, useEffect, useState } from 'react';
 import { useApi } from '../hooks/useApi';
 import { api, fmtM, fmt } from '../services/api';
-import { KPICard, SectionTitle, StatusBadge, Loading, ErrorBox, Code } from '../components/UI';
+import { KPICard, SectionTitle, StatusBadge, Loading, ErrorBox, Code, PaginatedTable } from '../components/UI';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import type { AIAnalysis } from '../types';
@@ -62,29 +62,31 @@ export function Fraud() {
         <div className="card xl:col-span-2">
           <SectionTitle icon="📋">Codes Tarifaires à Risque</SectionTitle>
           {(() => {
-            const tariffMap: Record<string,{cases:number;total:number}> = {};
-            filteredCases.forEach((f: { tariff_code: string }) => {
-              if (!tariffMap[f.tariff_code]) tariffMap[f.tariff_code] = {cases:0,total:0};
+            const tariffMap: Record<string,{cases:number;total:number;desc:string}> = {};
+            filteredCases.forEach((f: { tariff_code: string; tariff_description?: string }) => {
+              if (!tariffMap[f.tariff_code]) tariffMap[f.tariff_code] = {cases:0,total:0,desc:''};
               tariffMap[f.tariff_code].cases++;
               tariffMap[f.tariff_code].total++;
+              if (f.tariff_description) tariffMap[f.tariff_code].desc = f.tariff_description;
             });
             const tariffRows = Object.entries(tariffMap)
-              .map(([code, v]) => ({ code, cases: v.cases, rate: v.cases / Math.max(v.total,1) }))
+              .map(([code, v]) => ({ code, cases: v.cases, rate: v.cases / Math.max(v.total,1), desc: v.desc }))
               .sort((a,b) => b.cases - a.cases);
-            return (
-              <table className="tbl">
-                <thead><tr><th>Code SH</th><th>Fraudes</th><th>Taux</th></tr></thead>
-                <tbody>
-                  {tariffRows.map(t => (
-                    <tr key={t.code}>
-                      <td><Code>{t.code}</Code></td>
-                      <td><span className="font-bold text-danger">{t.cases}</span></td>
-                      <td>{(t.rate * 100).toFixed(1)}%</td>
-                    </tr>
-                  ))}
-                  {tariffRows.length === 0 && <tr><td colSpan={3} className="text-center text-muted py-4">Aucun cas pour les filtres sélectionnés</td></tr>}
-                </tbody>
-              </table>
+            return tariffRows.length === 0
+              ? <div className="text-center text-muted py-4">Aucun cas pour les filtres sélectionnés</div>
+              : (
+              <PaginatedTable
+                pageSize={15}
+                headers={<tr><th>Code SH</th><th>Description</th><th>Fraudes</th><th>Taux</th></tr>}
+                rows={tariffRows.map(t => (
+                  <tr key={t.code}>
+                    <td><Code>{t.code}</Code></td>
+                    <td><span className="text-xs text-sub">{t.desc ?? '—'}</span></td>
+                    <td><span className="font-bold text-danger">{t.cases}</span></td>
+                    <td><span className="text-xs font-bold" style={{ color: t.rate > 0.3 ? '#ef4444' : t.rate > 0.15 ? '#f59e0b' : '#10b981' }}>{(t.rate * 100).toFixed(1)}%</span></td>
+                  </tr>
+                ))}
+              />
             );
           })()}
         </div>
@@ -92,26 +94,31 @@ export function Fraud() {
 
       <div className="card">
         <SectionTitle icon="🚨">Tous les Cas de Fraude</SectionTitle>
-        <table className="tbl">
-          <thead><tr><th>Cas</th><th>SGD</th><th>Importateur</th><th>Déclarant</th><th>Type</th><th>Perte</th><th>IA %</th><th>Bureau</th><th>Statut</th></tr></thead>
-          <tbody>
-            {filteredCases.slice(0, 80).map((f: { case_id: string; sgd_id: string; importer_id: string; declarant_id: string; fraud_type: string; loss_net: number; ai_risk_score: number; office_id: string; status: string }) => (
-              <tr key={f.case_id}>
-                <td><Code>{f.case_id}</Code></td>
-                <td><Code color="#3b82f6">{f.sgd_id}</Code></td>
-                <td><span className="text-xs">{f.importer_id}</span></td>
-                <td><span className="text-xs text-sub">{f.declarant_id}</span></td>
-                <td><span className="text-xs text-sub">{f.fraud_type}</span></td>
-                <td><span className="text-xs font-bold text-danger">{fmtM(f.loss_net)}</span></td>
-                <td>
-                  <span className="text-xs font-bold" style={{ color: f.ai_risk_score >= 80 ? '#ef4444' : '#eab308' }}>{f.ai_risk_score}%</span>
-                </td>
-                <td><span className="text-xs text-sub">{f.office_id}</span></td>
-                <td><StatusBadge status={f.status} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <PaginatedTable
+          pageSize={15}
+          headers={<tr><th>Cas</th><th>Importateur</th><th>Déclarant</th><th>Type</th><th>Évasion</th><th>Pénalité</th><th>Score IA</th><th>Bureau</th><th>Statut</th></tr>}
+          rows={filteredCases.map((f: { case_id: string; sgd_id: string; importer_id: string; importer_name?: string; declarant_id: string; declarant_name?: string; fraud_type: string; loss_net: number; tax_evasion_amount?: number; penalty_amount?: number; ai_risk_score: number; office_id: string; office_name?: string; status: string }) => (
+            <tr key={f.case_id}>
+              <td><Code>{f.case_id}</Code></td>
+              <td>
+                <div className="text-xs font-semibold text-white">{f.importer_name ?? f.importer_id}</div>
+                <div className="text-[10px] text-muted">{f.importer_id}</div>
+              </td>
+              <td>
+                <div className="text-xs text-sub">{f.declarant_name ?? f.declarant_id}</div>
+                <div className="text-[10px] text-muted">{f.declarant_id}</div>
+              </td>
+              <td><span className="text-xs text-sub">{f.fraud_type?.replace(/_/g,' ')}</span></td>
+              <td><span className="text-xs font-bold text-danger">{fmtM(f.tax_evasion_amount ?? f.loss_net)} FCFA</span></td>
+              <td><span className="text-xs font-bold text-orange-400">{fmtM(f.penalty_amount ?? 0)} FCFA</span></td>
+              <td><span className="text-xs font-bold" style={{ color: f.ai_risk_score >= 70 ? '#ef4444' : '#eab308' }}>{f.ai_risk_score}</span></td>
+              <td>
+                <div className="text-xs text-sub">{f.office_name ?? f.office_id}</div>
+              </td>
+              <td><StatusBadge status={f.status} /></td>
+            </tr>
+          ))}
+        />
       </div>
     </div>
   );
@@ -140,25 +147,33 @@ export function Delays() {
       </div>
       <div className="card">
         <SectionTitle icon="⏱️">Déclarations avec Délais Anormaux</SectionTitle>
-        <table className="tbl">
-          <thead><tr><th>SGD</th><th>Bureau</th><th>Pays</th><th>Délai Standard</th><th>Délai Réel</th><th>Dépassement</th><th>Tarif</th><th>Fraude</th></tr></thead>
-          <tbody>
-            {filtered.map((d: { sgd_id: string; office_id: string; country: string; declared_hours: number; clearance_hours: number; overshoot_hours: number; tariff_code: string; fraud_flag: number }) => (
-              <tr key={d.sgd_id}>
-                <td><Code>{d.sgd_id}</Code></td>
-                <td><span className="text-xs">{d.office_id}</span></td>
-                <td><span className="text-xs">{d.country}</span></td>
-                <td><span className="text-xs text-sub">{d.declared_hours}h</span></td>
-                <td><span className="text-sm font-bold text-danger">{d.clearance_hours}h</span></td>
-                <td>
-                  <span className="text-sm font-bold" style={{ color: d.overshoot_hours > 72 ? '#ef4444' : '#eab308' }}>+{d.overshoot_hours}h</span>
-                </td>
-                <td><Code color="#06b6d4">{d.tariff_code}</Code></td>
-                <td>{d.fraud_flag ? <span className="badge badge-danger text-[10px]">SUSPECT</span> : <span className="badge badge-success text-[10px]">NORMAL</span>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <PaginatedTable
+          pageSize={15}
+          headers={<tr><th>SGD</th><th>Importateur</th><th>Bureau</th><th>Pays</th><th>Délai Standard</th><th>Délai Réel</th><th>Dépassement</th><th>Tarif</th><th>Fraude</th></tr>}
+          rows={filtered.map((d: { sgd_id: string; office_id: string; office_name?: string; importer_id: string; importer_name?: string; country: string; declared_hours: number; clearance_hours: number; overshoot_hours: number; tariff_code: string; tariff_description?: string; fraud_flag: number }) => (
+            <tr key={d.sgd_id}>
+              <td><Code>{d.sgd_id}</Code></td>
+              <td>
+                <div className="text-xs font-semibold text-white">{d.importer_name ?? d.importer_id}</div>
+                <div className="text-[10px] text-muted">{d.importer_id}</div>
+              </td>
+              <td>
+                <div className="text-xs">{d.office_name ?? d.office_id}</div>
+              </td>
+              <td><span className="text-xs">{d.country}</span></td>
+              <td><span className="text-xs text-sub">{d.declared_hours}h</span></td>
+              <td><span className="text-sm font-bold text-danger">{d.clearance_hours}h</span></td>
+              <td>
+                <span className="text-sm font-bold" style={{ color: d.overshoot_hours > 72 ? '#ef4444' : '#eab308' }}>+{d.overshoot_hours}h</span>
+              </td>
+              <td>
+                <Code color="#06b6d4">{d.tariff_code}</Code>
+                {d.tariff_description && <div className="text-[10px] text-muted mt-0.5">{d.tariff_description.slice(0,20)}</div>}
+              </td>
+              <td>{(d.fraud_flag === 1 || d.fraud_flag as unknown as string === '1') ? <span className="badge badge-danger text-[10px]">SUSPECT</span> : <span className="badge badge-success text-[10px]">NORMAL</span>}</td>
+            </tr>
+          ))}
+        />
       </div>
     </div>
   );

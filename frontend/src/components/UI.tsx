@@ -241,3 +241,74 @@ export const MetricRow: React.FC<{ label: string; value: string; color?: string 
     <span className="text-sm font-bold number-ticker" style={{ color }}>{value}</span>
   </div>
 );
+
+// ── Paginated scrollable table wrapper ───────────────────────────────────────
+export const PaginatedTable: React.FC<{
+  rows: React.ReactNode[];
+  headers: React.ReactNode;
+  pageSize?: number;
+  className?: string;
+}> = ({ rows, headers, pageSize = 15, className = '' }) => {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.ceil(rows.length / pageSize);
+  const visible = rows.slice(page * pageSize, page * pageSize + pageSize);
+  return (
+    <div className={className}>
+      <div className="overflow-auto" style={{ maxHeight: 420, position: 'relative' }}>
+        <table className="tbl" style={{ minWidth: '100%' }}>
+          <thead style={{
+            position: 'sticky', top: 0, zIndex: 10,
+            background: 'rgba(15,23,42,0.97)',
+            backdropFilter: 'blur(8px)',
+            borderBottom: '1px solid rgba(59,130,246,0.2)',
+          }}>
+            {headers}
+          </thead>
+          <tbody>{visible}</tbody>
+        </table>
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-3 px-1">
+          <span className="text-xs text-muted">
+            {page * pageSize + 1}–{Math.min((page + 1) * pageSize, rows.length)} sur {rows.length}
+          </span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setPage(0)}
+              disabled={page === 0}
+              className="btn btn-ghost text-xs py-0.5 px-2 disabled:opacity-30"
+            >«</button>
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="btn btn-ghost text-xs py-0.5 px-2 disabled:opacity-30"
+            >‹</button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const start = Math.max(0, Math.min(page - 2, totalPages - 5));
+              const p = start + i;
+              return (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`btn text-xs py-0.5 px-2.5 ${p === page ? 'btn-primary' : 'btn-ghost'}`}
+                >{p + 1}</button>
+              );
+            })}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={page === totalPages - 1}
+              className="btn btn-ghost text-xs py-0.5 px-2 disabled:opacity-30"
+            >›</button>
+            <button
+              onClick={() => setPage(totalPages - 1)}
+              disabled={page === totalPages - 1}
+              className="btn btn-ghost text-xs py-0.5 px-2 disabled:opacity-30"
+            >»</button>
+          </div>
+          <span className="text-xs text-muted">Page {page + 1}/{totalPages}</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
