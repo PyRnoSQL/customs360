@@ -35,32 +35,51 @@ export function Fraud() {
         `<span style="color:#f1f5f9"><b>${String(p.name).replace(/_/g,' ')}</b><br/>Cas: <b style="color:#fff">${p.value}</b> &nbsp;<span style="color:#94a3b8">(${p.percent}%)</span></span>`,
     },
     legend: {
-      orient: 'vertical',
-      left: '52%',        // start legend after the donut + label zone
-      top: 'middle',
-      itemWidth: 12,
-      itemHeight: 12,
-      itemGap: 10,
-      textStyle: { color: '#94a3b8', fontSize: 11, lineHeight: 18 },
+      orient: 'horizontal',
+      bottom: 0,
+      left: 'center',
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 14,
+      textStyle: { color: '#94a3b8', fontSize: 10 },
       formatter: (name: string) => {
         const entry = typeEntries.find(([k]) => k === name);
         const val = entry ? entry[1] : 0;
         const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-        return `${String(name).replace(/_/g,' ')}   ${val} (${pct}%)`;
+        return `${String(name).replace(/_/g,' ')}  ${val} (${pct}%)`;
       },
     },
     series: [{
       type: 'pie',
-      radius: ['42%', '65%'],
-      center: ['25%', '50%'],   // donut entirely in the left 50% of the chart
-      avoidLabelOverlap: false,
-      label: { show: false },    // hide outside labels — legend carries all info
-      labelLine: { show: false },
-      emphasis: { scale: true, scaleSize: 5 },
+      radius: ['38%', '62%'],
+      center: ['50%', '44%'],
+      avoidLabelOverlap: true,
+      label: {
+        show: true,
+        position: 'outside',
+        color: '#94a3b8',
+        fontSize: 11,
+        fontWeight: '500',
+        formatter: (p: {name:string;percent:string}) =>
+          `${String(p.name).replace(/_/g,' ')}
+${p.percent}%`,
+      },
+      labelLine: {
+        show: true,
+        length: 12,
+        length2: 8,
+        lineStyle: { color: 'rgba(148,163,184,0.5)', width: 1 },
+      },
+      emphasis: { scale: true, scaleSize: 6 },
       data: typeEntries.map(([k, v], i) => ({
         name: k,
         value: v,
-        itemStyle: { color: colors[i % colors.length], borderRadius: 3, borderWidth: 2, borderColor: 'rgba(15,23,42,0.9)' },
+        itemStyle: {
+          color: colors[i % colors.length],
+          borderRadius: 3,
+          borderWidth: 2,
+          borderColor: 'rgba(15,23,42,0.9)',
+        },
       })),
     }],
   };
@@ -80,7 +99,7 @@ export function Fraud() {
           <SectionTitle icon="🔬">Types de Fraude Détectés</SectionTitle>
           {typeEntries.length === 0
             ? <div className="h-48 flex items-center justify-center text-muted text-sm">Aucun cas pour les filtres sélectionnés</div>
-            : <ReactECharts option={donutOption} style={{ height: 240 }} />
+            : <ReactECharts option={donutOption} style={{ height: 300 }} />
           }
         </div>
         <div className="card xl:col-span-2">
