@@ -21,6 +21,7 @@ const CHART_STYLE = {
 
 type Office = {
   office_id: string; name: string; total_sgds: number; total_revenue: number;
+  total_assessed: number; baseline_hours: number;
   avg_clearance_hours: number; fraud_cases: number; fraud_rate: number;
   efficiency_score: number; pct_of_total: number;
 };
@@ -54,18 +55,18 @@ export default function Offices() {
   // Compute avg across all offices for benchmark layer
   const avgEfficiency = Math.round(data.reduce((s: number, o: Office) => s + o.efficiency_score, 0) / Math.max(data.length, 1));
   const avgPctTotal   = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, o.pct_of_total * 1.5), 0) / Math.max(data.length, 1));
-  const avgRecettes   = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, (o.total_revenue / 15e9) * 100), 0) / Math.max(data.length, 1));
+  const avgRecettes   = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, (o.total_revenue / 1.5e9) * 100), 0) / Math.max(data.length, 1));
   const avgSecurite   = Math.round(data.reduce((s: number, o: Office) => s + Math.max(0, 100 - o.fraud_rate * 500), 0) / Math.max(data.length, 1));
   const avgRapidite   = Math.round(data.reduce((s: number, o: Office) => s + Math.max(0, 100 - (o.avg_clearance_hours / 72) * 100), 0) / Math.max(data.length, 1));
-  const avgVolume     = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, (o.total_sgds / 400) * 100), 0) / Math.max(data.length, 1));
+  const avgVolume     = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, (o.total_sgds / 950) * 100), 0) / Math.max(data.length, 1));
 
   const radarData = radarOffice ? [
     { subject: 'Efficacité',  score: radarOffice.efficiency_score,                                         benchmark: avgEfficiency },
     { subject: 'Débit SGDs',  score: Math.min(100, radarOffice.pct_of_total * 1.5),                        benchmark: avgPctTotal   },
-    { subject: 'Recettes',    score: Math.min(100, (radarOffice.total_revenue / 15e9) * 100),              benchmark: avgRecettes   },
+    { subject: 'Recettes',    score: Math.min(100, (radarOffice.total_revenue / 1.5e9) * 100),             benchmark: avgRecettes   },
     { subject: 'Sécurité',    score: Math.max(0, 100 - radarOffice.fraud_rate * 500),                      benchmark: avgSecurite   },
     { subject: 'Rapidité',    score: Math.max(0, 100 - (radarOffice.avg_clearance_hours / 72) * 100),      benchmark: avgRapidite   },
-    { subject: 'Volume',      score: Math.min(100, (radarOffice.total_sgds / 400) * 100),                  benchmark: avgVolume     },
+    { subject: 'Volume',      score: Math.min(100, (radarOffice.total_sgds / 950) * 100),                  benchmark: avgVolume     },
   ] : [];
 
   // Pareto chart: offices by revenue + cumulative fraud

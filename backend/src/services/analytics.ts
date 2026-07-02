@@ -97,26 +97,52 @@ export function buildImporterProfiles(sgd: SGDRow[], fraud: FraudRow[]): Importe
 }
 
 export function buildOfficeStats(sgd: SGDRow[], fraud: FraudRow[]): OfficeStats[] {
+  const OFFICE_BASELINES: Record<string, number> = {
+    DLA001: 36, KBI001: 28, DLA002: 18, YDE001: 22,
+    YDE002: 48, NGD001: 72, BFR001: 60, GRA001: 24,
+  };
   const officeIds = [...new Set(sgd.map(s => s.office_id))];
   const total = sgd.length;
-  return officeIds.map(id => {
-    const rows = sgd.filter(s => s.office_id === id);
-    const fraudRows = fraud.filter(f => f.office_id === id);
-    const avg_clearance = rows.length > 0
-      ? rows.reduce((s, r) => s + r.clearance_hours, 0) / rows.length : 0;
-    const efficiency = Math.min(98, Math.max(50, 100 - (avg_clearance / 2)));
+
+  // First pass: compute raw stats
+  const raw = officeIds.map(id => {
+    const rows  = sgd.filter(s => s.office_id === id);
+    const fRows = fraud.filter(f => f.office_id === id);
+    const baseline = OFFICE_BASELINES[id] ?? 36;
+    const avg_ch = rows.length > 0
+      ? rows.reduce((s, r) => s + r.clearance_hours, 0) / rows.length : baseline;
     return {
       office_id: id,
       name: OFFICE_NAMES[id] ?? id,
       total_sgds: rows.length,
       total_revenue: rows.reduce((s, r) => s + r.revenue_collected, 0),
-      avg_clearance_hours: Math.round(avg_clearance),
-      fraud_cases: fraudRows.length,
-      fraud_rate: rows.length > 0 ? fraudRows.length / rows.length : 0,
-      efficiency_score: Math.round(efficiency),
-      pct_of_total: total > 0 ? Math.round(rows.length / total * 100) : 0,
+      total_assessed: rows.reduce((s, r) => s + (r.taxes_assessed ?? 0), 0),
+      avg_clearance_hours: Math.round(avg_ch * 10) / 10,
+      baseline_hours: baseline,
+      fraud_cases: fRows.length,
+      fraud_rate: rows.length > 0 ? fRows.length / rows.length : 0,
+      efficiency_score: 0,
+      pct_of_total: 0,
+      _ratio: avg_ch / baseline,
     };
-  }).sort((a, b) => b.total_sgds - a.total_sgds);
+  });
+
+  // Second pass: normalise efficiency (lower ratio = faster = better, range 40-98)
+  const ratios = raw.map(o => o._ratio);
+  const minR = Math.min(...ratios);
+  const maxR = Math.max(...ratios);
+  return raw.map(o => {
+    const eff = maxR > minR
+      ? Math.round(((maxR - o._ratio) / (maxR - minR)) * 58 + 40)
+      : 70;
+    const { _ratio, ...rest } = o;
+    void _ratio;
+    return {
+      ...rest,
+      efficiency_score: eff,
+      pct_of_total: total > 0 ? Math.round((o.total_sgds / total) * 1000) / 10 : 0,
+    };
+  }).sort((a, b) => b.total_revenue - a.total_revenue);
 }
 
 export function buildTariffRisk(sgd: SGDRow[], fraud: FraudRow[]): TariffRisk[] {

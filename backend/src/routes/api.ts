@@ -8,6 +8,10 @@ import {
 const router = Router();
 
 // Helper — wraps async handlers
+// Inline helper for fraud_flag comparison (handles string '1' or number 1)
+const isFraud = (flag: number | string | boolean | undefined): boolean =>
+  flag === 1 || flag === '1' || flag === true;
+
 const wrap = (fn: (req: Request, res: Response) => Promise<void>) =>
   (req: Request, res: Response) => fn(req, res).catch(err => {
     console.error(err);
@@ -43,7 +47,7 @@ router.get('/fraud', wrap(async (_req, res) => {
     acc[f.fraud_type] = (acc[f.fraud_type] ?? 0) + 1;
     return acc;
   }, {});
-  const totalLoss = fraud.reduce((s, f) => s + f.loss_net, 0);
+  const totalLoss = fraud.reduce((s, f) => s + (f.loss_net ?? 0), 0);
   const tariffRisk = buildTariffRisk(sgd, fraud);
   res.json({
     cases: fraud.slice(0, 150),
@@ -88,7 +92,7 @@ router.get('/graph', wrap(async (_req, res) => {
   });
 
   sgd.filter(s => impIds.includes(s.importer_id)).slice(0, 80).forEach(s => {
-    nodes.push({ id: s.sgd_id, label: s.sgd_id, type: 'sgd', risk: s.fraud_flag ? 90 : 10, fraud: s.fraud_flag === 1 });
+    nodes.push({ id: s.sgd_id, label: s.sgd_id, type: 'sgd', risk: isFraud(s.fraud_flag) ? 90 : 10, fraud: isFraud(s.fraud_flag) });
     links.push({ source: s.importer_id, target: s.sgd_id, fraud: fraudSGDs.has(s.sgd_id) });
     if (!decIds.has(s.declarant_id)) {
       nodes.push({ id: s.declarant_id, label: s.declarant_id, type: 'declarant', risk: 30 });
@@ -117,7 +121,7 @@ router.post('/ai', wrap(async (req, res) => {
   const { sgd, fraud } = await getSheetData();
   const profiles = buildImporterProfiles(sgd, fraud);
   const highRisk = profiles.filter(p => p.risk_score >= 70).map(p => `${p.importer_id}(${p.risk_score}%)`).join(', ');
-  const totalLoss = fraud.reduce((s, f) => s + f.loss_net, 0);
+  const totalLoss = fraud.reduce((s, f) => s + (f.loss_net ?? 0), 0);
   const byType = fraud.reduce<Record<string, number>>((a, f) => { a[f.fraud_type] = (a[f.fraud_type] ?? 0) + 1; return a; }, {});
   const topTypes = Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k}:${v}`).join(', ');
   const offices = buildOfficeStats(sgd, fraud).map(o => `${o.office_id}(eff:${o.efficiency_score}%,${o.pct_of_total}%du trafic)`).join('; ');
@@ -244,7 +248,7 @@ router.get('/analytics/cohorts', wrap(async (req, res) => {
     if (!isNaN(d.getTime())) {
       const dow = d.getDay();
       dowTotal[dow]++;
-      if (s.fraud_flag) dowFraud[dow]++;
+      if (isFraud(s.fraud_flag)) dowFraud[dow]++;
     }
   });
   const DOW = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
@@ -259,7 +263,7 @@ router.get('/analytics/cohorts', wrap(async (req, res) => {
   sgd.forEach(s => {
     if (!countryMap[s.country]) countryMap[s.country] = { total: 0, fraud: 0, revenue: 0 };
     countryMap[s.country].total++;
-    if (s.fraud_flag) countryMap[s.country].fraud++;
+    if (isFraud(s.fraud_flag)) countryMap[s.country].fraud++;
     countryMap[s.country].revenue += s.revenue_collected;
   });
   const country_analysis = Object.entries(countryMap)

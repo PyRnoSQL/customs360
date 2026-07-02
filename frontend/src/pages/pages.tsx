@@ -18,7 +18,7 @@ export function Fraud() {
   if (error)   return <ErrorBox message={error} onRetry={reload} />;
   if (!data)   return null;
   const filteredCases = applyStatusFilter(applyBureauFilter(applyPeriodFilter(data.cases, filters.period), filters.bureau), filters.status);
-  const totalLoss = filteredCases.reduce((s: number, f: { loss_amount: number }) => s + f.loss_amount, 0);
+  const totalLoss = filteredCases.reduce((s: number, f: { loss_net: number }) => s + f.loss_net, 0);
 
   // Derive fraud type counts from filteredCases
   const filteredByType = filteredCases.reduce((acc: Record<string,number>, f: { fraud_type: string }) => {
@@ -37,8 +37,8 @@ export function Fraud() {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <KPICard label="Total Cas" value={fmt(filteredCases.length)} color="danger" />
         <KPICard label="Pertes Totales" value={fmtM(totalLoss) + ' FCFA'} color="gold" />
-        <KPICard label="Confirmés" value={fmt(filteredCases.filter((f: { status: string }) => f.status === 'CONFIRMED').length)} color="danger" />
-        <KPICard label="En Révision" value={fmt(filteredCases.filter((f: { status: string }) => f.status === 'UNDER_REVIEW').length)} color="teal" />
+        <KPICard label="Dossiers Clôturés" value={fmt(filteredCases.filter((f: { status: string }) => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE').length)} color="danger" />
+        <KPICard label="En Cours" value={fmt(filteredCases.filter((f: { status: string }) => f.status === 'EN_COURS').length)} color="teal" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
@@ -95,16 +95,16 @@ export function Fraud() {
         <table className="tbl">
           <thead><tr><th>Cas</th><th>SGD</th><th>Importateur</th><th>Déclarant</th><th>Type</th><th>Perte</th><th>IA %</th><th>Bureau</th><th>Statut</th></tr></thead>
           <tbody>
-            {filteredCases.slice(0, 80).map((f: { case_id: string; sgd_id: string; importer_id: string; declarant_id: string; fraud_type: string; loss_amount: number; ai_probability: number; office_id: string; status: string }) => (
+            {filteredCases.slice(0, 80).map((f: { case_id: string; sgd_id: string; importer_id: string; declarant_id: string; fraud_type: string; loss_net: number; ai_risk_score: number; office_id: string; status: string }) => (
               <tr key={f.case_id}>
                 <td><Code>{f.case_id}</Code></td>
                 <td><Code color="#3b82f6">{f.sgd_id}</Code></td>
                 <td><span className="text-xs">{f.importer_id}</span></td>
                 <td><span className="text-xs text-sub">{f.declarant_id}</span></td>
                 <td><span className="text-xs text-sub">{f.fraud_type}</span></td>
-                <td><span className="text-xs font-bold text-danger">{fmtM(f.loss_amount)}</span></td>
+                <td><span className="text-xs font-bold text-danger">{fmtM(f.loss_net)}</span></td>
                 <td>
-                  <span className="text-xs font-bold" style={{ color: f.ai_probability >= 80 ? '#ef4444' : '#eab308' }}>{f.ai_probability}%</span>
+                  <span className="text-xs font-bold" style={{ color: f.ai_risk_score >= 80 ? '#ef4444' : '#eab308' }}>{f.ai_risk_score}%</span>
                 </td>
                 <td><span className="text-xs text-sub">{f.office_id}</span></td>
                 <td><StatusBadge status={f.status} /></td>

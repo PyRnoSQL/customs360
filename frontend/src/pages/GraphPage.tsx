@@ -20,7 +20,7 @@ interface SGDRow {
   office_id: string; tariff_code: string; cif_value: number; fraud_flag: number;
   taxes_declared: number; revenue_collected: number;
 }
-interface FraudCase { case_id: string; sgd_id: string; importer_id: string; declarant_id: string; loss_amount: number; ai_probability: number; date: string; office_id: string; }
+interface FraudCase { case_id: string; sgd_id: string; importer_id: string; declarant_id: string; loss_net: number; ai_risk_score: number; date_detection: string; office_id: string; }
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
 const TYPE_COLOR: Record<string, string> = { importer: '#3b82f6', declarant: '#10b981', sgd: '#8b5cf6', office: '#f59e0b' };
@@ -360,8 +360,8 @@ function FraudTimeline({ sgd, fraud }: { sgd: SGDRow[]; fraud: FraudCase[] }) {
       return {
         date: dateNum,
         dateLabel: s.date,
-        prob: fc?.ai_probability ?? Math.round(50+Math.random()*40),
-        loss: fc?.loss_amount ?? s.taxes_declared*0.3,
+        prob: fc?.ai_risk_score ?? Math.round(50+Math.random()*40),
+        loss: fc?.loss_net ?? s.taxes_declared*0.3,
         office: s.office_id,
         sgd_id: s.sgd_id,
         importer: s.importer_id,
@@ -458,9 +458,9 @@ export default function GraphPage() {
     // Build SGD rows from fraud data + graph data approximation
     if(fraudData?.cases){
       const synth: SGDRow[] = fraudData.cases.map((f: FraudCase)=>({
-        sgd_id:f.sgd_id, date:f.date, importer_id:f.importer_id, declarant_id:f.declarant_id,
+        sgd_id:f.sgd_id, date:f.date_detection, importer_id:f.importer_id, declarant_id:f.declarant_id,
         office_id:f.office_id, tariff_code:'', cif_value:0, fraud_flag:1,
-        taxes_declared:f.loss_amount, revenue_collected:0,
+        taxes_declared:f.loss_net, revenue_collected:0,
       }));
       setSgdRows(synth);
     }
@@ -489,10 +489,10 @@ export default function GraphPage() {
 
   // Build SGD rows from fraud cases for visualizations
   const allSGD: SGDRow[] = fraudCases.map(f=>({
-    sgd_id:f.sgd_id, date:f.date||'2026-01-01', importer_id:f.importer_id,
+    sgd_id:f.sgd_id, date:f.date_detection||'2024-01-01', importer_id:f.importer_id,
     declarant_id:f.declarant_id, office_id:f.office_id, tariff_code:'85044000',
-    cif_value:f.loss_amount*2, fraud_flag:1, taxes_declared:f.loss_amount,
-    revenue_collected:f.loss_amount*0.6,
+    cif_value:f.loss_net*2, fraud_flag:1, taxes_declared:f.loss_net,
+    revenue_collected:f.loss_net*0.6,
   }));
 
   return (

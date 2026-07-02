@@ -28,10 +28,10 @@ export default function Dashboard() {
   const filteredSGD     = filters.bureau === 'ALL' ? data.total_sgd
     : (filteredOffices.find(o => o.office_id === filters.bureau)?.count ?? 0);
   const filteredRevTotal = filteredRevenue.reduce((s: number, m: { collected: number }) => s + m.collected, 0);
-  const filteredFraud   = filteredCases.filter((f: { status: string }) => f.status === 'CONFIRMED').length;
+  const filteredFraud   = filteredCases.filter((f: { status: string }) => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE').length;
   const filteredLoss    = fraud
     ? applyPeriodFilter(applyBureauFilter(fraud.cases, filters.bureau), filters.period)
-        .reduce((s: number, f: { loss_amount: number }) => s + f.loss_amount, 0)
+        .reduce((s: number, f: { loss_net: number }) => s + f.loss_net, 0)
     : 0;
 
   const revenueOption = {
@@ -145,18 +145,18 @@ export default function Dashboard() {
                   <table className="tbl">
                     <thead><tr><th>Cas</th><th>SGD</th><th>Type</th><th>Perte</th><th>IA %</th><th>Statut</th></tr></thead>
                     <tbody>
-                      {filteredCases.slice(0, 8).map((f: { case_id: string; sgd_id: string; fraud_type: string; loss_amount: number; ai_probability: number; status: string }, i: number) => (
+                      {filteredCases.slice(0, 8).map((f: { case_id: string; sgd_id: string; fraud_type: string; loss_net: number; ai_risk_score: number; status: string }, i: number) => (
                         <motion.tr key={f.case_id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
                           <td><code style={{ color: '#22d3ee', fontSize: 11 }}>{f.case_id}</code></td>
                           <td><code style={{ color: '#60a5fa', fontSize: 11 }}>{f.sgd_id}</code></td>
                           <td><span className="text-xs text-slate-400">{f.fraud_type}</span></td>
-                          <td><span className="text-xs font-bold text-red-400">{fmtM(f.loss_amount)}</span></td>
+                          <td><span className="text-xs font-bold text-red-400">{fmtM(f.loss_net)}</span></td>
                           <td>
                             <div className="flex items-center gap-1.5">
                               <div className="h-1 w-10 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                                <div className="h-full rounded-full" style={{ width: `${f.ai_probability}%`, background: f.ai_probability >= 80 ? '#ef4444' : '#f59e0b' }} />
+                                <div className="h-full rounded-full" style={{ width: `${f.ai_risk_score}%`, background: f.ai_risk_score >= 80 ? '#ef4444' : '#f59e0b' }} />
                               </div>
-                              <span className="text-xs font-bold" style={{ color: f.ai_probability >= 80 ? '#f87171' : '#fbbf24' }}>{f.ai_probability}%</span>
+                              <span className="text-xs font-bold" style={{ color: f.ai_risk_score >= 80 ? '#f87171' : '#fbbf24' }}>{f.ai_risk_score}%</span>
                             </div>
                           </td>
                           <td><StatusBadge status={f.status} /></td>
