@@ -45,7 +45,7 @@ export default function Offices() {
   const best = sorted[0];
 
   // Stats for map
-  const officeStats = Object.fromEntries(data.map((o: Office) => [o.office_id, {
+  const officeStats = Object.fromEntries(offices.map((o: Office) => [o.office_id, {
     total_sgds: o.total_sgds, fraud_cases: o.fraud_cases,
     efficiency_score: o.efficiency_score, total_revenue: o.total_revenue,
   }]));
@@ -53,12 +53,12 @@ export default function Offices() {
   // Radar data for selected office
   const radarOffice = selected ? offices.find((o: Office) => o.office_id === selected) ?? best : best;
   // Compute avg across all offices for benchmark layer
-  const avgEfficiency = Math.round(data.reduce((s: number, o: Office) => s + o.efficiency_score, 0) / Math.max(data.length, 1));
-  const avgPctTotal   = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, o.pct_of_total * 1.5), 0) / Math.max(data.length, 1));
-  const avgRecettes   = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, (o.total_revenue / 1.5e9) * 100), 0) / Math.max(data.length, 1));
-  const avgSecurite   = Math.round(data.reduce((s: number, o: Office) => s + Math.max(0, 100 - o.fraud_rate * 500), 0) / Math.max(data.length, 1));
-  const avgRapidite   = Math.round(data.reduce((s: number, o: Office) => s + Math.max(0, 100 - (o.avg_clearance_hours / 72) * 100), 0) / Math.max(data.length, 1));
-  const avgVolume     = Math.round(data.reduce((s: number, o: Office) => s + Math.min(100, (o.total_sgds / 950) * 100), 0) / Math.max(data.length, 1));
+  const avgEfficiency = Math.round(offices.reduce((s: number, o: Office) => s + o.efficiency_score, 0) / Math.max(offices.length, 1));
+  const avgPctTotal   = Math.round(offices.reduce((s: number, o: Office) => s + Math.min(100, o.pct_of_total * 1.5), 0) / Math.max(offices.length, 1));
+  const avgRecettes   = Math.round(offices.reduce((s: number, o: Office) => s + Math.min(100, (o.total_revenue / 1.5e9) * 100), 0) / Math.max(offices.length, 1));
+  const avgSecurite   = Math.round(offices.reduce((s: number, o: Office) => s + Math.max(0, 100 - o.fraud_rate * 500), 0) / Math.max(offices.length, 1));
+  const avgRapidite   = Math.round(offices.reduce((s: number, o: Office) => s + Math.max(0, 100 - (o.avg_clearance_hours / 72) * 100), 0) / Math.max(offices.length, 1));
+  const avgVolume     = Math.round(offices.reduce((s: number, o: Office) => s + Math.min(100, (o.total_sgds / 950) * 100), 0) / Math.max(offices.length, 1));
 
   const radarData = radarOffice ? [
     { subject: 'Efficacité',  score: radarOffice.efficiency_score,                                         benchmark: avgEfficiency },
@@ -70,7 +70,7 @@ export default function Offices() {
   ] : [];
 
   // Pareto chart: offices by revenue + cumulative fraud
-  const paretoData = [...data]
+  const paretoData = [...offices]
     .sort((a: Office, b: Office) => b.total_revenue - a.total_revenue)
     .map((o: Office) => ({
       name: o.name.split(' ').slice(0,2).join(' '),
@@ -80,7 +80,7 @@ export default function Offices() {
     }));
 
   // Scatter: efficiency vs clearance time
-  const scatterData = data.map((o: Office) => ({
+  const scatterData = offices.map((o: Office) => ({
     x: o.avg_clearance_hours,
     y: o.efficiency_score,
     z: o.total_sgds,

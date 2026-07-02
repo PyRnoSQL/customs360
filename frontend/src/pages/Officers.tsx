@@ -245,8 +245,10 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
       {/* Trend chart */}
       <div className="card">
         <SectionTitle icon="📈">Évolution mensuelle — PI Score & Volume</SectionTitle>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={trendData} margin={{ left: -10, right: 10, bottom: 5, top: 5 }}>
+        {trendData.length === 0
+          ? <div className="h-[200px] flex items-center justify-center text-muted text-sm">Aucune donnée mensuelle disponible</div>
+          : <ResponsiveContainer width="100%" height={200}>
+<BarChart data={trendData} margin={{ left: -10, right: 10, bottom: 5, top: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
             <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 10 }} />
             <YAxis yAxisId="left" domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 10 }} />
@@ -257,7 +259,8 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
             </Bar>
             <Bar yAxisId="right" dataKey="decls" name="Déclarations" fill="#8b5cf6" fillOpacity={0.4} radius={[4,4,0,0]} />
           </BarChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer>}
+
       </div>
     </motion.div>
   );
@@ -336,7 +339,9 @@ export default function OfficersPage() {
       <FadeIn delay={0.1}>
         <div className="card">
           <SectionTitle icon="📐">Performance Index vs Taux Détection Fraude — Attrition Map</SectionTitle>
-          <ResponsiveContainer width="100%" height={380}>
+          {scatterData.length === 0
+          ? <div className="h-[280px] flex items-center justify-center text-muted text-sm">Aucune donnée disponible</div>
+          : <ResponsiveContainer width="100%" height={380}>
             <ScatterChart margin={{ left: 10, right: 30, bottom: 10, top: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis type="number" dataKey="x" name="Taux fraude %" tick={{ fill: '#64748b', fontSize: 10 }}
@@ -370,7 +375,7 @@ export default function OfficersPage() {
                 ))}
               </Scatter>
             </ScatterChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer>}
           <div className="flex flex-wrap gap-4 justify-center mt-2">
             {Object.entries(STATUS_META).map(([k, v]) => (
               <span key={k} className="flex items-center gap-1.5 text-xs text-slate-400">

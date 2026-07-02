@@ -22,44 +22,54 @@ export function computeDATEFactors(
   sgds: SGDRow[],
   fraudRows: FraudRow[]
 ): DATEFactor[] {
-  const impSGDs = sgds.filter(s => s.importer_id === importerId);
+  const impSGDs  = sgds.filter(s => s.importer_id === importerId);
   const impFrauds = fraudRows.filter(f => f.importer_id === importerId);
-  const fraudRate = impSGDs.length > 0
-    ? impSGDs.filter(s => isFraud(s.fraud_flag)).length / impSGDs.length : 0;
+  const fraudFlagRows = impSGDs.filter(s => isFraud(s.fraud_flag));
+  const fraudRate = impSGDs.length > 0 ? fraudFlagRows.length / impSGDs.length : 0;
   const uniqueDeclarants = new Set(impSGDs.map(s => s.declarant_id)).size;
-  const avgCifWeight = impSGDs.length > 0
-    ? impSGDs.reduce((s, r) => s + r.cif_value / Math.max(r.weight_kg, 1), 0) / impSGDs.length : 0;
+  const highRiskTariffCount = impSGDs.filter(s => HIGH_RISK_TARIFFS.has(s.tariff_code)).length;
+  const highRiskCountries = new Set(['CN','NG','AE','BJ','CI']);
+  const highRiskOriginCount = impSGDs.filter(s => highRiskCountries.has(s.country)).length;
+  const riskSystemAvg = impSGDs.length > 0
+    ? impSGDs.reduce((s, r) => s + (r.risk_score_system ?? 0), 0) / impSGDs.length : 0;
+  const confirmedFraud = impFrauds.filter(f =>
+    f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE'
+  ).length;
+  const avgTaxGapRate = fraudFlagRows.length > 0
+    ? fraudFlagRows.reduce((s, r) => s + (r.tax_gap ?? 0), 0) /
+      Math.max(fraudFlagRows.reduce((s, r) => s + r.taxes_declared, 0), 1)
+    : 0;
 
   const factors: DATEFactor[] = [
     {
-      label: 'Historique de fraude confirmée',
+      label: 'Fraudes confirmées ≥ 2 dossiers',
       weight: 35,
-      triggered: impFrauds.filter(f => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE').length >= 2,
+      triggered: confirmedFraud >= 2,
     },
     {
-      label: 'Taux déclarations suspectes > 30%',
+      label: 'Taux déclarations suspectes > 15%',
       weight: 25,
-      triggered: fraudRate > 0.30,
+      triggered: fraudRate > 0.15,
     },
     {
-      label: 'Concentration mono-déclarant',
+      label: 'Score risque système élevé (> 55)',
       weight: 15,
-      triggered: uniqueDeclarants === 1 && impSGDs.length > 4,
+      triggered: riskSystemAvg > 55,
     },
     {
-      label: 'Ratio CIF/Poids anormal',
+      label: 'Codes tarif. haut risque > 20% du volume',
       weight: 20,
-      triggered: avgCifWeight > 0 && avgCifWeight < 25000,
+      triggered: impSGDs.length > 0 && (highRiskTariffCount / impSGDs.length) > 0.20,
     },
     {
-      label: 'Codes tarifaires à haut risque répétés',
+      label: 'Origines CN/NG > 40% des importations',
       weight: 15,
-      triggered: impSGDs.filter(s => HIGH_RISK_TARIFFS.has(s.tariff_code)).length > 2,
+      triggered: impSGDs.length > 0 && (highRiskOriginCount / impSGDs.length) > 0.40,
     },
     {
-      label: 'Multi-bureaux inhabituel',
+      label: 'Écart fiscal moyen > 25%',
       weight: 10,
-      triggered: new Set(impSGDs.map(s => s.office_id)).size > 2,
+      triggered: avgTaxGapRate > 0.25,
     },
   ];
   return factors;
@@ -161,23 +171,21 @@ export function buildTariffRisk(sgd: SGDRow[], fraud: FraudRow[]): TariffRisk[] 
 }
 
 export function buildMonthlyRevenue(sgd: SGDRow[], fraud: FraudRow[]): MonthlyRevenue[] {
-  const LABELS: Record<string, string> = {
-    '2025-08':'Août 25','2025-09':'Sep 25','2025-10':'Oct 25',
-    '2025-11':'Nov 25','2025-12':'Déc 25','2026-01':'Jan 26','2026-02':'Fév 26',
-  };
-  const months = Object.keys(LABELS);
+  const FR_MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  // Derive months dynamically from actual data
+  const monthSet = new Set<string>();
+  sgd.forEach(s  => { const m = monthLabel(s.date);            if (m !== '?') monthSet.add(m); });
+  fraud.forEach(f => { const m = monthLabel(f.date_detection); if (m !== '?') monthSet.add(m); });
+  const months = [...monthSet].sort();
   return months.map(month => {
-    const mSGD = sgd.filter(s => dateMatchesMonth(s.date, month));
-    const mFraud = fraud.filter(f => dateMatchesMonth(f.date_detection, month));
-    const collected = mSGD.reduce((s, r) => s + r.revenue_collected, 0);
-    const lost_fraud = mFraud.reduce((s, r) => s + r.loss_net, 0);
-    return {
-      month,
-      label: LABELS[month],
-      expected: Math.round(collected * 1.12),
-      collected,
-      lost_fraud,
-    };
+    const [y, mo] = month.split('-');
+    const label   = `${FR_MONTHS[Number(mo) - 1]} ${y.slice(2)}`;
+    const mSGD    = sgd.filter(s   => dateMatchesMonth(s.date, month));
+    const mFraud  = fraud.filter(f => dateMatchesMonth(f.date_detection, month));
+    const collected  = mSGD.reduce((s, r)  => s + r.revenue_collected, 0);
+    const assessed   = mSGD.reduce((s, r)  => s + (r.taxes_assessed ?? 0), 0);
+    const lost_fraud = mFraud.reduce((s, f) => s + (f.tax_evasion_amount ?? 0), 0);
+    return { month, label, expected: assessed, collected, lost_fraud };
   }).filter(m => m.collected > 0 || m.lost_fraud > 0);
 }
 
@@ -203,7 +211,7 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
 
 export function buildDelays(sgd: SGDRow[]): (SGDRow & { overshoot_hours: number; is_suspicious: boolean })[] {
   const OFFICE_BASELINE: Record<string, number> = {
-    DLA001: 36, KBI001: 28, DLA002: 18, YDE001: 22, YDE002: 48, NGD001: 72,
+    DLA001: 36, KBI001: 28, DLA002: 18, YDE001: 22, YDE002: 48, NGD001: 72, BFR001: 60, GRA001: 24,
   };
   return sgd
     .map(s => {
@@ -622,9 +630,12 @@ export function scoreDeclarationAnomalies(sgd: SGDRow[], fraud: FraudRow[]): Dec
 }
 
 const MONTH_LABELS: Record<string, string> = {
-  '2025-08':'Août 25','2025-09':'Sep 25','2025-10':'Oct 25',
-  '2025-11':'Nov 25','2025-12':'Déc 25','2026-01':'Jan 26',
-  '2026-02':'Fév 26','2026-03':'Mar 26','2026-04':'Avr 26','2026-05':'Mai 26',
+  '2023-01':'Jan 23','2023-02':'Fév 23','2023-03':'Mar 23','2023-04':'Avr 23',
+  '2023-05':'Mai 23','2023-06':'Jun 23','2023-07':'Jul 23','2023-08':'Aoû 23',
+  '2023-09':'Sep 23','2023-10':'Oct 23','2023-11':'Nov 23','2023-12':'Déc 23',
+  '2024-01':'Jan 24','2024-02':'Fév 24','2024-03':'Mar 24','2024-04':'Avr 24',
+  '2024-05':'Mai 24','2024-06':'Jun 24','2024-07':'Jul 24','2024-08':'Aoû 24',
+  '2024-09':'Sep 24','2024-10':'Oct 24','2024-11':'Nov 24','2024-12':'Déc 24',
 };
 
 export function forecastRevenue(sgd: SGDRow[], fraud: FraudRow[]): RevenueForecast[] {
@@ -684,13 +695,13 @@ export function bureauTrajectories(sgd: SGDRow[], fraud: FraudRow[]): BureauTraj
     const oSGD = sgd.filter(s => s.office_id === o.office_id);
     // Period revenues by month
     const periodRevs = monthlyRevenue.map(m => {
-      const mSGD = oSGD.filter(s => s.date?.startsWith(m.month));
+      const mSGD = oSGD.filter(s => dateMatchesMonth(s.date, m.month));
       return mSGD.reduce((s, r) => s + r.revenue_collected, 0);
     }).filter(v => v > 0);
 
     // Efficiency per period
     const periodEff = monthlyRevenue.map(m => {
-      const mSGD = oSGD.filter(s => s.date?.startsWith(m.month));
+      const mSGD = oSGD.filter(s => dateMatchesMonth(s.date, m.month));
       if (!mSGD.length) return 0;
       const avgCl = mSGD.reduce((s, r) => s + r.clearance_hours, 0) / mSGD.length;
       const baseline = BUREAU_BASELINES[o.office_id] ?? 36;
@@ -769,7 +780,9 @@ export interface RiskDrift {
 
 export function computeRiskDrift(sgd: SGDRow[], fraud: FraudRow[]): RiskDrift[] {
   const importerIds = [...new Set(sgd.map(s => s.importer_id))];
-  const MONTHS = ['2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02'];
+  // Use actual data months (dataset is 2023-2024)
+  const allMonths = [...new Set(sgd.map(s => monthLabel(s.date)).filter(m => m !== '?'))].sort();
+  const MONTHS = allMonths.length >= 3 ? allMonths : ['2023-01','2023-06','2024-01','2024-06'];
 
   return importerIds.map(id => {
     const periods = MONTHS.map(month => {
@@ -894,8 +907,12 @@ export interface FraudVelocity {
 }
 
 export function computeFraudVelocity(sgd: SGDRow[], fraud: FraudRow[]): FraudVelocity {
-  const MONTHS = ['2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02'];
-  const LABELS: Record<string,string> = { '2025-08':'Août','2025-09':'Sep','2025-10':'Oct','2025-11':'Nov','2025-12':'Déc','2026-01':'Jan','2026-02':'Fév' };
+  const FR_MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  const allMonths2 = [...new Set(sgd.map(s => monthLabel(s.date)).filter(m => m !== '?'))].sort();
+  const MONTHS = allMonths2.length >= 3 ? allMonths2.slice(-12) : ['2023-01','2024-01','2024-12'];
+  const LABELS: Record<string,string> = Object.fromEntries(
+    MONTHS.map(m => { const [y,mo] = m.split('-'); return [m, `${FR_MONTHS[Number(mo)-1]} ${y.slice(2)}`]; })
+  );
 
   const series = MONTHS.map(m => {
     const mSGD   = sgd.filter(s => dateMatchesMonth(s.date, m));

@@ -27,6 +27,7 @@ function ImporterDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="text-lg font-bold text-white">{data.importer_id}</div>
+              {data.name && <div className="text-sm text-sub mt-0.5">{data.name}</div>}
               <div className="text-xs text-muted mt-1">{data.countries.join(', ')} · {data.offices.join(', ')}</div>
             </div>
             <div className="text-right">
@@ -84,7 +85,7 @@ function ImporterDetail({ id, onBack }: { id: string; onBack: () => void }) {
                   <td><span className="text-xs">{s.office_id}</span></td>
                   <td><span className="text-sm font-semibold">{fmtM(s.cif_value)}</span></td>
                   <td><span className="text-xs">{s.clearance_hours}h</span></td>
-                  <td>{s.fraud_flag ? <span className="badge badge-danger text-[10px]">SUSPECT</span> : <span className="badge badge-success text-[10px]">NORMAL</span>}</td>
+                  <td>{(s.fraud_flag === 1 || s.fraud_flag === '1') ? <span className="badge badge-danger text-[10px]">SUSPECT</span> : <span className="badge badge-success text-[10px]">NORMAL</span></td>
                 </tr>
               ))}
             </tbody>
@@ -121,7 +122,7 @@ export default function Importers() {
         <KPICard label="Total Importateurs" value={fmt(data.length)} color="accent" />
         <KPICard label="Haut Risque (≥70)" value={fmt(highRisk)} color="danger" />
         <KPICard label="Total Fraudes" value={fmt(data.reduce((s: number, i: ImporterProfile) => s + i.fraud_cases, 0))} color="gold" />
-        <KPICard label="Importateurs Sains" value={fmt(data.filter((i: ImporterProfile) => i.risk_score < 40).length)} color="success" />
+        <KPICard label="Importateurs Sains" value={fmt(data.filter((i: ImporterProfile) => i.risk_score < 35).length)} color="success" />
       </div>
 
       <div className="card">
