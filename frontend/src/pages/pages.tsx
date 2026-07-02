@@ -36,12 +36,12 @@ export function Fraud() {
     },
     legend: {
       orient: 'vertical',
-      right: 4,
+      left: '52%',        // start legend after the donut + label zone
       top: 'middle',
-      itemWidth: 10,
-      itemHeight: 10,
-      itemGap: 8,
-      textStyle: { color: '#94a3b8', fontSize: 11 },
+      itemWidth: 12,
+      itemHeight: 12,
+      itemGap: 10,
+      textStyle: { color: '#94a3b8', fontSize: 11, lineHeight: 18 },
       formatter: (name: string) => {
         const entry = typeEntries.find(([k]) => k === name);
         const val = entry ? entry[1] : 0;
@@ -51,19 +51,11 @@ export function Fraud() {
     },
     series: [{
       type: 'pie',
-      radius: ['45%', '68%'],
-      center: ['32%', '50%'],
-      avoidLabelOverlap: true,
-      label: {
-        show: true,
-        position: 'outside',
-        color: '#94a3b8',
-        fontSize: 10,
-        formatter: (p: {name:string;percent:string}) =>
-          `${String(p.name).replace(/_/g,' ')}
-${p.percent}%`,
-      },
-      labelLine: { show: true, length: 10, length2: 6, lineStyle: { color: 'rgba(148,163,184,0.4)' } },
+      radius: ['42%', '65%'],
+      center: ['25%', '50%'],   // donut entirely in the left 50% of the chart
+      avoidLabelOverlap: false,
+      label: { show: false },    // hide outside labels — legend carries all info
+      labelLine: { show: false },
       emphasis: { scale: true, scaleSize: 5 },
       data: typeEntries.map(([k, v], i) => ({
         name: k,
