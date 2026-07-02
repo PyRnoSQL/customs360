@@ -372,12 +372,16 @@ export default function Predictions() {
     () => fetch(`/api/predictions${qs ? '?' + qs : ''}`).then(r => r.json()),
     [filters.bureau, filters.period]
   );
+  const advQs = [
+    filters.bureau && filters.bureau !== 'ALL' ? `bureau=${filters.bureau}` : '',
+    filters.period && filters.period !== 'ALL' ? `period=${filters.period}` : '',
+  ].filter(Boolean).join('&');
   const { data: advData, loading: aLoading } = useApi(() =>
     Promise.race([
-      fetch('/api/predictions/advanced').then(r => r.json()),
+      fetch(`/api/predictions/advanced${advQs ? '?' + advQs : ''}`).then(r => r.json()),
       new Promise<null>(resolve => setTimeout(() => resolve(null), 8000))
     ])
-  );
+  , [advQs]);
 
   if (bLoading) return <><PageHeader /><Loading rows={6}/></>;
   if (bError) return <><PageHeader /><ErrorBox message={bError} onRetry={reload}/></>;

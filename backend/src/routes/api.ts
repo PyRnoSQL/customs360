@@ -290,14 +290,29 @@ router.get('/analytics/cohorts', wrap(async (req, res) => {
 }));
 
 // ── GET /api/predictions/advanced ─────────────────────────────────────────────
-let advCache: { data: unknown; ts: number } | null = null;
-const ADV_TTL = 120000; // 2 min cache
+router.get('/predictions/advanced', wrap(async (req, res) => {
+  const { sgd: allSgd, fraud: allFraud } = await getSheetData();
 
-router.get('/predictions/advanced', wrap(async (_req, res) => {
-  if (advCache && Date.now() - advCache.ts < ADV_TTL) {
-    return void res.json(advCache.data);
-  }
-  const { sgd, fraud } = await getSheetData();
+  // Apply bureau + period filters so metrics respond to user selection
+  const bureau = req.query.bureau as string | undefined;
+  const period  = req.query.period  as string | undefined;
+
+  const filterDate = (dateStr: string) => {
+    if (!dateStr) return false;
+    try {
+      const d = new Date(dateStr);
+      const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      return m === period;
+    } catch { return false; }
+  };
+
+  const sgd = allSgd
+    .filter(s => !bureau || bureau === 'ALL' || s.office_id === bureau)
+    .filter(s => !period || period === 'ALL' || filterDate(s.date));
+  const fraud = allFraud
+    .filter(f => !bureau || bureau === 'ALL' || f.office_id === bureau)
+    .filter(f => !period || period === 'ALL' || filterDate(f.date_detection));
+
   const {
     computeRiskDrift, predictNextDeclaration,
     computeFraudVelocity, classifyDelays, computeCollusionExposure,
@@ -310,6 +325,5 @@ router.get('/predictions/advanced', wrap(async (_req, res) => {
     delay_causes:       classifyDelays(sgd, fraud).slice(0, 50),
     collusion_exposure: computeCollusionExposure(sgd, fraud),
   };
-  advCache = { data, ts: Date.now() };
   res.json(data);
 }));
