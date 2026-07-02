@@ -2,14 +2,10 @@ import { useFilters, applyBureauFilter, applyPeriodFilter, applyStatusFilter, ap
 import { PageHeader } from '../App';
 // ── Fraud Page ────────────────────────────────────────────────────────────────
 import React, { useRef, useEffect, useState } from 'react';
+import ReactECharts from 'echarts-for-react';
 import { useApi } from '../hooks/useApi';
 import { api, fmtM, fmt } from '../services/api';
 import { KPICard, SectionTitle, StatusBadge, Loading, ErrorBox, Code, PaginatedTable } from '../components/UI';
-import { Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import type { AIAnalysis } from '../types';
-
-ChartJS.register(ArcElement, Tooltip, Legend);
 
 export function Fraud() {
   const { data, loading, error, reload } = useApi(api.fraud);
@@ -26,9 +22,59 @@ export function Fraud() {
   }, {});
   const typeEntries = Object.entries(filteredByType).sort((a, b) => b[1] - a[1]);
   const colors = ['#ef4444','#f97316','#eab308','#3b82f6','#8b5cf6','#06b6d4'];
-  const donut = {
-    labels: typeEntries.map(([k]) => k),
-    datasets: [{ data: typeEntries.map(([,v]) => v), backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }],
+  const total = typeEntries.reduce((s,[,v]) => s + v, 0);
+  const donutOption = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(15,23,42,0.95)',
+      borderColor: 'rgba(59,130,246,0.3)',
+      textStyle: { color: '#f1f5f9', fontSize: 12 },
+      formatter: (p: {name:string;value:number;percent:number}) =>
+        `<b>${p.name}</b><br/>Cas: <b>${p.value}</b> (${p.percent.toFixed(1)}%)`,
+    },
+    legend: {
+      orient: 'vertical',
+      right: 0,
+      top: 'middle',
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 10,
+      textStyle: { color: '#94a3b8', fontSize: 11 },
+      formatter: (name: string) => {
+        const entry = typeEntries.find(([k]) => k === name);
+        const val = entry ? entry[1] : 0;
+        const pct = total > 0 ? ((val / total) * 100).toFixed(0) : 0;
+        return `{name|${name.replace(/_/g,' ')}}  {val|${val}} {pct|(${pct}%)}`;
+      },
+      rich: {
+        name: { color: '#94a3b8', fontSize: 11, width: 160 },
+        val:  { color: '#ffffff', fontSize: 11, fontWeight: 'bold', width: 28 },
+        pct:  { color: '#64748b', fontSize: 10 },
+      },
+    },
+    series: [{
+      type: 'pie',
+      radius: ['48%', '72%'],
+      center: ['30%', '50%'],
+      avoidLabelOverlap: true,
+      label: {
+        show: true,
+        position: 'outside',
+        color: '#94a3b8',
+        fontSize: 11,
+        formatter: (p: {name:string;percent:number}) =>
+          `${p.name.replace(/_/g,' ')}
+${p.percent.toFixed(1)}%`,
+      },
+      labelLine: { show: true, length: 12, length2: 8, lineStyle: { color: 'rgba(148,163,184,0.4)' } },
+      emphasis: { scale: true, scaleSize: 6 },
+      data: typeEntries.map(([k, v], i) => ({
+        name: k,
+        value: v,
+        itemStyle: { color: colors[i % colors.length], borderRadius: 4, borderWidth: 2, borderColor: 'rgba(15,23,42,0.8)' },
+      })),
+    }],
   };
 
   return (
@@ -44,20 +90,10 @@ export function Fraud() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="card">
           <SectionTitle icon="🔬">Types de Fraude Détectés</SectionTitle>
-          <div className="flex gap-4 items-center">
-            <div className="h-40 w-40 flex-shrink-0 relative">
-              <Doughnut data={donut} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }} />
-            </div>
-            <div className="space-y-2 flex-1">
-              {typeEntries.map(([k, v], i) => (
-                <div key={k} className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: colors[i % colors.length] }} />
-                  <span className="text-xs text-sub flex-1 truncate">{k}</span>
-                  <span className="text-xs font-bold text-white">{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {typeEntries.length === 0
+            ? <div className="h-48 flex items-center justify-center text-muted text-sm">Aucun cas pour les filtres sélectionnés</div>
+            : <ReactECharts option={donutOption} style={{ height: 240 }} opts={{ renderer: 'svg' }} />
+          }
         </div>
         <div className="card xl:col-span-2">
           <SectionTitle icon="📋">Codes Tarifaires à Risque</SectionTitle>

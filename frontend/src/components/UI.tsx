@@ -254,15 +254,27 @@ export const PaginatedTable: React.FC<{
   const visible = rows.slice(page * pageSize, page * pageSize + pageSize);
   return (
     <div className={className}>
-      <div className="overflow-auto" style={{ maxHeight: 420, position: 'relative' }}>
-        <table className="tbl" style={{ minWidth: '100%' }}>
-          <thead style={{
-            position: 'sticky', top: 0, zIndex: 10,
-            background: 'rgba(15,23,42,0.97)',
-            backdropFilter: 'blur(8px)',
-            borderBottom: '1px solid rgba(59,130,246,0.2)',
-          }}>
-            {headers}
+      <div style={{ maxHeight: 420, overflowY: 'auto', overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+        <table className="tbl" style={{ minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead>
+            <tr style={{
+              position: 'sticky', top: 0, zIndex: 10,
+            }}>
+              {/* Render header cells with sticky background applied per-cell */}
+              {React.Children.map(
+                (headers as React.ReactElement).props.children,
+                (th: React.ReactElement) => React.cloneElement(th, {
+                  style: {
+                    ...th.props.style,
+                    position: 'sticky', top: 0, zIndex: 10,
+                    background: 'rgba(15,23,42,0.98)',
+                    backdropFilter: 'blur(12px)',
+                    borderBottom: '1px solid rgba(59,130,246,0.25)',
+                    boxShadow: '0 1px 0 rgba(59,130,246,0.15)',
+                  }
+                })
+              )}
+            </tr>
           </thead>
           <tbody>{visible}</tbody>
         </table>

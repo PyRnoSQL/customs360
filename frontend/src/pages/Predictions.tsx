@@ -170,11 +170,57 @@ function NextDeclPanel({ predictions }: { predictions: NextDecl[] }) {
   const CONF_COLOR: Record<string,string> = { HIGH:'#10b981', MEDIUM:'#f59e0b', LOW:'#ef4444' };
   const ACTION_COLOR = (a:string) => a.includes('obligatoire') ? '#ef4444' : a.includes('prioritaire') ? '#f59e0b' : '#3b82f6';
 
-  const pieData = [
-    { name:'Haut risque (≥70%)', value: predictions.filter(p=>p.next_fraud_prob>=70).length, fill:'#ef4444' },
-    { name:'Risque moyen (45-70%)', value: predictions.filter(p=>p.next_fraud_prob>=45&&p.next_fraud_prob<70).length, fill:'#f59e0b' },
-    { name:'Faible risque (<45%)', value: predictions.filter(p=>p.next_fraud_prob<45).length, fill:'#10b981' },
+  const pieSegments = [
+    { name:'Haut risque (≥70%)',   value: predictions.filter(p=>p.next_fraud_prob>=70).length,                        color:'#ef4444' },
+    { name:'Risque moyen (45-70%)', value: predictions.filter(p=>p.next_fraud_prob>=45&&p.next_fraud_prob<70).length, color:'#f59e0b' },
+    { name:'Faible risque (<45%)', value: predictions.filter(p=>p.next_fraud_prob<45).length,                         color:'#10b981' },
   ];
+  const pieTotal = pieSegments.reduce((s,d) => s + d.value, 0);
+  const pieOption = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(15,23,42,0.95)',
+      borderColor: 'rgba(59,130,246,0.3)',
+      textStyle: { color: '#f1f5f9', fontSize: 12 },
+      formatter: (p: {name:string;value:number;percent:number}) =>
+        `<b>${p.name}</b><br/>Importateurs: <b>${p.value}</b> (${p.percent.toFixed(1)}%)`,
+    },
+    legend: {
+      orient: 'vertical',
+      right: 4,
+      top: 'middle',
+      itemWidth: 10, itemHeight: 10, itemGap: 10,
+      textStyle: { color: '#94a3b8', fontSize: 11 },
+      formatter: (name: string) => {
+        const seg = pieSegments.find(s => s.name === name);
+        const val = seg?.value ?? 0;
+        const pct = pieTotal > 0 ? ((val / pieTotal) * 100).toFixed(0) : 0;
+        return `{nm|${name}}  {vl|${val}} {pc|(${pct}%)}`;
+      },
+      rich: {
+        nm: { color: '#94a3b8', fontSize: 11, width: 140 },
+        vl: { color: '#ffffff', fontSize: 11, fontWeight: 'bold', width: 24 },
+        pc: { color: '#64748b', fontSize: 10 },
+      },
+    },
+    series: [{
+      type: 'pie',
+      radius: ['45%', '70%'],
+      center: ['35%', '50%'],
+      avoidLabelOverlap: true,
+      label: {
+        show: true, position: 'outside', color: '#94a3b8', fontSize: 11,
+        formatter: (p: {name:string;percent:number}) => `${p.name}\n${p.percent.toFixed(0)}%`,
+      },
+      labelLine: { show: true, length: 10, length2: 8, lineStyle: { color: 'rgba(148,163,184,0.4)' } },
+      emphasis: { scale: true, scaleSize: 6 },
+      data: pieSegments.map(d => ({
+        name: d.name, value: d.value,
+        itemStyle: { color: d.color, borderRadius: 4, borderWidth: 2, borderColor: 'rgba(15,23,42,0.8)' },
+      })),
+    }],
+  };
 
   return (
     <div className="card">
@@ -182,20 +228,11 @@ function NextDeclPanel({ predictions }: { predictions: NextDecl[] }) {
       <p className="text-xs text-muted mb-4">Basé sur les 5 dernières déclarations de chaque importateur · Modèle multi-facteurs · <span style={{color:'#10b981'}}>Confiance = quantité de données disponibles</span></p>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         {/* Pie */}
-        <div className="flex flex-col items-center">
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value" strokeWidth={0}>
-                {pieData.map((e,i) => <Cell key={i} fill={e.fill}/>)}
-              </Pie>
-              <Tooltip {...CHART_TT}/>
-            </PieChart>
-          </ResponsiveContainer>
-          {pieData.map(d => (
-            <div key={d.name} className="flex items-center gap-2 text-xs text-muted">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background:d.fill }}/>{d.name}: <b className="text-white">{d.value}</b>
-            </div>
-          ))}
+        <div>
+          {pieTotal === 0
+            ? <div className="h-[220px] flex items-center justify-center text-muted text-sm">Aucune donnée disponible</div>
+            : <ReactECharts option={pieOption} style={{ height: 220 }} opts={{ renderer: 'svg' }} />
+          }
         </div>
 
         {/* Top predictions table */}
