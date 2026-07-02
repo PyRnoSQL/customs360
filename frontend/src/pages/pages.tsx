@@ -51,8 +51,8 @@ export function Fraud() {
     },
     series: [{
       type: 'pie',
-      radius: ['35%', '58%'],
-      center: ['50%', '38%'],
+      radius: ['32%', '54%'],
+      center: ['50%', '30%'],
       avoidLabelOverlap: true,
       label: {
         show: true,
@@ -99,7 +99,7 @@ ${p.percent}%`,
           <SectionTitle icon="🔬">Types de Fraude Détectés</SectionTitle>
           {typeEntries.length === 0
             ? <div className="h-48 flex items-center justify-center text-muted text-sm">Aucun cas pour les filtres sélectionnés</div>
-            : <ReactECharts option={donutOption} style={{ height: 320 }} />
+            : <ReactECharts option={donutOption} style={{ height: 340 }} />
           }
         </div>
         <div className="card xl:col-span-2">
