@@ -29,50 +29,46 @@ export function Fraud() {
       trigger: 'item',
       backgroundColor: 'rgba(15,23,42,0.95)',
       borderColor: 'rgba(59,130,246,0.3)',
+      borderWidth: 1,
       textStyle: { color: '#f1f5f9', fontSize: 12 },
-      formatter: (p: {name:string;value:number;percent:number}) =>
-        `<b>${p.name}</b><br/>Cas: <b>${p.value}</b> (${p.percent.toFixed(1)}%)`,
+      formatter: (p: {name:string;value:number;percent:string}) =>
+        `<span style="color:#f1f5f9"><b>${String(p.name).replace(/_/g,' ')}</b><br/>Cas: <b style="color:#fff">${p.value}</b> &nbsp;<span style="color:#94a3b8">(${p.percent}%)</span></span>`,
     },
     legend: {
       orient: 'vertical',
-      right: 0,
+      right: 4,
       top: 'middle',
       itemWidth: 10,
       itemHeight: 10,
-      itemGap: 10,
+      itemGap: 8,
       textStyle: { color: '#94a3b8', fontSize: 11 },
       formatter: (name: string) => {
         const entry = typeEntries.find(([k]) => k === name);
         const val = entry ? entry[1] : 0;
-        const pct = total > 0 ? ((val / total) * 100).toFixed(0) : 0;
-        return `{name|${name.replace(/_/g,' ')}}  {val|${val}} {pct|(${pct}%)}`;
-      },
-      rich: {
-        name: { color: '#94a3b8', fontSize: 11, width: 160 },
-        val:  { color: '#ffffff', fontSize: 11, fontWeight: 'bold', width: 28 },
-        pct:  { color: '#64748b', fontSize: 10 },
+        const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+        return `${String(name).replace(/_/g,' ')}   ${val} (${pct}%)`;
       },
     },
     series: [{
       type: 'pie',
-      radius: ['48%', '72%'],
-      center: ['30%', '50%'],
+      radius: ['45%', '68%'],
+      center: ['32%', '50%'],
       avoidLabelOverlap: true,
       label: {
         show: true,
         position: 'outside',
         color: '#94a3b8',
-        fontSize: 11,
-        formatter: (p: {name:string;percent:number}) =>
-          `${p.name.replace(/_/g,' ')}
-${p.percent.toFixed(1)}%`,
+        fontSize: 10,
+        formatter: (p: {name:string;percent:string}) =>
+          `${String(p.name).replace(/_/g,' ')}
+${p.percent}%`,
       },
-      labelLine: { show: true, length: 12, length2: 8, lineStyle: { color: 'rgba(148,163,184,0.4)' } },
-      emphasis: { scale: true, scaleSize: 6 },
+      labelLine: { show: true, length: 10, length2: 6, lineStyle: { color: 'rgba(148,163,184,0.4)' } },
+      emphasis: { scale: true, scaleSize: 5 },
       data: typeEntries.map(([k, v], i) => ({
         name: k,
         value: v,
-        itemStyle: { color: colors[i % colors.length], borderRadius: 4, borderWidth: 2, borderColor: 'rgba(15,23,42,0.8)' },
+        itemStyle: { color: colors[i % colors.length], borderRadius: 3, borderWidth: 2, borderColor: 'rgba(15,23,42,0.9)' },
       })),
     }],
   };
@@ -92,7 +88,7 @@ ${p.percent.toFixed(1)}%`,
           <SectionTitle icon="🔬">Types de Fraude Détectés</SectionTitle>
           {typeEntries.length === 0
             ? <div className="h-48 flex items-center justify-center text-muted text-sm">Aucun cas pour les filtres sélectionnés</div>
-            : <ReactECharts option={donutOption} style={{ height: 240 }} opts={{ renderer: 'svg' }} />
+            : <ReactECharts option={donutOption} style={{ height: 240 }} />
           }
         </div>
         <div className="card xl:col-span-2">

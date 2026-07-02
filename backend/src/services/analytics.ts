@@ -521,10 +521,14 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
 // ════════════════════════════════════════════════════════════════════════════
 
 export interface DeclarationAnomalyScore {
-  sgd_id: string; importer_id: string; declarant_id: string; office_id: string;
-  tariff_code: string; cif_value: number; weight: number; clearance_hours: number;
-  anomaly_score: number; risk_factors: string[]; predicted_fraud_prob: number;
-  revenue_at_risk: number; recommended_action: string;
+  sgd_id: string;
+  importer_id: string; importer_name: string;
+  declarant_id: string;
+  office_id: string; office_name: string;
+  tariff_code: string; tariff_description: string;
+  cif_value: number; weight: number; clearance_hours: number;
+  anomaly_score: number; risk_factors: string[];
+  predicted_fraud_prob: number; revenue_at_risk: number; recommended_action: string;
 }
 
 export interface RevenueForecast {
@@ -780,6 +784,7 @@ export function buildPredictions(sgd: SGDRow[], fraud: FraudRow[]): PredictionSu
 // ── 1. Importer Risk Drift ────────────────────────────────────────────────────
 export interface RiskDrift {
   importer_id: string;
+  importer_name: string;
   current_score: number;
   prev_score: number;
   drift: number;          // positive = worsening
@@ -843,6 +848,7 @@ export function computeRiskDrift(sgd: SGDRow[], fraud: FraudRow[]): RiskDrift[] 
 // ── 2. Next-Declaration Fraud Probability ─────────────────────────────────────
 export interface NextDeclPrediction {
   importer_id: string;
+  importer_name: string;
   next_fraud_prob: number;   // 0–100
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   key_signals: string[];
@@ -978,8 +984,8 @@ export type DelayCause = 'INTENTIONAL' | 'DOCUMENT_ISSUE' | 'INSPECTION_BACKLOG'
 
 export interface DelayClassification {
   sgd_id: string;
-  office_id: string;
-  importer_id: string;
+  office_id: string; office_name: string;
+  importer_id: string; importer_name: string;
   actual_hours: number;
   baseline_hours: number;
   overshoot: number;

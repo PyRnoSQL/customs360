@@ -19,11 +19,11 @@ const CHART_TT = {
 
 type Forecast = { month:string; label:string; actual:number|null; forecast:number; lower_bound:number; upper_bound:number };
 type Trajectory = { office_id:string; name:string; trend:string; momentum_score:number; period_revenues:number[]; forecast_next:number; alert:string|null };
-type Anomaly = { sgd_id:string; importer_id:string; office_id:string; tariff_code:string; anomaly_score:number; risk_factors:string[]; predicted_fraud_prob:number; revenue_at_risk:number; recommended_action:string };
-type RiskDrift = { importer_id:string; current_score:number; prev_score:number; drift:number; trend:string; velocity:number; alert:string|null; periods:{month:string;score:number}[] };
-type NextDecl = { importer_id:string; next_fraud_prob:number; confidence:string; key_signals:string[]; recommended_action:string };
+type Anomaly = { sgd_id:string; importer_id:string; importer_name:string; office_id:string; office_name:string; tariff_code:string; tariff_description:string; anomaly_score:number; risk_factors:string[]; predicted_fraud_prob:number; revenue_at_risk:number; recommended_action:string };
+type RiskDrift = { importer_id:string; importer_name:string; current_score:number; prev_score:number; drift:number; trend:string; velocity:number; alert:string|null; periods:{month:string;score:number}[] };
+type NextDecl = { importer_id:string; importer_name:string; next_fraud_prob:number; confidence:string; key_signals:string[]; recommended_action:string };
 type FraudVelocity = { current_month:string; velocity_index:number; acceleration:number; status:string; fraud_rate_current:number; fraud_rate_previous:number; projected_eom_loss:number; alert:string|null; monthly_series:{month:string;label:string;rate:number;velocity:number}[] };
-type DelayCause = { sgd_id:string; office_id:string; importer_id:string; actual_hours:number; baseline_hours:number; overshoot:number; cause:string; cause_label:string; confidence:number; action:string };
+type DelayCause = { sgd_id:string; office_id:string; office_name:string; importer_id:string; importer_name:string; actual_hours:number; baseline_hours:number; overshoot:number; cause:string; cause_label:string; confidence:number; action:string };
 type CollusionExp = { officer_id:string; name:string; exposure_score:number; high_risk_count:number; total_declarations:number; exposure_rate:number; integrity_flag:string; alert:string|null };
 
 const TREND_META: Record<string,{icon:string;color:string;label:string}> = {
@@ -126,7 +126,7 @@ function RiskDriftPanel({ drifts }: { drifts: RiskDrift[] }) {
                 style={{ background: selected?.importer_id === d.importer_id ? `${dm.color}18` : 'rgba(255,255,255,0.03)', border:`1px solid ${dm.color}33` }}>
                 <span className="text-sm">{dm.icon}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{(d as RiskDrift & {importer_name?:string}).importer_name ?? d.importer_id}</div>
+                  <div className="text-xs font-bold text-white truncate">{d.importer_name ?? d.importer_id}</div>
                   <div className="text-[10px]" style={{ color: dm.color }}>{dm.label} · {d.velocity > 0 ? '+' : ''}{d.velocity}/mois</div>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -145,7 +145,7 @@ function RiskDriftPanel({ drifts }: { drifts: RiskDrift[] }) {
           <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:'auto' }} exit={{ opacity:0, height:0 }}
             className="mt-4 p-4 rounded-xl overflow-hidden"
             style={{ background:'rgba(59,130,246,0.06)', border:'1px solid rgba(59,130,246,0.2)' }}>
-            <div className="text-xs font-bold text-white mb-2">{(selected as RiskDrift & {importer_name?:string}).importer_name ?? selected.importer_id} — Évolution du Score de Risque</div>
+            <div className="text-xs font-bold text-white mb-2">{selected.importer_name ?? selected.importer_id} — Évolution du Score de Risque</div>
             <ResponsiveContainer width="100%" height={80}>
               <LineChart data={selected.periods}>
                 <XAxis dataKey="month" tick={{ fill:'#475569', fontSize:9 }} tickFormatter={(v:string) => v.slice(5)}/>
@@ -182,42 +182,39 @@ function NextDeclPanel({ predictions }: { predictions: NextDecl[] }) {
       trigger: 'item',
       backgroundColor: 'rgba(15,23,42,0.95)',
       borderColor: 'rgba(59,130,246,0.3)',
+      borderWidth: 1,
       textStyle: { color: '#f1f5f9', fontSize: 12 },
-      formatter: (p: {name:string;value:number;percent:number}) =>
-        `<b>${p.name}</b><br/>Importateurs: <b>${p.value}</b> (${p.percent.toFixed(1)}%)`,
+      formatter: (p: {name:string;value:number;percent:string}) =>
+        `<span style="color:#f1f5f9"><b>${p.name}</b><br/>Importateurs: <b style="color:#fff">${p.value}</b> &nbsp;<span style="color:#94a3b8">(${p.percent}%)</span></span>`,
     },
     legend: {
       orient: 'vertical',
       right: 4,
       top: 'middle',
-      itemWidth: 10, itemHeight: 10, itemGap: 10,
+      itemWidth: 10, itemHeight: 10, itemGap: 8,
       textStyle: { color: '#94a3b8', fontSize: 11 },
       formatter: (name: string) => {
         const seg = pieSegments.find(s => s.name === name);
         const val = seg?.value ?? 0;
-        const pct = pieTotal > 0 ? ((val / pieTotal) * 100).toFixed(0) : 0;
-        return `{nm|${name}}  {vl|${val}} {pc|(${pct}%)}`;
-      },
-      rich: {
-        nm: { color: '#94a3b8', fontSize: 11, width: 140 },
-        vl: { color: '#ffffff', fontSize: 11, fontWeight: 'bold', width: 24 },
-        pc: { color: '#64748b', fontSize: 10 },
+        const pct = pieTotal > 0 ? Math.round((val / pieTotal) * 100) : 0;
+        return `${name}   ${val} (${pct}%)`;
       },
     },
     series: [{
       type: 'pie',
-      radius: ['45%', '70%'],
-      center: ['35%', '50%'],
+      radius: ['45%', '68%'],
+      center: ['34%', '50%'],
       avoidLabelOverlap: true,
       label: {
-        show: true, position: 'outside', color: '#94a3b8', fontSize: 11,
-        formatter: (p: {name:string;percent:number}) => `${p.name}\n${p.percent.toFixed(0)}%`,
+        show: true, position: 'outside', color: '#94a3b8', fontSize: 10,
+        formatter: (p: {name:string;percent:string}) => `${p.name}
+${p.percent}%`,
       },
-      labelLine: { show: true, length: 10, length2: 8, lineStyle: { color: 'rgba(148,163,184,0.4)' } },
-      emphasis: { scale: true, scaleSize: 6 },
+      labelLine: { show: true, length: 10, length2: 6, lineStyle: { color: 'rgba(148,163,184,0.4)' } },
+      emphasis: { scale: true, scaleSize: 5 },
       data: pieSegments.map(d => ({
         name: d.name, value: d.value,
-        itemStyle: { color: d.color, borderRadius: 4, borderWidth: 2, borderColor: 'rgba(15,23,42,0.8)' },
+        itemStyle: { color: d.color, borderRadius: 3, borderWidth: 2, borderColor: 'rgba(15,23,42,0.9)' },
       })),
     }],
   };
@@ -231,7 +228,7 @@ function NextDeclPanel({ predictions }: { predictions: NextDecl[] }) {
         <div>
           {pieTotal === 0
             ? <div className="h-[220px] flex items-center justify-center text-muted text-sm">Aucune donnée disponible</div>
-            : <ReactECharts option={pieOption} style={{ height: 220 }} opts={{ renderer: 'svg' }} />
+            : <ReactECharts option={pieOption} style={{ height: 220 }} />
           }
         </div>
 
@@ -242,7 +239,7 @@ function NextDeclPanel({ predictions }: { predictions: NextDecl[] }) {
             <tbody>
               {predictions.slice(0, 15).map(p => (
                 <motion.tr key={p.importer_id} initial={{ opacity:0 }} animate={{ opacity:1 }}>
-                  <td><div className="text-xs font-bold text-white">{(p as NextDecl & {importer_name?:string}).importer_name ?? p.importer_id}</div><div className="text-[10px] text-muted">{p.importer_id}</div></td>
+                  <td><div className="text-xs font-bold text-white">{p.importer_name ?? p.importer_id}</div><div className="text-[10px] text-muted">{p.importer_id}</div></td>
                   <td>
                     <div className="flex items-center gap-2">
                       <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,0.06)' }}>
@@ -294,7 +291,7 @@ function DelayClassifierPanel({ delays }: { delays: DelayCause[] }) {
               {delays.slice(0, 15).map(d => (
                 <motion.tr key={d.sgd_id} initial={{ opacity:0 }} animate={{ opacity:1 }}>
                   <td><code style={{ color:'#22d3ee', fontSize:11 }}>{d.sgd_id}</code></td>
-                  <td><span className="text-xs text-muted">{(d as DelayCause & {office_name?:string}).office_name ?? d.office_id}</span></td>
+                  <td><span className="text-xs text-muted">{d.office_name ?? d.office_id}</span></td>
                   <td><span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background:CAUSE_COLOR[d.cause]+'18', color:CAUSE_COLOR[d.cause], border:`1px solid ${CAUSE_COLOR[d.cause]}33` }}>{d.cause_label}</span></td>
                   <td><span className="text-xs font-bold" style={{ color: d.overshoot>100?'#ef4444':'#f59e0b' }}>+{d.overshoot}h</span></td>
                   <td><span className="text-xs" style={{ color: d.confidence>=80?'#10b981':'#f59e0b' }}>{d.confidence}%</span></td>
@@ -490,14 +487,14 @@ export default function Predictions() {
                 <tr key={a.sgd_id}>
                   <td><code style={{color:'#22d3ee',fontSize:11}}>{a.sgd_id}</code></td>
                   <td>
-                    <div className="text-xs font-semibold text-white">{(a as Anomaly & {importer_name?:string}).importer_name ?? a.importer_id}</div>
+                    <div className="text-xs font-semibold text-white">{a.importer_name ?? a.importer_id}</div>
                     <div className="text-[10px] text-muted">{a.importer_id}</div>
                   </td>
                   <td>
                     <code style={{color:'#22d3ee',fontSize:11}}>{a.tariff_code}</code>
                   </td>
                   <td>
-                    <div className="text-xs text-muted">{(a as Anomaly & {office_name?:string}).office_name ?? a.office_id}</div>
+                    <div className="text-xs text-muted">{a.office_name ?? a.office_id}</div>
                   </td>
                   <td><div className="flex items-center gap-1.5"><div className="w-12 h-1.5 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}><div className="h-full rounded-full" style={{width:`${a.anomaly_score}%`,background:a.anomaly_score>=70?'#ef4444':a.anomaly_score>=45?'#f59e0b':'#3b82f6'}}/></div><span className="text-xs font-bold" style={{color:a.anomaly_score>=70?'#f87171':a.anomaly_score>=45?'#fbbf24':'#60a5fa'}}>{a.anomaly_score}</span></div></td>
                   <td><span className="text-xs font-bold" style={{color:a.predicted_fraud_prob>=0.7?'#f87171':'#fbbf24'}}>{Math.round(a.predicted_fraud_prob*100)}%</span></td>

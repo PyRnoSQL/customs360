@@ -92,10 +92,13 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
 
   const trendData = o.monthly_trend.map(m => ({ month: m.month.slice(5), pi: m.pi, decls: m.declarations }));
 
-  const pieData = [
-    { name: 'Fraudes détectées', value: o.fraud_detected, fill: '#ef4444' },
-    { name: 'Normal', value: o.total_declarations - o.fraud_detected, fill: 'rgba(59,130,246,0.3)' },
-  ];
+  const fraudPct = o.total_declarations > 0
+    ? Math.round((o.fraud_detected / o.total_declarations) * 100)
+    : 0;
+  const pieData = o.fraud_detected === 0 && o.total_declarations === 0 ? [] : [
+    { name: `Fraudes (${fraudPct}%)`, value: Math.max(o.fraud_detected, 0), fill: '#ef4444' },
+    { name: `Normal (${100 - fraudPct}%)`, value: Math.max(o.total_declarations - o.fraud_detected, 0), fill: 'rgba(59,130,246,0.4)' },
+  ].filter(d => d.value > 0);
 
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
@@ -211,8 +214,10 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
           <SectionTitle icon="📊">Déclarations — Répartition</SectionTitle>
           <ResponsiveContainer width="100%" height={160}>
             <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} dataKey="value" strokeWidth={0}>
-                {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              <Pie data={pieData.length ? pieData : [{ name: 'Aucune donnée', value: 1, fill: 'rgba(59,130,246,0.15)' }]}
+                cx="50%" cy="50%" innerRadius={45} outerRadius={65} dataKey="value" strokeWidth={2}
+                stroke="rgba(15,23,42,0.8)">
+                {(pieData.length ? pieData : [{ name: '', value: 1, fill: 'rgba(59,130,246,0.15)' }]).map((entry, i) => <Cell key={i} fill={entry.fill} />)}
               </Pie>
               <Tooltip {...CHART_STYLE.tooltip} />
             </PieChart>

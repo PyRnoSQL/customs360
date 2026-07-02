@@ -46,7 +46,7 @@ export default function Analytics() {
   // ③ Chart options
   const cohortOption = {
     backgroundColor: 'transparent',
-    tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' }, formatter: '{b}: <b>{c}</b> ({d}%)' },
+    tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', borderWidth: 1, textStyle: { color: '#f1f5f9', fontSize: 12 }, formatter: (p: {name:string;value:number;percent:string}) => `<span style="color:#f1f5f9"><b>${p.name}</b><br/><span style="color:#fff;font-weight:bold">${p.value}</span> <span style="color:#94a3b8">(${p.percent}%)</span></span>` },
     series: [{
       type: 'pie', radius: ['50%', '78%'], center: ['50%', '50%'],
       data: filteredCohorts.map((c: Cohort) => ({ name: c.label, value: c.count, itemStyle: { color: c.color } })),
