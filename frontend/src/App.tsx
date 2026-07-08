@@ -259,6 +259,7 @@ function AppShell() {
   const { sgdCount } = useLiveData();
   if (!user) return <Login />;
   return (
+    <>
     <div className="flex h-screen overflow-hidden">
       <ParticleBackground />
       <Sidebar />
@@ -282,7 +283,8 @@ function AppShell() {
         </main>
       </div>
     </div>
-      <AIChat />
+    <AIChat />
+    </>
   );
 }
 
