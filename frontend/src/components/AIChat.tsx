@@ -249,30 +249,27 @@ export default function AIChat() {
 
   return (
     <>
+      <style>{`@keyframes chatPulse { 0%,100% { box-shadow: 0 0 0 0px rgba(139,92,246,0.7); } 70% { box-shadow: 0 0 0 12px rgba(139,92,246,0); } }`}</style>
       {/* Floating button */}
-      <motion.button
+      <button
         onClick={() => setOpen(o => !o)}
-        whileHover={{ scale: 1.08 }}
-        whileTap={{ scale: 0.95 }}
+        aria-label="Assistant IA"
         style={{
           position: 'fixed', bottom: 28, right: 28, zIndex: 9999,
           width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer',
           background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)',
-          boxShadow: '0 0 0 0 rgba(139,92,246,0.7)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 24,
+          fontSize: 24, transition: 'transform 0.15s',
+          animation: open ? 'none' : 'chatPulse 1.8s ease-out infinite',
+          boxShadow: '0 4px 20px rgba(139,92,246,0.5)',
         }}
-        animate={!open ? {
-          boxShadow: [
-            '0 0 0 0px rgba(139,92,246,0.7)',
-            '0 0 0 10px rgba(139,92,246,0.0)',
-          ]
-        } : {}}
-        transition={!open ? { repeat: Infinity, duration: 1.8, ease:'easeOut' } : {}}
-        aria-label="Assistant IA"
+        onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.transform='scale(1.08)'; }}
+        onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.transform='scale(1)'; }}
+        onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform='scale(0.95)'; }}
+        onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform='scale(1)'; }}
       >
         {open ? '✕' : '🤖'}
-      </motion.button>
+      </button>
 
       {/* Chat panel */}
       <AnimatePresence>
