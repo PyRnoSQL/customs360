@@ -1,20 +1,62 @@
-// ── Raw Google Sheets row types (exact column names) ─────────────────────────
+export interface Overview {
+  total_sgd: number;
+  total_revenue: number;
+  fraud_confirmed: number;
+  revenue_loss: number;
+  high_risk_importers: number;
+  avg_clearance_hours: number;
+  office_distribution: { office_id: string; name: string; count: number; pct: number }[];
+  monthly_revenue: MonthlyRevenue[];
+}
+
+export interface MonthlyRevenue {
+  month: string;
+  label: string;
+  expected: number;   // = taxes_assessed for the month
+  collected: number;  // = revenue_collected
+  lost_fraud: number; // = tax_evasion_amount from fraud cases
+}
+
+export interface ImporterProfile {
+  importer_id: string;
+  name: string;
+  total_declarations: number;
+  total_cif_value: number;
+  total_revenue: number;
+  fraud_cases: number;
+  fraud_rate: number;
+  risk_score: number;
+  offices: string[];
+  countries: string[];
+  tariff_codes: string[];
+  unique_declarants: string[];
+  unique_declarant_names: string[];
+  office_names: string[];
+  date_factors: DATEFactor[];
+  recent_sgds?: SGDRow[];
+  fraud_cases_detail?: FraudRow[];
+}
+
+export interface DATEFactor {
+  label: string;
+  weight: number;
+  triggered: boolean;
+}
 
 export interface SGDRow {
   sgd_id: string;
   date: string;
   importer_id: string;
-  importer_name: string;
-  importer_risk_profile: 'LOW' | 'MEDIUM' | 'HIGH';
+  importer_name?: string;
   declarant_id: string;
-  declarant_name: string;
+  declarant_name?: string;
   inspector_id: string;
-  inspector_name: string;
+  inspector_name?: string;
   office_id: string;
-  office_name: string;
+  office_name?: string;
   country: string;
   tariff_code: string;
-  tariff_description: string;
+  tariff_description?: string;
   quantity: number;
   weight_kg: number;
   cif_value: number;
@@ -23,16 +65,16 @@ export interface SGDRow {
   revenue_collected: number;
   tax_gap: number;
   clearance_hours: number;
+  processing_days: number;
   inspection_type: string;
   inspection_result: string;
   seizure_value: number;
   transit_country: string;
   payment_mode: string;
   regime_code: string;
-  processing_days: number;
   officer_override: string;
   channel: string;
-  fraud_flag: number; // 0 | 1
+  fraud_flag: number; // 0 | 1 (may arrive as string from Sheets)
   fraud_type: string;
   risk_score_system: number;
 }
@@ -44,7 +86,7 @@ export interface FraudRow {
   date_ouverture_dossier: string;
   date_cloture: string;
   importer_id: string;
-  importer_name: string;
+  importer_name?: string;
   declarant_id: string;
   inspector_id: string;
   office_id: string;
@@ -72,33 +114,13 @@ export interface FraudRow {
   notes: string;
 }
 
-// ── Derived/aggregated types (computed at runtime) ────────────────────────────
-
-export interface ImporterProfile {
-  importer_id: string;
-  total_declarations: number;
-  total_cif_value: number;
-  total_revenue: number;
-  fraud_cases: number;
-  fraud_rate: number;
-  risk_score: number;
-  offices: string[];
-  countries: string[];
-  tariff_codes: string[];
-  unique_declarants: string[];
-  date_factors: DATEFactor[];
-}
-
-export interface DATEFactor {
-  label: string;
-  weight: number;
-  triggered: boolean;
-}
-
 export interface OfficeStats {
   office_id: string;
+  name: string;
   total_sgds: number;
   total_revenue: number;
+  total_assessed: number;
+  baseline_hours: number;
   avg_clearance_hours: number;
   fraud_cases: number;
   fraud_rate: number;
@@ -113,14 +135,6 @@ export interface TariffRisk {
   fraud_rate: number;
   avg_cif: number;
   risk_level: 'HIGH' | 'MEDIUM' | 'LOW';
-}
-
-export interface MonthlyRevenue {
-  month: string;
-  label: string;
-  expected: number;
-  collected: number;
-  lost_fraud: number;
 }
 
 export interface DelayRecord extends SGDRow {
@@ -138,13 +152,10 @@ export interface AIAnalysis {
   indicateur_cle: string;
 }
 
-export interface Overview {
-  total_sgd: number;
-  total_revenue: number;
-  fraud_confirmed: number;
-  revenue_loss: number;
-  high_risk_importers: number;
-  avg_clearance_hours: number;
-  office_distribution: { office_id: string; count: number; pct: number }[];
-  monthly_revenue: MonthlyRevenue[];
+export interface FraudResponse {
+  cases: FraudRow[];
+  total_cases: number;
+  total_loss: number;
+  by_type: Record<string, number>;
+  tariff_risk: TariffRisk[];
 }
