@@ -17,6 +17,7 @@ import Fraud from './pages/Fraud';
 import Delays from './pages/Delays';
 import Offices from './pages/Offices';
 import AIPage from './pages/AIPage';
+import AIChat from './components/AIChat';
 import GraphPage from './pages/GraphPage';
 import OfficersPage from './pages/Officers';
 import Predictions from './pages/Predictions';
