@@ -155,14 +155,48 @@ ${p.percent}%`,
               <td><span className="text-xs font-bold text-danger">{fmtM(f.tax_evasion_amount ?? f.loss_net)} FCFA</span></td>
               <td><span className="text-xs font-bold text-orange-400">{fmtM(f.penalty_amount ?? 0)} FCFA</span></td>
               <td><span className="text-xs font-bold" style={{ color: f.ai_risk_score >= 70 ? '#ef4444' : '#eab308' }}>{f.ai_risk_score}</span></td>
-              <td>
-                <div className="text-xs text-sub">{f.office_name ?? f.office_id}</div>
-              </td>
+              <td><div className="text-xs text-sub">{f.office_name ?? f.office_id}</div></td>
               <td><StatusBadge status={f.status} /></td>
             </tr>
           ))}
         />
       </div>
+
+      {/* Scoring Anomalies — moved from Prédictions IA */}
+      <FraudAnomalyScoring bureau={filters.bureau} period={filters.period} />
+    </div>
+  );
+}
+
+// Fraud anomaly scoring sub-component (uses /api/advanced/fraud-score)
+function FraudAnomalyScoring({ bureau, period }: { bureau: string; period: string }) {
+  const qs = [bureau !== 'ALL' && `bureau=${bureau}`, period !== 'ALL' && `period=${period}`].filter(Boolean).join('&');
+  const { data, loading } = useApi(() => fetch(`/api/advanced/fraud-score${qs ? '?' + qs : ''}`).then(r => r.json()), [qs]);
+  if (loading || !data?.top_anomalies?.length) return null;
+  const { top_anomalies = [], high_risk = 0 } = data;
+  const rc = (s: number) => s >= 70 ? '#ef4444' : s >= 40 ? '#f59e0b' : '#10b981';
+  type Anomaly = { sgd_id: string; importer_id: string; importer_name: string; tariff_code: string; office_name: string; office_id: string; anomaly_score: number; predicted_fraud_prob: number; revenue_at_risk: number; recommended_action: string };
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-3">
+        <SectionTitle icon="🎯">Scoring Anomalies — Déclarations Prioritaires</SectionTitle>
+        <span className="text-xs px-2 py-1 rounded-full font-bold" style={{ background:'rgba(239,68,68,0.15)', color:'#f87171' }}>{high_risk} critiques</span>
+      </div>
+      <PaginatedTable pageSize={10}
+        headers={<tr><th>SGD</th><th>Importateur</th><th>Tarif</th><th>Bureau</th><th>Score</th><th>Prob.</th><th>Revenu à risque</th><th>Action</th></tr>}
+        rows={(top_anomalies as Anomaly[]).map(a => (
+          <tr key={a.sgd_id}>
+            <td><Code>{a.sgd_id}</Code></td>
+            <td><div className="text-xs font-semibold text-white">{a.importer_name ?? a.importer_id}</div><div className="text-[10px] text-muted">{a.importer_id}</div></td>
+            <td><Code color="#22d3ee">{a.tariff_code}</Code></td>
+            <td><span className="text-xs text-muted">{a.office_name ?? a.office_id}</span></td>
+            <td><div className="flex items-center gap-1.5"><div className="w-10 h-1.5 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}><div className="h-full rounded-full" style={{width:`${a.anomaly_score}%`,background:rc(a.anomaly_score)}}/></div><span className="text-xs font-bold" style={{color:rc(a.anomaly_score)}}>{a.anomaly_score}</span></div></td>
+            <td><span className="text-xs font-bold" style={{color:a.predicted_fraud_prob>=0.7?'#f87171':'#fbbf24'}}>{Math.round(a.predicted_fraud_prob*100)}%</span></td>
+            <td><span className="text-xs font-bold text-red-400">{fmtM(a.revenue_at_risk)} FCFA</span></td>
+            <td><span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{background:'rgba(59,130,246,0.15)',color:'#60a5fa'}}>{a.recommended_action.slice(0,20)}</span></td>
+          </tr>
+        ))}
+      />
     </div>
   );
 }
@@ -218,7 +252,100 @@ export function Delays() {
           ))}
         />
       </div>
+      {/* Delay cause classifier — moved from Prédictions IA */}
+      <DelaysCausalAnalysis />
     </div>
+  );
+}
+
+// Delay cause analysis sub-component (uses /api/predictions/advanced)
+function DelaysCausalAnalysis() {
+  const { filters } = useFilters();
+  const advQs = [filters.bureau !== 'ALL' && `bureau=${filters.bureau}`, filters.period !== 'ALL' && `period=${filters.period}`].filter(Boolean).join('&');
+  const { data } = useApi(() =>
+    Promise.race([
+      fetch(`/api/predictions/advanced${advQs ? '?' + advQs : ''}`).then(r => r.json()),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 8000)),
+    ])
+  , [advQs]);
+  if (!data) return null;
+  const { delay_causes = [], fraud_velocity, bureau_trajectories } = data as {
+    delay_causes?: DelayCause[];
+    fraud_velocity?: { velocity_index: number; status: string; trend: string };
+    bureau_trajectories?: BureauTraj[];
+  };
+  if (!delay_causes.length && !bureau_trajectories?.length) return null;
+
+  type DelayCause = { sgd_id: string; office_id: string; office_name?: string; importer_id: string; importer_name?: string; overshoot: number; cause: string; cause_label: string; confidence: number; action: string };
+  type BureauTraj = { office_id: string; name: string; trend: string; momentum_score: number; forecast_next: number; period_revenues: number[]; alert?: string };
+
+  const CAUSE_COLOR: Record<string,string> = { INTENTIONAL:'#ef4444', DOCUMENT_ISSUE:'#f59e0b', INSPECTION_BACKLOG:'#3b82f6', SYSTEM_ERROR:'#a78bfa', NORMAL:'#10b981' };
+  const TREND_COLOR: Record<string,string> = { RISING:'#10b981', STABLE:'#3b82f6', DECLINING:'#ef4444' };
+
+  const byCause = (delay_causes as DelayCause[]).reduce<Record<string,number>>((a,d)=>{a[d.cause]=(a[d.cause]??0)+1;return a;},{});
+  const causeData = Object.entries(byCause).map(([cause,count])=>({cause,label:{INTENTIONAL:'Intentionnel',DOCUMENT_ISSUE:'Document',INSPECTION_BACKLOG:'Congestion',SYSTEM_ERROR:'Système',NORMAL:'Normal'}[cause]??cause,count,color:CAUSE_COLOR[cause]??'#64748b'}));
+
+  return (
+    <>
+      {/* Cause classifier */}
+      {delay_causes.length > 0 && (
+        <div className="card">
+          <SectionTitle icon="🔍">Classificateur de Causes — Délais de Dédouanement</SectionTitle>
+          <p className="text-xs text-muted mb-4">Classification des causes de retard · <span style={{color:'#ef4444'}}>Rouge = intentionnel suspect</span></p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+            {causeData.map(c => (
+              <div key={c.cause} className="card-sm text-center" style={{borderColor:c.color+'33'}}>
+                <div className="text-xl font-black" style={{color:c.color}}>{c.count}</div>
+                <div className="text-xs text-muted mt-0.5">{c.label}</div>
+              </div>
+            ))}
+          </div>
+          <table className="tbl">
+            <thead><tr><th>SGD</th><th>Bureau</th><th>Importateur</th><th>Cause</th><th>Dépassement</th><th>Confiance</th><th>Action recommandée</th></tr></thead>
+            <tbody>
+              {(delay_causes as DelayCause[]).slice(0,20).map((d: DelayCause) => (
+                <tr key={d.sgd_id} style={{background:d.cause==='INTENTIONAL'?'rgba(239,68,68,0.04)':undefined}}>
+                  <td><Code>{d.sgd_id}</Code></td>
+                  <td><span className="text-xs text-muted">{d.office_name ?? d.office_id}</span></td>
+                  <td><span className="text-xs text-white">{d.importer_name ?? d.importer_id}</span></td>
+                  <td><span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{background:(CAUSE_COLOR[d.cause]??'#64748b')+'18',color:CAUSE_COLOR[d.cause]??'#64748b'}}>{d.cause_label}</span></td>
+                  <td><span className="text-xs font-bold" style={{color:d.overshoot>72?'#ef4444':'#f59e0b'}}>+{d.overshoot}h</span></td>
+                  <td><span className="text-xs" style={{color:d.confidence>=80?'#10b981':'#f59e0b'}}>{d.confidence}%</span></td>
+                  <td><span className="text-[10px] text-slate-400">{d.action}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Bureau trajectories — moved from Prédictions IA */}
+      {bureau_trajectories && bureau_trajectories.length > 0 && (
+        <div className="card">
+          <SectionTitle icon="🏛️">Trajectoire des Bureaux — Tendance Recettes</SectionTitle>
+          {fraud_velocity && (
+            <div className="mb-4 p-3 rounded-xl text-xs flex items-center gap-3" style={{background:'rgba(59,130,246,0.06)',border:'1px solid rgba(59,130,246,0.15)'}}>
+              <span>⚡ Vélocité fraude:</span>
+              <span className="font-bold" style={{color:fraud_velocity.status==='CRITICAL'?'#ef4444':fraud_velocity.status==='WARNING'?'#f59e0b':'#10b981'}}>{fraud_velocity.velocity_index}</span>
+              <span className="text-muted">({fraud_velocity.status})</span>
+            </div>
+          )}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {(bureau_trajectories as BureauTraj[]).map((t: BureauTraj) => (
+              <div key={t.office_id} className="card-sm" style={{borderColor:(TREND_COLOR[t.trend]??'#64748b')+'33'}}>
+                <div className="text-xs font-semibold text-white mb-1">{t.name}</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg" style={{color:TREND_COLOR[t.trend]??'#64748b'}}>{t.trend==='RISING'?'📈':t.trend==='DECLINING'?'📉':'➡️'}</span>
+                  <span className="text-xs font-bold" style={{color:TREND_COLOR[t.trend]??'#64748b'}}>{t.momentum_score>0?'+':''}{t.momentum_score}%</span>
+                </div>
+                <div className="text-[10px] text-muted mt-1">Prévision: <span className="text-white font-semibold">{fmtM(t.forecast_next)} FCFA</span></div>
+                {t.alert && <div className="text-[9px] mt-1.5 text-red-400">⚠️ {t.alert.slice(0,40)}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -399,6 +526,41 @@ export function AIPage() {
           }
         </div>
       </div>
+      {/* IA Recommendations engine */}
+      <AIEngineRecommendations />
+    </div>
+  );
+}
+
+// Recommendations from /api/advanced/recommendations
+function AIEngineRecommendations() {
+  const { data, loading } = useApi(() => fetch('/api/advanced/recommendations').then(r => r.json()));
+  if (loading || !data?.recommendations?.length) return null;
+  type Rec = { priority: number; category: string; title: string; description: string; impact: string; action: string; entities: string[] };
+  const IMPACT_COLOR: Record<string,string> = { Critique:'#ef4444', Haut:'#f97316', Élevé:'#f59e0b', Moyen:'#3b82f6' };
+  const CAT_COLOR: Record<string,string> = { INSPECTION:'#ef4444', 'INTÉGRITÉ':'#a78bfa', CIBLAGE:'#f59e0b', 'EFFICACITÉ':'#3b82f6', RECOUVREMENT:'#10b981' };
+  return (
+    <div className="space-y-4">
+      <SectionTitle icon="💡">Recommandations IA — Actions Prioritaires</SectionTitle>
+      {(data.recommendations as Rec[]).map((rec: Rec, i: number) => (
+        <div key={i} className="card" style={{ borderLeft:`3px solid ${IMPACT_COLOR[rec.impact]??'#64748b'}` }}>
+          <div className="flex items-start gap-3">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background:(IMPACT_COLOR[rec.impact]??'#64748b')+'22', color:IMPACT_COLOR[rec.impact]??'#64748b' }}>{rec.priority}</div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="text-sm font-bold text-white">{rec.title}</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background:(CAT_COLOR[rec.category]??'#64748b')+'22', color:CAT_COLOR[rec.category]??'#64748b', border:`1px solid ${(CAT_COLOR[rec.category]??'#64748b')}44` }}>{rec.category}</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto" style={{ background:(IMPACT_COLOR[rec.impact]??'#64748b')+'22', color:IMPACT_COLOR[rec.impact]??'#64748b' }}>Impact: {rec.impact}</span>
+              </div>
+              <p className="text-xs text-sub mb-1.5">{rec.description}</p>
+              <p className="text-xs font-semibold" style={{ color:IMPACT_COLOR[rec.impact]??'#64748b' }}>→ {rec.action}</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {rec.entities.map((e: string, j: number) => <span key={j} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', color:'#94a3b8' }}>{e}</span>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

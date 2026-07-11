@@ -463,6 +463,69 @@ export default function OfficersPage() {
           );
         })}
       </StaggerGrid>
+
+      {/* Collusion Exposure — moved from Prédictions IA */}
+      <OfficerCollusionExposure />
+    </div>
+  );
+}
+
+// Sub-component: collusion exposure per inspector
+function OfficerCollusionExposure() {
+  const { filters } = useFilters();
+  const advQs = [filters.bureau !== 'ALL' && `bureau=${filters.bureau}`, filters.period !== 'ALL' && `period=${filters.period}`].filter(Boolean).join('&');
+  const { data } = useApi(() =>
+    Promise.race([
+      fetch(`/api/predictions/advanced${advQs ? '?' + advQs : ''}`).then(r => r.json()),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 8000)),
+    ])
+  , [advQs]);
+  if (!data) return null;
+
+  type CollusionExp = { officer_id: string; name: string; bureau_id: string; high_risk_count: number; total_declarations: number; exposure_rate: number; exposure_score: number; integrity_flag: string; alert: string | null };
+  const { collusion_exposure = [] } = data as { collusion_exposure?: CollusionExp[] };
+  if (!(collusion_exposure as CollusionExp[]).length) return null;
+
+  const INTEGRITY_COLOR: Record<string,string> = { CLEAN:'#10b981', MONITORED:'#f59e0b', AT_RISK:'#ef4444' };
+
+  return (
+    <div className="card">
+      <SectionTitle icon="🕵️">Score d'Exposition à la Collusion — Agents Douaniers</SectionTitle>
+      <p className="text-xs text-muted mb-4">Mesure le % de déclarations traitées pour des importateurs frauduleux confirmés</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {(collusion_exposure as CollusionExp[]).slice(0, 9).map((e: CollusionExp, i: number) => {
+          const ic = INTEGRITY_COLOR[e.integrity_flag] ?? '#64748b';
+          return (
+            <motion.div key={e.officer_id} initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay: i*0.06 }}
+              className="rounded-xl p-4" style={{ background:`${ic}0a`, border:`1px solid ${ic}25` }}>
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <div className="text-sm font-bold text-white">{e.name}</div>
+                  <div className="text-[10px] text-muted">{e.officer_id} · {e.bureau_id}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-black" style={{ color:ic }}>{e.exposure_score}</div>
+                  <div className="text-[9px]" style={{ color:ic }}>{e.integrity_flag}</div>
+                </div>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background:'rgba(255,255,255,0.06)' }}>
+                <div className="h-full rounded-full" style={{ width:`${e.exposure_score}%`, background:ic }} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-center rounded-lg py-1" style={{ background:'rgba(255,255,255,0.04)' }}>
+                  <div className="text-xs font-bold" style={{ color:ic }}>{e.high_risk_count}</div>
+                  <div className="text-[9px] text-muted">Décl. risquées</div>
+                </div>
+                <div className="text-center rounded-lg py-1" style={{ background:'rgba(255,255,255,0.04)' }}>
+                  <div className="text-xs font-bold text-white">{Math.round(e.exposure_rate*100)}%</div>
+                  <div className="text-[9px] text-muted">Taux exposition</div>
+                </div>
+              </div>
+              {e.alert && <div className="mt-2 text-[10px] p-1.5 rounded-lg" style={{ background:`${ic}15`, color:ic }}>⚠️ {e.alert.slice(0,60)}</div>}
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

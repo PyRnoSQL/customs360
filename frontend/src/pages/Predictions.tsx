@@ -387,8 +387,8 @@ export default function Predictions() {
   if (bError) return <><PageHeader /><ErrorBox message={bError} onRetry={reload}/></>;
   if (!baseData) return null;
 
-  const { declaration_anomalies:anomalies, revenue_forecast:forecast, bureau_trajectories:trajectories, total_revenue_at_risk:atRisk, high_anomaly_count:highCount, forecast_shortfall:shortfall } = baseData;
-  const { risk_drift, next_decl, fraud_velocity, delay_causes, collusion_exposure } = advData ?? {};
+  const { declaration_anomalies:anomalies, revenue_forecast:forecast, total_revenue_at_risk:atRisk, high_anomaly_count:highCount, forecast_shortfall:shortfall } = baseData;
+  const { fraud_velocity } = advData ?? {};
 
   const TREND_META2: Record<string,{icon:string;color:string;label:string}> = {
     RISING:{ icon:'📈', color:'#10b981', label:'En hausse' },
@@ -430,7 +430,7 @@ export default function Predictions() {
         <KPICard label="Anomalies" value={highCount} icon="🎯" color="danger"/>
         <KPICard label="Revenus à risque" value={Math.round(atRisk/1e6)} suffix=" M" icon="⚠️" color="gold"/>
         <KPICard label="Déficit prévu" value={shortfall>0?Math.round(shortfall/1e6):0} suffix={shortfall>0?" M":" FCFA"} icon="📉" color={shortfall>0?'danger':'success'}/>
-        <KPICard label="Bureaux déclinants" value={(trajectories as Trajectory[]).filter(t=>t.trend==='DECLINING').length} icon="🏛️" color="teal"/>
+        <KPICard label="Déclarations analysées" value={anomalies?.length ?? 0} icon="📋" color="teal"/>
         {fraud_velocity&&<KPICard label="Vélocité fraude" value={fraud_velocity.velocity_index} icon="⚡" color={fraud_velocity.status==='CRITICAL'?'danger':fraud_velocity.status==='WARNING'?'gold':'accent'}/>}
       </StaggerGrid>
 
@@ -452,76 +452,11 @@ export default function Predictions() {
         </FadeIn>
       </div>
 
-      {/* ROW 2: Bureau trajectories */}
-      <FadeIn delay={0.1}>
-        <div className="card">
-          <SectionTitle icon="🏛️">Trajectoire des Bureaux</SectionTitle>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {(trajectories as Trajectory[]).map((t,idx) => {
-              const tm = TREND_META2[t.trend]??TREND_META2.STABLE;
-              const maxR = Math.max(...t.period_revenues,1);
-              const sparkOption = { backgroundColor:'transparent', grid:{left:0,right:0,top:0,bottom:0}, xAxis:{type:'category',show:false}, yAxis:{type:'value',show:false}, series:[{type:'line',data:t.period_revenues,smooth:true,symbol:'none',lineStyle:{color:tm.color,width:2},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:tm.color+'40'},{offset:1,color:'transparent'}]}}}] };
-              return (
-                <motion.div key={t.office_id} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:idx*0.08}}
-                  className="rounded-xl p-4" style={{background:'rgba(255,255,255,0.02)',border:`1px solid ${tm.color}25`}}>
-                  <div className="flex items-start justify-between mb-2">
-                    <div><div className="text-sm font-bold text-white leading-tight">{t.name}</div><div className="text-[10px] text-muted mt-0.5">{t.office_id}</div></div>
-                    <div className="text-right"><div className="text-xl">{tm.icon}</div><div className="text-[10px] font-bold" style={{color:tm.color}}>{tm.label}</div><div className="text-[9px] text-muted">{t.momentum_score>0?'+':''}{t.momentum_score}%</div></div>
-                  </div>
-                  <ReactECharts option={sparkOption} style={{height:50}}/>
-                  <div className="flex justify-between items-center mt-2"><span className="text-[10px] text-muted">Prévision:</span><span className="text-xs font-bold" style={{color:tm.color}}>{fmtM(t.forecast_next)} FCFA</span></div>
-                  {t.alert&&<motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:0.5}} className="mt-2 text-[10px] px-2 py-1 rounded" style={{background:'rgba(239,68,68,0.1)',color:'#f87171',border:'1px solid rgba(239,68,68,0.2)'}}>⚠️ {t.alert}</motion.div>}
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </FadeIn>
-
-      {/* MODEL 1: Risk Drift */}
-      {risk_drift?.length > 0 && <FadeIn delay={0.1}><RiskDriftPanel drifts={risk_drift}/></FadeIn>}
-
-      {/* MODEL 2: Next Declaration */}
-      {next_decl?.length > 0 && <FadeIn delay={0.1}><NextDeclPanel predictions={next_decl}/></FadeIn>}
-
-      {/* MODEL 4: Delay Classifier */}
-      {delay_causes?.length > 0 && <FadeIn delay={0.1}><DelayClassifierPanel delays={delay_causes}/></FadeIn>}
-
-      {/* MODEL 5: Collusion Exposure */}
-      {collusion_exposure?.length > 0 && <FadeIn delay={0.1}><CollusionExposurePanel exposures={collusion_exposure}/></FadeIn>}
-
-      {/* Anomaly table */}
-      <FadeIn delay={0.15}>
-        <div className="card">
-          <SectionTitle icon="🔬">Scoring Anomalies — Déclarations Prioritaires</SectionTitle>
-          <PaginatedTable
-            pageSize={15}
-            headers={<tr><th>SGD</th><th>Importateur</th><th>Tarif</th><th>Bureau</th><th>Score</th><th>Prob. Fraude</th><th>Revenu à risque</th><th>Action</th></tr>}
-            rows={(anomalies as Anomaly[]).map((a) => {
-              const ac=(s:string)=>s.includes('immédiate')?'#ef4444':s.includes('prioritaire')?'#f59e0b':'#3b82f6';
-              return (
-                <tr key={a.sgd_id}>
-                  <td><code style={{color:'#22d3ee',fontSize:11}}>{a.sgd_id}</code></td>
-                  <td>
-                    <div className="text-xs font-semibold text-white">{a.importer_name ?? a.importer_id}</div>
-                    <div className="text-[10px] text-muted">{a.importer_id}</div>
-                  </td>
-                  <td>
-                    <code style={{color:'#22d3ee',fontSize:11}}>{a.tariff_code}</code>
-                  </td>
-                  <td>
-                    <div className="text-xs text-muted">{a.office_name ?? a.office_id}</div>
-                  </td>
-                  <td><div className="flex items-center gap-1.5"><div className="w-12 h-1.5 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}><div className="h-full rounded-full" style={{width:`${a.anomaly_score}%`,background:a.anomaly_score>=70?'#ef4444':a.anomaly_score>=45?'#f59e0b':'#3b82f6'}}/></div><span className="text-xs font-bold" style={{color:a.anomaly_score>=70?'#f87171':a.anomaly_score>=45?'#fbbf24':'#60a5fa'}}>{a.anomaly_score}</span></div></td>
-                  <td><span className="text-xs font-bold" style={{color:a.predicted_fraud_prob>=0.7?'#f87171':'#fbbf24'}}>{Math.round(a.predicted_fraud_prob*100)}%</span></td>
-                  <td><span className="text-xs font-bold text-red-400">{fmtM(a.revenue_at_risk)} FCFA</span></td>
-                  <td><span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{background:ac(a.recommended_action)+'18',color:ac(a.recommended_action),border:`1px solid ${ac(a.recommended_action)}35`}}>{a.recommended_action}</span></td>
-                </tr>
-              );
-            })}
-          />
-        </div>
-      </FadeIn>
+      {/* Info banner: moved sections */}
+      <div className="p-3 rounded-xl text-xs text-muted" style={{ background:'rgba(59,130,246,0.05)', border:'1px solid rgba(59,130,246,0.1)' }}>
+        💡 <b style={{color:'#60a5fa'}}>Contenu déplacé vers les pages dédiées:</b>&nbsp;
+        Scoring Anomalies → <b>Détection Fraude</b> · Délais + Trajectoires Bureaux → <b>Délais Suspects</b> · Dérive Risque + Prochaine Décl → <b>Importateurs</b> · Collusion → <b>Performance Agents</b>
+      </div>
     </div>
   );
 }

@@ -92,7 +92,89 @@ function ImporterDetail({ id, onBack }: { id: string; onBack: () => void }) {
           </table>
         </div>
       )}
+      {/* Risk drift + next declaration predictions — moved from Prédictions IA */}
+      <ImporterPredictions />
     </div>
+  );
+}
+
+// Sub-component for importer predictions (risk drift + next decl)
+function ImporterPredictions() {
+  const { filters } = useFilters();
+  const advQs = [filters.bureau !== 'ALL' && `bureau=${filters.bureau}`, filters.period !== 'ALL' && `period=${filters.period}`].filter(Boolean).join('&');
+  const { data } = useApi(() =>
+    Promise.race([
+      fetch(`/api/predictions/advanced${advQs ? '?' + advQs : ''}`).then(r => r.json()),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 8000)),
+    ])
+  , [advQs]);
+  if (!data) return null;
+
+  type RD = { importer_id: string; importer_name: string; current_score: number; prev_score: number; drift: number; trend: string; velocity: number; alert: string | null; periods: { month: string; score: number }[] };
+  type ND = { importer_id: string; importer_name: string; next_fraud_prob: number; confidence: string; key_signals: string[]; recommended_action: string };
+
+  const { risk_drift = [], next_decl = [] } = data as { risk_drift?: RD[]; next_decl?: ND[] };
+  if (!risk_drift.length && !next_decl.length) return null;
+
+  const driftColor = (d: number) => d > 10 ? '#ef4444' : d > 0 ? '#f59e0b' : '#10b981';
+  const TREND_ICON: Record<string,string> = { RISING:'📈', STABLE:'➡️', DECLINING:'📉' };
+
+  return (
+    <>
+      {/* Risk Drift */}
+      {risk_drift.length > 0 && (
+        <div className="card">
+          <SectionTitle icon="📡">Dérive du Score de Risque — Évolution 3 Mois</SectionTitle>
+          <p className="text-xs text-muted mb-4">Score DATE actuel vs période précédente · Rouge = risque en hausse</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {(risk_drift as RD[]).filter(d => d.current_score > 20).slice(0, 9).map((d: RD) => (
+              <div key={d.importer_id} className="card-sm" style={{ borderColor: driftColor(d.drift) + '33' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="text-xs font-bold text-white truncate">{d.importer_name ?? d.importer_id}</div>
+                    <div className="text-[10px] text-muted">{d.importer_id}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-black" style={{ color: driftColor(d.drift) }}>{d.current_score}</div>
+                    <div className="text-[9px]" style={{ color: driftColor(d.drift) }}>{d.drift > 0 ? '+' : ''}{d.drift} {TREND_ICON[d.trend]??'➡️'}</div>
+                  </div>
+                </div>
+                <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${d.current_score}%`, background: driftColor(d.drift) }} />
+                </div>
+                {d.alert && <div className="mt-1.5 text-[9px] text-red-400">⚠️ {d.alert.slice(0, 50)}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Next Declaration Predictions */}
+      {next_decl.length > 0 && (
+        <div className="card">
+          <SectionTitle icon="🔮">Prédiction Prochaine Déclaration — Probabilité Fraude</SectionTitle>
+          <p className="text-xs text-muted mb-4">Basé sur les 5 dernières déclarations de chaque importateur · Modèle statistique</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {(next_decl as ND[]).filter(p => p.next_fraud_prob >= 0.3).slice(0, 8).map((p: ND) => {
+              const color = p.next_fraud_prob >= 0.7 ? '#ef4444' : p.next_fraud_prob >= 0.45 ? '#f59e0b' : '#10b981';
+              return (
+                <div key={p.importer_id} className="card-sm flex items-center gap-3" style={{ borderColor: color + '33' }}>
+                  <div className="flex-1">
+                    <div className="text-xs font-bold text-white">{p.importer_name ?? p.importer_id}</div>
+                    <div className="text-[10px] text-muted mt-0.5">{p.key_signals.slice(0,2).join(' · ')}</div>
+                    <div className="text-[10px] mt-1" style={{ color }}>{p.recommended_action}</div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-xl font-black" style={{ color }}>{Math.round(p.next_fraud_prob * 100)}%</div>
+                    <div className="text-[9px] text-muted">{p.confidence}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
