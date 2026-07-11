@@ -16,7 +16,6 @@ import Importers from './pages/Importers';
 import Fraud from './pages/Fraud';
 import Delays from './pages/Delays';
 import Offices from './pages/Offices';
-import AIPage from './pages/AIPage';
 import AdvancedPage from './pages/AdvancedPage';
 import AIChat from './components/AIChat';
 import GraphPage from './pages/GraphPage';
@@ -33,7 +32,6 @@ const ALL_NAV = [
   { path: '/delays',      icon: '⏱️', label: 'Délais Suspects',      group: 'OPÉRATIONS'    },
   { path: '/offices',     icon: '🏛️', label: 'Bureaux Douaniers',    group: 'OPÉRATIONS'    },
   { path: '/predictions', icon: '🔮', label: 'Prédictions IA',       group: 'INTELLIGENCE'  },
-  { path: '/ai',          icon: '🤖', label: 'IA Recommandations',   group: 'INTELLIGENCE'  },
   { path: '/graph',       icon: '🕸️', label: 'Graphe DATE',          group: 'INTELLIGENCE'  },
   { path: '/advanced',    icon: '🔬', label: 'Analytique Avancée',   group: 'INTELLIGENCE'  },
   { path: '/officers',    icon: '👤', label: 'Performance Agents',   group: 'PERFORMANCE'   },
@@ -274,7 +272,7 @@ function AppShell() {
             <Route path="/fraud"     element={<ProtectedRoute path="/fraud"     element={<Fraud       key={sgdCount} />} />} />
             <Route path="/delays"    element={<ProtectedRoute path="/delays"    element={<Delays      key={sgdCount} />} />} />
             <Route path="/offices"   element={<ProtectedRoute path="/offices"   element={<Offices     key={sgdCount} />} />} />
-            <Route path="/ai"        element={<ProtectedRoute path="/ai"        element={<AIPage />} />} />
+            <Route path="/ai"        element={<Navigate to="/advanced" replace />} />
             <Route path="/graph"     element={<ProtectedRoute path="/graph"     element={<GraphPage   key={sgdCount} />} />} />
             <Route path="/predictions"element={<ProtectedRoute path="/predictions"element={<Predictions key={sgdCount} />} />} />
             <Route path="/analytics"  element={<Navigate to="/advanced" replace />} />
