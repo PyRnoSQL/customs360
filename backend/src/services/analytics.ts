@@ -193,22 +193,144 @@ export function buildMonthlyRevenue(sgd: SGDRow[], fraud: FraudRow[]): MonthlyRe
 }
 
 export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
+  const BASELINES: Record<string,number> = {
+    DLA001:36,KBI001:28,DLA002:18,YDE001:22,YDE002:48,NGD001:72,BFR001:60,GRA001:24,
+  };
+  const FR_MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+  // ── Financial aggregates ──────────────────────────────────────────────────
+  const totalRevenue    = sgd.reduce((s,r) => s + r.revenue_collected, 0);
+  const totalAssessed   = sgd.reduce((s,r) => s + (r.taxes_assessed ?? 0), 0);
+  const taxEvasionTotal = fraud.reduce((s,f) => s + (f.tax_evasion_amount ?? 0), 0);
+  const penaltiesRaised = fraud.reduce((s,f) => s + (f.penalty_amount ?? 0), 0);
+  const amountRecovered = fraud.reduce((s,f) => s + (f.amount_recovered ?? 0), 0);
+  const netLoss         = fraud.reduce((s,f) => s + (f.loss_net ?? 0), 0);
+  const recoveryRate    = (taxEvasionTotal + penaltiesRaised) > 0
+    ? amountRecovered / (taxEvasionTotal + penaltiesRaised) : 0;
+
+  // ── Fraud counts ─────────────────────────────────────────────────────────
+  const fraudRows   = sgd.filter(r => isFraud(r.fraud_flag));
+  const fraudConf   = fraud.filter(f => ['CLOTURE_AMIABLE','CLOTURE_CONTENTIEUX','TRANSMIS_JUSTICE'].includes(f.status)).length;
+  const casesOpen   = fraud.filter(f => f.status === 'EN_COURS').length;
+  const casesJust   = fraud.filter(f => f.status === 'TRANSMIS_JUSTICE').length;
+  const casesAband  = fraud.filter(f => f.status === 'ABANDONNE').length;
+  const collusionN  = fraud.filter(f => f.collusion_suspected === 'TRUE').length;
+
+  // ── Case status distribution ──────────────────────────────────────────────
+  const STATUS_LABELS: Record<string,string> = {
+    EN_COURS:'En cours', CLOTURE_AMIABLE:'Clôturé amiable',
+    CLOTURE_CONTENTIEUX:'Contentieux', TRANSMIS_JUSTICE:'Justice', ABANDONNE:'Abandonné',
+  };
+  const statusMap: Record<string,{count:number;loss:number}> = {};
+  fraud.forEach(f => {
+    if (!statusMap[f.status]) statusMap[f.status] = {count:0,loss:0};
+    statusMap[f.status].count++;
+    statusMap[f.status].loss += (f.loss_net ?? 0);
+  });
+  const caseStatusDist = Object.entries(statusMap).map(([status,v]) => ({
+    status: STATUS_LABELS[status] ?? status, count: v.count, loss: v.loss,
+  })).sort((a,b) => b.count - a.count);
+
+  // ── Clearance health ─────────────────────────────────────────────────────
+  const avgClearance = sgd.length > 0
+    ? Math.round(sgd.reduce((s,r) => s + r.clearance_hours, 0) / sgd.length) : 0;
+  const overdueRows  = sgd.filter(r => r.clearance_hours > (BASELINES[r.office_id] ?? 36) * 1.5);
+  const overduePct   = sgd.length > 0 ? Math.round(overdueRows.length / sgd.length * 100) : 0;
+
+  // ── Channel distribution ──────────────────────────────────────────────────
+  const chMap: Record<string,number> = {};
+  sgd.forEach(r => { chMap[r.channel] = (chMap[r.channel] ?? 0) + 1; });
+  const channelDist = Object.entries(chMap).sort((a,b) => b[1]-a[1]).map(([channel,count]) => ({
+    channel, count, pct: Math.round(count / sgd.length * 100),
+  }));
+
+  // ── Office distribution (enriched) ────────────────────────────────────────
   const officeIds = [...new Set(sgd.map(s => s.office_id))];
+  const officeRows = officeIds.map(id => {
+    const rows  = sgd.filter(s => s.office_id === id);
+    const frows = rows.filter(r => isFraud(r.fraud_flag));
+    const rev   = rows.reduce((s,r) => s + r.revenue_collected, 0);
+    const avgH  = rows.length > 0 ? rows.reduce((s,r) => s + r.clearance_hours, 0) / rows.length : 0;
+    const base  = BASELINES[id] ?? 36;
+    return {
+      office_id: id, name: OFFICE_NAMES[id] ?? id,
+      count: rows.length, pct: Math.round(rows.length / sgd.length * 100),
+      revenue: rev, fraud_count: frows.length,
+      fraud_rate: rows.length > 0 ? frows.length / rows.length : 0,
+      avg_hours: Math.round(avgH * 10) / 10,
+      efficiency: Math.min(98, Math.max(40, Math.round((base / Math.max(avgH,1)) * 100))),
+    };
+  }).sort((a,b) => b.revenue - a.revenue);
+
+  // ── Office efficiency normalisation ──────────────────────────────────────
+  const effRatios = officeRows.map(o => o.avg_hours / (BASELINES[o.office_id] ?? 36));
+  const minR = Math.min(...effRatios); const maxR = Math.max(...effRatios);
+  officeRows.forEach((o,i) => {
+    o.efficiency = maxR > minR ? Math.round(((maxR - effRatios[i]) / (maxR - minR)) * 58 + 40) : 70;
+  });
+
+  // ── Top inspectors ────────────────────────────────────────────────────────
+  const insMap: Record<string,{fraud:number;total:number;name:string;bureau:string}> = {};
+  sgd.forEach(r => {
+    if (!insMap[r.inspector_id]) insMap[r.inspector_id] = {fraud:0,total:0,name:r.inspector_name??r.inspector_id,bureau:r.office_id};
+    insMap[r.inspector_id].total++;
+    if (isFraud(r.fraud_flag)) insMap[r.inspector_id].fraud++;
+  });
+  const topInspectors = Object.entries(insMap)
+    .map(([id,v]) => ({id,name:v.name,bureau:v.bureau,fraud_detected:v.fraud,total:v.total,detection_rate:v.total>0?v.fraud/v.total:0}))
+    .sort((a,b) => b.fraud_detected - a.fraud_detected).slice(0,5);
+
+  // ── Fraud monthly trend ───────────────────────────────────────────────────
+  const trendMap: Record<string,{count:number;total:number;evasion:number}> = {};
+  sgd.forEach(r => {
+    try {
+      const dt = new Date(r.date); if (isNaN(dt.getTime())) return;
+      const m = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+      if (!trendMap[m]) trendMap[m] = {count:0,total:0,evasion:0};
+      trendMap[m].total++;
+      if (isFraud(r.fraud_flag)) trendMap[m].count++;
+    } catch { return; }
+  });
+  fraud.forEach(f => {
+    try {
+      const dt = new Date(f.date_detection); if (isNaN(dt.getTime())) return;
+      const m = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+      if (trendMap[m]) trendMap[m].evasion += (f.tax_evasion_amount ?? 0);
+    } catch { return; }
+  });
+  const fraudTrend = Object.keys(trendMap).sort().map(m => {
+    const [y,mo] = m.split('-');
+    return { month:m, label:`${FR_MONTHS[Number(mo)-1]} ${y.slice(2)}`, ...trendMap[m],
+      rate: trendMap[m].total > 0 ? trendMap[m].count / trendMap[m].total : 0 };
+  });
+
   return {
-    total_sgd: sgd.length,
-    total_revenue: sgd.reduce((s, r) => s + r.revenue_collected, 0),
-    fraud_confirmed: fraud.filter(f => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE').length,
-    revenue_loss: fraud.reduce((s, f) => s + f.loss_net, 0),
+    total_sgd:          sgd.length,
+    total_revenue:      totalRevenue,
+    taxes_assessed:     totalAssessed,
+    fraud_confirmed:    fraudConf,
+    fraud_count:        fraud.length,
+    fraud_rate:         sgd.length > 0 ? fraudRows.length / sgd.length : 0,
+    revenue_loss:       netLoss,
+    tax_evasion_total:  taxEvasionTotal,
+    penalties_raised:   penaltiesRaised,
+    amount_recovered:   amountRecovered,
+    net_loss:           netLoss,
+    recovery_rate:      recoveryRate,
+    cases_open:         casesOpen,
+    cases_justice:      casesJust,
+    cases_abandoned:    casesAband,
+    collusion_suspected: collusionN,
     high_risk_importers: buildImporterProfiles(sgd, fraud).filter(i => i.risk_score >= 70).length,
-    avg_clearance_hours: sgd.length > 0
-      ? Math.round(sgd.reduce((s, r) => s + r.clearance_hours, 0) / sgd.length) : 0,
-    office_distribution: officeIds.map(id => ({
-      office_id: id,
-      name: OFFICE_NAMES[id] ?? id,
-      count: sgd.filter(s => s.office_id === id).length,
-      pct: Math.round(sgd.filter(s => s.office_id === id).length / sgd.length * 100),
-    })),
-    monthly_revenue: buildMonthlyRevenue(sgd, fraud),
+    avg_clearance_hours: avgClearance,
+    clearance_overdue_count: overdueRows.length,
+    clearance_overdue_pct:   overduePct,
+    channel_distribution:    channelDist,
+    office_distribution:     officeRows,
+    top_inspectors:          topInspectors,
+    fraud_trend:             fraudTrend,
+    case_status_dist:        caseStatusDist,
+    monthly_revenue:         buildMonthlyRevenue(sgd, fraud),
   };
 }
 
