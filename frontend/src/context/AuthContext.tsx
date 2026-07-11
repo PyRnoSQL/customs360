@@ -19,10 +19,10 @@ const USERS: Record<string, { pin: string; displayName: string; roleLabel: strin
 
 // Pages each role can access (by path)
 export const ROLE_PAGES: Record<Role, string[]> = {
-  admin:       ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/analytics','/ai','/graph','/officers','/advanced'],
-  dg:          ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/analytics','/ai','/graph','/officers','/advanced'],
-  dir_info:    ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/analytics','/ai','/graph','/officers','/advanced'],
-  dir_secteur: ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/analytics','/ai','/graph','/officers','/advanced'],
+  admin:       ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/ai','/graph','/officers','/advanced'],
+  dg:          ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/ai','/graph','/officers','/advanced'],
+  dir_info:    ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/ai','/graph','/officers','/advanced'],
+  dir_secteur: ['/welcome','/','/importers','/fraud','/delays','/offices','/predictions','/ai','/graph','/officers','/advanced'],
   ip:          ['/welcome','/importers','/offices','/officers'],
 };
 
