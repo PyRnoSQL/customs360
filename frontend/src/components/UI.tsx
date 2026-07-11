@@ -262,17 +262,17 @@ export const PaginatedTable: React.FC<{
             }}>
               {/* Render header cells with sticky background applied per-cell */}
               {React.Children.map(
-                (headers as React.ReactElement).props.children,
-                (th: React.ReactElement) => React.cloneElement(th, {
+                (headers as React.ReactElement)?.props?.children,
+                (th: React.ReactElement) => th ? React.cloneElement(th, {
                   style: {
-                    ...th.props.style,
+                    ...th.props?.style,
                     position: 'sticky', top: 0, zIndex: 10,
                     background: 'rgba(15,23,42,0.98)',
                     backdropFilter: 'blur(12px)',
                     borderBottom: '1px solid rgba(59,130,246,0.25)',
                     boxShadow: '0 1px 0 rgba(59,130,246,0.15)',
                   }
-                })
+                }) : null
               )}
             </tr>
           </thead>

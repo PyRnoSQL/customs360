@@ -171,11 +171,15 @@ ${p.percent}%`,
 // Fraud anomaly scoring sub-component (uses /api/advanced/fraud-score)
 function FraudAnomalyScoring({ bureau, period }: { bureau: string; period: string }) {
   const qs = [bureau !== 'ALL' && `bureau=${bureau}`, period !== 'ALL' && `period=${period}`].filter(Boolean).join('&');
-  const { data, loading } = useApi(() => fetch(`/api/advanced/fraud-score${qs ? '?' + qs : ''}`).then(r => r.json()), [qs]);
-  if (loading || !data?.top_anomalies?.length) return null;
+  const { data, loading, error } = useApi(() =>
+    fetch(`/api/advanced/fraud-score${qs ? '?' + qs : ''}`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .catch(() => null)
+  , [qs]);
+  if (loading || error || !data?.top_anomalies?.length) return null;
   const { top_anomalies = [], high_risk = 0 } = data;
   const rc = (s: number) => s >= 70 ? '#ef4444' : s >= 40 ? '#f59e0b' : '#10b981';
-  type Anomaly = { sgd_id: string; importer_id: string; importer_name: string; tariff_code: string; office_name: string; office_id: string; anomaly_score: number; predicted_fraud_prob: number; revenue_at_risk: number; recommended_action: string };
+  type Anomaly = { sgd_id: string; importer_id: string; importer_name?: string; tariff_code?: string; office_name?: string; office_id?: string; anomaly_score: number; predicted_fraud_prob: number; revenue_at_risk: number; recommended_action?: string };
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-3">
@@ -188,12 +192,12 @@ function FraudAnomalyScoring({ bureau, period }: { bureau: string; period: strin
           <tr key={a.sgd_id}>
             <td><Code>{a.sgd_id}</Code></td>
             <td><div className="text-xs font-semibold text-white">{a.importer_name ?? a.importer_id}</div><div className="text-[10px] text-muted">{a.importer_id}</div></td>
-            <td><Code color="#22d3ee">{a.tariff_code}</Code></td>
-            <td><span className="text-xs text-muted">{a.office_name ?? a.office_id}</span></td>
+            <td><Code color="#22d3ee">{a.tariff_code ?? '—'}</Code></td>
+            <td><span className="text-xs text-muted">{a.office_name ?? a.office_id ?? '—'}</span></td>
             <td><div className="flex items-center gap-1.5"><div className="w-10 h-1.5 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}><div className="h-full rounded-full" style={{width:`${a.anomaly_score}%`,background:rc(a.anomaly_score)}}/></div><span className="text-xs font-bold" style={{color:rc(a.anomaly_score)}}>{a.anomaly_score}</span></div></td>
-            <td><span className="text-xs font-bold" style={{color:a.predicted_fraud_prob>=0.7?'#f87171':'#fbbf24'}}>{Math.round(a.predicted_fraud_prob*100)}%</span></td>
-            <td><span className="text-xs font-bold text-red-400">{fmtM(a.revenue_at_risk)} FCFA</span></td>
-            <td><span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{background:'rgba(59,130,246,0.15)',color:'#60a5fa'}}>{a.recommended_action.slice(0,20)}</span></td>
+            <td><span className="text-xs font-bold" style={{color:a.predicted_fraud_prob>=0.7?'#f87171':'#fbbf24'}}>{Math.round((a.predicted_fraud_prob??0)*100)}%</span></td>
+            <td><span className="text-xs font-bold text-red-400">{fmtM(a.revenue_at_risk ?? 0)} FCFA</span></td>
+            <td><span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{background:'rgba(59,130,246,0.15)',color:'#60a5fa'}}>{(a.recommended_action ?? '—').slice(0,20)}</span></td>
           </tr>
         ))}
       />
