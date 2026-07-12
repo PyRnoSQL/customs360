@@ -89,11 +89,11 @@ export default function Dashboard() {
     tooltip: { trigger:'axis', ...CHART_TT, axisPointer:{type:'shadow'},
       formatter:(p:{seriesName:string;value:number;marker:string;axisValueLabel?:string}[])=>`<span style="color:#f1f5f9"><b>${p[0]?.axisValueLabel??''}</b><br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.value}${s.seriesName.includes('Taux')?'%':''}</b>`).join('<br/>')}</span>` },
     legend: { textStyle:{color:'#64748b',fontSize:10}, top:0, right:0, itemWidth:10, itemHeight:10 },
-    grid: { left:8, right:50, bottom:24, top:28, containLabel:true },
+    grid: { left:8, right:50, bottom:24, top:36, containLabel:true },
     xAxis: { type:'category', data:trendData.map((m:{label:string})=>m.label), axisLabel:{color:'#475569',fontSize:10}, axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisTick:{show:false} },
     yAxis: [
       { type:'value', name:'Cas', min:0, nameTextStyle:{color:'#475569',fontSize:9}, axisLabel:{color:'#475569',fontSize:9}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
-      { type:'value', name:'Taux%', nameTextStyle:{color:'#f59e0b',fontSize:9}, position:'right', min:0, max:30, axisLabel:{color:'#f59e0b',fontSize:9,formatter:(v:number)=>`${v}%`}, splitLine:{show:false}, axisLine:{show:false} },
+      { type:'value', min:0, max:30, position:'right', axisLabel:{color:'#f59e0b',fontSize:9,formatter:(v:number)=>`${v}%`}, splitLine:{show:false}, axisLine:{show:false} },
     ],
     series: [
       { name:'Cas fraude', type:'bar', yAxisIndex:0, data:trendData.map((m:{count:number})=>m.count ?? 0), itemStyle:{color:'rgba(239,68,68,0.6)',borderRadius:[2,2,0,0]}, barMaxWidth:18,
@@ -214,8 +214,8 @@ export default function Dashboard() {
           <div className="card h-full">
             <SectionTitle icon="📡">Tendance Fraude Mensuelle</SectionTitle>
             {trendData.length > 0
-              ? <ReactECharts option={fraudTrendOption} style={{height:240}}/>
-              : <div className="h-60 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
+              ? <ReactECharts option={fraudTrendOption} style={{height:320}}/>
+              : <div className="h-80 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
           </div>
         </FadeIn>
         <FadeIn delay={0.1}>
