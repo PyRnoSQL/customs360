@@ -24,6 +24,16 @@ router.get('/debug/fraud-trend', wrap(async (_req, res) => {
   const { sgd, fraud } = await getSheetData();
   const { buildOverview } = await import('../services/analytics.js');
   const overview = buildOverview(sgd, fraud);
+
+  // Ground truth: what does fraud_flag ACTUALLY look like coming off the live sheet?
+  const rawSample = sgd.slice(0, 5).map(r => ({
+    sgd_id: r.sgd_id,
+    fraud_flag_value: r.fraud_flag,
+    fraud_flag_typeof: typeof r.fraud_flag,
+    fraud_flag_json: JSON.stringify(r.fraud_flag),
+  }));
+  const uniqueValues = [...new Set(sgd.map(r => JSON.stringify(r.fraud_flag)))];
+
   res.json({
     deployed_at: new Date().toISOString(),
     sgd_count: sgd.length,
@@ -39,6 +49,9 @@ router.get('/debug/fraud-trend', wrap(async (_req, res) => {
       fraud_count_field: overview.fraud_count,
     },
     office_sample: overview.office_distribution.slice(0, 2),
+    // ── Ground truth diagnostics ──────────────────────────────────────────
+    raw_fraud_flag_sample: rawSample,
+    raw_fraud_flag_unique_values: uniqueValues,
   });
 }));
 

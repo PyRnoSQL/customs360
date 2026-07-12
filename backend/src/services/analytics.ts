@@ -462,8 +462,17 @@ function dateMatchesMonth(dateStr: string, monthPrefix: string): boolean {
 }
 
 // Handles fraud_flag as number (1) or string ('1') or boolean (true)
-function isFraud(flag: number | string | boolean | undefined): boolean {
-  return flag === 1 || flag === '1' || flag === true;
+function isFraud(flag: number | string | boolean | undefined | null): boolean {
+  if (flag === undefined || flag === null || flag === '') return false;
+  if (flag === true) return true;
+  if (flag === false) return false;
+  if (typeof flag === 'number') return flag === 1;
+  // Any string form: trim, handle "1", "1.0", "TRUE", "true", "Oui", "Yes", etc.
+  const s = String(flag).trim().toLowerCase();
+  if (s === '1' || s === '1.0' || s === 'true' || s === 'oui' || s === 'yes') return true;
+  const n = Number(s);
+  if (!isNaN(n) && n === 1) return true;
+  return false;
 }
 
 export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMetrics[] {
