@@ -1,11 +1,36 @@
 export interface Overview {
   total_sgd: number;
   total_revenue: number;
+  taxes_assessed: number;
   fraud_confirmed: number;
+  fraud_count: number;
+  fraud_rate: number;
   revenue_loss: number;
+  tax_evasion_total: number;
+  penalties_raised: number;
+  amount_recovered: number;
+  net_loss: number;
+  recovery_rate: number;
+  cases_open: number;
+  cases_justice: number;
+  cases_abandoned: number;
+  collusion_suspected: number;
   high_risk_importers: number;
   avg_clearance_hours: number;
-  office_distribution: { office_id: string; name: string; count: number; pct: number }[];
+  clearance_overdue_count: number;
+  clearance_overdue_pct: number;
+  channel_distribution: { channel: string; count: number; pct: number }[];
+  office_distribution: {
+    office_id: string; name: string; count: number; pct: number;
+    revenue: number; fraud_count: number; fraud_rate: number;
+    avg_hours: number; efficiency: number;
+  }[];
+  top_inspectors: {
+    id: string; name: string; bureau: string;
+    fraud_detected: number; total: number; detection_rate: number;
+  }[];
+  fraud_trend: { month: string; label: string; count: number; total: number; rate: number; evasion: number }[];
+  case_status_dist: { status: string; count: number; loss: number }[];
   monthly_revenue: MonthlyRevenue[];
 }
 
