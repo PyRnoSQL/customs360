@@ -51,7 +51,10 @@ async function fetchSheet<T>(tabName: string): Promise<T[]> {
   const sheets = google.sheets({ version: 'v4', auth });
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: `${tabName}!A:Z`,
+    // A:Z (26 cols) was truncating SGD_DECLARATIONS, which has 34 columns —
+    // fraud_flag (col 32) and fraud_type (col 33) were silently dropped.
+    // A:AZ covers up to 52 columns, safely future-proofing both sheets.
+    range: `${tabName}!A:AZ`,
   });
   const rows = response.data.values ?? [];
   if (rows.length < 2) return [];
