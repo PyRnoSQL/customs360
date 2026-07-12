@@ -368,11 +368,6 @@ function FraudTimeline({ sgd, fraud }: { sgd: SGDRow[]; fraud: FraudCase[] }) {
       };
     }).filter(Boolean) as {date:number;dateLabel:string;prob:number;loss:number;office:string;sgd_id:string;importer:string}[];
 
-  // Monthly fraud aggregation for trend line
-  const monthlyFraud: Record<string,number> = {};
-  sgd.forEach(s=>{ if(!s.date) return; const m=s.date.slice(0,7); if(!monthlyFraud[m])monthlyFraud[m]=0; if(s.fraud_flag)monthlyFraud[m]++; });
-  const trendData=Object.entries(monthlyFraud).sort().map(([m,v])=>({month:m,label:m.slice(5)+'/'+m.slice(2,4),count:v}));
-
   const maxDate=Math.max(...scatterData.map(d=>d.date));
   const minDate=Math.min(...scatterData.map(d=>d.date));
 
@@ -381,10 +376,9 @@ function FraudTimeline({ sgd, fraud }: { sgd: SGDRow[]; fraud: FraudCase[] }) {
       <SectionTitle icon="📅">Timeline Fraude — Évolution Temporelle du Risque</SectionTitle>
       <p className="text-xs text-muted mb-1">Chaque bulle = 1 déclaration suspecte · Taille = montant des pertes · Couleur = bureau · Axe Y = probabilité fraude IA</p>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-4">
-        {/* Scatter timeline */}
-        <div className="xl:col-span-2">
-          <ResponsiveContainer width="100%" height={260}>
+      <div className="mb-4">
+        {/* Scatter timeline — full width */}
+        <ResponsiveContainer width="100%" height={460}>
             <ScatterChart margin={{left:10,right:20,bottom:30,top:10}}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)"/>
               <XAxis type="number" dataKey="date" domain={[minDate,maxDate]} name="Date"
@@ -412,25 +406,7 @@ function FraudTimeline({ sgd, fraud }: { sgd: SGDRow[]; fraud: FraudCase[] }) {
                 </Scatter>
               ))}
             </ScatterChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Monthly trend bars */}
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold text-white mb-1">Fraudes par mois</div>
-          {trendData.map((m,i)=>{
-            const maxC=Math.max(...trendData.map(x=>x.count),1);
-            const pct=m.count/maxC*100;
-            const color=pct>70?'#ef4444':pct>40?'#f97316':'#3b82f6';
-            return <div key={m.month} className="flex items-center gap-2">
-              <span className="text-[10px] text-muted w-12 flex-shrink-0">{m.label}</span>
-              <div className="flex-1 h-5 rounded overflow-hidden relative" style={{background:'rgba(255,255,255,0.04)'}}>
-                <motion.div className="h-full rounded" initial={{width:0}} animate={{width:`${pct}%`}} transition={{duration:0.6,delay:i*0.05}} style={{background:color,opacity:0.7}}/>
-                <span className="absolute inset-0 flex items-center px-2 text-[10px] font-bold" style={{color}}>{m.count} fraudes</span>
-              </div>
-            </div>;
-          })}
-        </div>
+        </ResponsiveContainer>
       </div>
 
       {/* Office legend */}
