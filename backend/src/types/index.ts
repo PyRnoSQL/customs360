@@ -162,7 +162,7 @@ export interface Overview {
   channel_distribution: { channel: string; count: number; pct: number }[];
   office_distribution: { office_id: string; name: string; count: number; pct: number; revenue: number; fraud_count: number; fraud_rate: number; avg_hours: number; efficiency: number }[];
   top_inspectors: { id: string; name: string; bureau: string; fraud_detected: number; total: number; detection_rate: number }[];
-  fraud_trend: { month: string; label: string; count: number; rate: number; evasion: number }[];
+  fraud_trend: { month: string; label: string; count: number; total: number; rate: number; evasion: number }[];
   case_status_dist: { status: string; count: number; loss: number }[];
   monthly_revenue: MonthlyRevenue[];
 }
