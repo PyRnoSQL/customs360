@@ -92,13 +92,13 @@ export default function Dashboard() {
     grid: { left:8, right:50, bottom:24, top:28, containLabel:true },
     xAxis: { type:'category', data:trendData.map((m:{label:string})=>m.label), axisLabel:{color:'#475569',fontSize:9,rotate:30}, axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisTick:{show:false} },
     yAxis: [
-      { type:'value', name:'Cas', nameTextStyle:{color:'#475569',fontSize:9}, axisLabel:{color:'#475569',fontSize:9}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
+      { type:'value', name:'Cas', min:0, nameTextStyle:{color:'#475569',fontSize:9}, axisLabel:{color:'#475569',fontSize:9}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
       { type:'value', name:'Taux%', nameTextStyle:{color:'#f59e0b',fontSize:9}, position:'right', min:0, max:30, axisLabel:{color:'#f59e0b',fontSize:9,formatter:(v:number)=>`${v}%`}, splitLine:{show:false}, axisLine:{show:false} },
     ],
     series: [
-      { name:'Cas fraude', type:'bar', yAxisIndex:0, data:trendData.map((m:{count:number})=>m.count), itemStyle:{color:'rgba(239,68,68,0.6)',borderRadius:[2,2,0,0]}, barMaxWidth:18,
+      { name:'Cas fraude', type:'bar', yAxisIndex:0, data:trendData.map((m:{count:number})=>m.count ?? 0), itemStyle:{color:'rgba(239,68,68,0.6)',borderRadius:[2,2,0,0]}, barMaxWidth:18,
         label:{show:true,position:'top',color:'#f87171',fontSize:9,formatter:(p:{value:number})=>p.value>0?String(p.value):''} },
-      { name:'Taux fraude', type:'line', yAxisIndex:1, data:trendData.map((m:{rate:number})=>Math.round(m.rate*1000)/10), smooth:true, lineStyle:{color:'#f59e0b',width:2}, itemStyle:{color:'#f59e0b'}, symbol:'circle', symbolSize:4 },
+      { name:'Taux fraude', type:'line', yAxisIndex:1, data:trendData.map((m:{rate:number})=>m.rate ?? 0), smooth:true, lineStyle:{color:'#f59e0b',width:2}, itemStyle:{color:'#f59e0b'}, symbol:'circle', symbolSize:4 },
     ],
   };
 
@@ -151,7 +151,7 @@ export default function Dashboard() {
     ],
     series:[
       {name:'Recettes',type:'bar',yAxisIndex:0,data:sortedOffices.map((o:{revenue:number})=>Math.round(o.revenue/1e6)),itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(59,130,246,0.8)'},{offset:1,color:'rgba(59,130,246,0.3)'}]},borderRadius:[3,3,0,0]},barMaxWidth:28},
-      {name:'Taux fraude',type:'line',yAxisIndex:1,data:sortedOffices.map((o:{fraud_rate:number})=>Math.round(o.fraud_rate*1000)/10),lineStyle:{color:'#ef4444',width:2},itemStyle:{color:'#ef4444'},symbol:'circle',symbolSize:5},
+      {name:'Taux fraude',type:'line',yAxisIndex:1,data:sortedOffices.map((o:{fraud_rate:number})=>Math.round((o.fraud_rate??0)*1000)/10),lineStyle:{color:'#ef4444',width:2},itemStyle:{color:'#ef4444'},symbol:'circle',symbolSize:5},
     ],
   };
 

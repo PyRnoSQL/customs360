@@ -300,8 +300,15 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
   });
   const fraudTrend = Object.keys(trendMap).sort().map(m => {
     const [y,mo] = m.split('-');
-    return { month:m, label:`${FR_MONTHS[Number(mo)-1]} ${y.slice(2)}`, ...trendMap[m],
-      rate: trendMap[m].total > 0 ? trendMap[m].count / trendMap[m].total : 0 };
+    const tm = trendMap[m];
+    return {
+      month: m,
+      label: `${FR_MONTHS[Number(mo)-1]} ${y.slice(2)}`,
+      count: tm.count,
+      total: tm.total,
+      evasion: tm.evasion,
+      rate: tm.total > 0 ? Math.round((tm.count / tm.total) * 1000) / 10 : 0, // already a % (e.g. 23.8)
+    };
   });
 
   return {
