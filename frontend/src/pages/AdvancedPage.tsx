@@ -32,16 +32,25 @@ function FraudDetectionTab() {
   const { top_anomalies = [], high_risk = 0, medium_risk = 0, low_risk = 0, total = 0 } = data ?? {};
   const distribOption = {
     backgroundColor: 'transparent',
-    tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', textStyle: { color: '#f1f5f9' } },
-    series: [{ type: 'pie', radius: ['42%', '65%'], center: ['50%', '45%'],
-      label: { show: true, formatter: (p: { name: string; value: number; percent: string }) => `${p.name}\n${p.value} (${p.percent}%)`, color: '#94a3b8', fontSize: 11 },
-      labelLine: { show: true },
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(15,23,42,0.95)',
+      borderColor: 'rgba(59,130,246,0.3)',
+      borderWidth: 1,
+      textStyle: { color: '#f1f5f9', fontSize: 12 },
+      formatter: (p: { name: string; value: number; percent: string }) =>
+        `<span style="color:#f1f5f9"><b>${p.name}</b><br/><span style="color:#fff;font-weight:bold">${p.value}</span> <span style="color:#94a3b8">(${p.percent}%)</span></span>`,
+    },
+    series: [{ type: 'pie', radius: ['45%', '70%'], center: ['50%', '50%'],
+      avoidLabelOverlap: true,
+      label: { show: true, position: 'outside', formatter: (p: { name: string; value: number }) => `${p.name}\n${p.value}`, color: '#94a3b8', fontSize: 12 },
+      labelLine: { show: true, length: 12, length2: 8, lineStyle: { color: 'rgba(148,163,184,0.4)' } },
+      emphasis: { scale: true, scaleSize: 6 },
       data: [
-        { name: 'Critique ≥70', value: high_risk,   itemStyle: { color: '#ef4444' } },
-        { name: 'Modéré 40-70', value: medium_risk, itemStyle: { color: '#f59e0b' } },
-        { name: 'Faible <40',   value: total - high_risk - medium_risk, itemStyle: { color: '#10b981' } },
+        { name: 'Critique ≥70', value: high_risk,   itemStyle: { color: '#ef4444', borderRadius: 4, borderWidth: 2, borderColor: 'rgba(15,23,42,0.9)' } },
+        { name: 'Modéré 40-70', value: medium_risk, itemStyle: { color: '#f59e0b', borderRadius: 4, borderWidth: 2, borderColor: 'rgba(15,23,42,0.9)' } },
+        { name: 'Faible <40',   value: total - high_risk - medium_risk, itemStyle: { color: '#10b981', borderRadius: 4, borderWidth: 2, borderColor: 'rgba(15,23,42,0.9)' } },
       ],
-      legend: { bottom: 0, left: 'center', orient: 'horizontal', textStyle: { color: '#94a3b8', fontSize: 10 } },
     }],
   };
   return (
@@ -206,10 +215,12 @@ function AnalytiqueTab() {
     backgroundColor: 'transparent',
     tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(59,130,246,0.3)', borderWidth: 1, textStyle: { color: '#f1f5f9', fontSize: 12 }, formatter: (p: {name:string;value:number;percent:string}) => `<span style="color:#f1f5f9"><b>${p.name}</b><br/><span style="color:#fff;font-weight:bold">${p.value}</span> <span style="color:#94a3b8">(${p.percent}%)</span></span>` },
     series: [{
-      type: 'pie', radius: ['50%', '78%'], center: ['50%', '50%'],
-      data: filteredCohorts.map((c: Cohort) => ({ name: c.label, value: c.count, itemStyle: { color: c.color } })),
-      label: { show: true, color: '#94a3b8', fontSize: 10, formatter: '{b}\n{c}' },
-      emphasis: { itemStyle: { shadowBlur: 20, shadowColor: 'rgba(0,0,0,0.5)' } },
+      type: 'pie', radius: ['45%', '70%'], center: ['50%', '50%'],
+      avoidLabelOverlap: true,
+      data: filteredCohorts.map((c: Cohort) => ({ name: c.label, value: c.count, itemStyle: { color: c.color, borderRadius: 4, borderWidth: 2, borderColor: 'rgba(15,23,42,0.9)' } })),
+      label: { show: true, position: 'outside', color: '#94a3b8', fontSize: 12, formatter: '{b}\n{c}' },
+      labelLine: { show: true, length: 12, length2: 8, lineStyle: { color: 'rgba(148,163,184,0.4)' } },
+      emphasis: { scale: true, scaleSize: 6 },
       animationType: 'expansion', animationEasing: 'cubicOut',
     }],
   };
