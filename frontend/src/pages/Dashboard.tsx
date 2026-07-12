@@ -141,7 +141,7 @@ export default function Dashboard() {
   const officeBarOption = {
     backgroundColor:'transparent',
     tooltip:{trigger:'axis',...CHART_TT,axisPointer:{type:'shadow'},
-      formatter:(p:{seriesName:string;value:number;marker:string}[])=>`<span style="color:#f1f5f9">${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName.includes('Fraude')?s.value+'%':fmtM(s.value)+'M FCFA'}</b>`).join('<br/>')}</span>`},
+      formatter:(p:{seriesName:string;value:number;marker:string}[])=>`<span style="color:#f1f5f9">${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName.toLowerCase().includes('fraude')?s.value+'%':fmtM(s.value)+'M FCFA'}</b>`).join('<br/>')}</span>`},
     legend:{textStyle:{color:'#64748b',fontSize:9},top:0,right:0,itemWidth:8,itemHeight:8},
     grid:{left:8,right:50,bottom:20,top:28,containLabel:true},
     xAxis:{type:'category',data:sortedOffices.map((o:{name:string})=>o.name.split(' ')[0]),axisLabel:{color:'#475569',fontSize:9},axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}},axisTick:{show:false}},
