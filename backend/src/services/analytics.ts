@@ -24,7 +24,7 @@ export function computeDATEFactors(
 ): DATEFactor[] {
   const impSGDs  = sgds.filter(s => s.importer_id === importerId);
   const impFrauds = fraudRows.filter(f => f.importer_id === importerId);
-  const fraudFlagRows = impSGDs.filter(s => isFraud(s.fraud_flag));
+  const fraudFlagRows = impSGDs.filter(s => rowIsFraud(s));
   const fraudRate = impSGDs.length > 0 ? fraudFlagRows.length / impSGDs.length : 0;
   const uniqueDeclarants = new Set(impSGDs.map(s => s.declarant_id)).size;
   const highRiskTariffCount = impSGDs.filter(s => HIGH_RISK_TARIFFS.has(s.tariff_code)).length;
@@ -96,7 +96,7 @@ export function buildImporterProfiles(sgd: SGDRow[], fraud: FraudRow[]): Importe
       total_cif_value: rows.reduce((s, r) => s + r.cif_value, 0),
       total_revenue: rows.reduce((s, r) => s + r.revenue_collected, 0),
       fraud_cases: fraudRows.length,
-      fraud_rate: rows.length > 0 ? rows.filter(r => isFraud(r.fraud_flag)).length / rows.length : 0,
+      fraud_rate: rows.length > 0 ? rows.filter(r => rowIsFraud(r)).length / rows.length : 0,
       risk_score,
       offices: [...new Set(rows.map(r => r.office_id))],
       office_names: [...new Set(rows.map(r => r.office_name ?? r.office_id))],
@@ -209,7 +209,7 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
     ? amountRecovered / (taxEvasionTotal + penaltiesRaised) : 0;
 
   // ── Fraud counts ─────────────────────────────────────────────────────────
-  const fraudRows   = sgd.filter(r => isFraud(r.fraud_flag));
+  const fraudRows   = sgd.filter(r => rowIsFraud(r));
   const fraudConf   = fraud.filter(f => ['CLOTURE_AMIABLE','CLOTURE_CONTENTIEUX','TRANSMIS_JUSTICE'].includes(f.status)).length;
   const casesOpen   = fraud.filter(f => f.status === 'EN_COURS').length;
   const casesJust   = fraud.filter(f => f.status === 'TRANSMIS_JUSTICE').length;
@@ -248,7 +248,7 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
   const officeIds = [...new Set(sgd.map(s => s.office_id))];
   const officeRows = officeIds.map(id => {
     const rows  = sgd.filter(s => s.office_id === id);
-    const frows = rows.filter(r => isFraud(r.fraud_flag));
+    const frows = rows.filter(r => rowIsFraud(r));
     const rev   = rows.reduce((s,r) => s + r.revenue_collected, 0);
     const avgH  = rows.length > 0 ? rows.reduce((s,r) => s + r.clearance_hours, 0) / rows.length : 0;
     const base  = BASELINES[id] ?? 36;
@@ -274,7 +274,7 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
   sgd.forEach(r => {
     if (!insMap[r.inspector_id]) insMap[r.inspector_id] = {fraud:0,total:0,name:r.inspector_name??r.inspector_id,bureau:r.office_id};
     insMap[r.inspector_id].total++;
-    if (isFraud(r.fraud_flag)) insMap[r.inspector_id].fraud++;
+    if (rowIsFraud(r)) insMap[r.inspector_id].fraud++;
   });
   const topInspectors = Object.entries(insMap)
     .map(([id,v]) => ({id,name:v.name,bureau:v.bureau,fraud_detected:v.fraud,total:v.total,detection_rate:v.total>0?v.fraud/v.total:0}))
@@ -288,7 +288,7 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
       const m = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
       if (!trendMap[m]) trendMap[m] = {count:0,total:0,evasion:0};
       trendMap[m].total++;
-      if (isFraud(r.fraud_flag)) trendMap[m].count++;
+      if (rowIsFraud(r)) trendMap[m].count++;
     } catch { return; }
   });
   fraud.forEach(f => {
@@ -475,6 +475,16 @@ function isFraud(flag: number | string | boolean | undefined | null): boolean {
   return false;
 }
 
+// Robust fraud detection for SGD rows: combines the fraud_flag column with a
+// fallback on fraud_type (populated only on actual fraud rows). This protects
+// against any live-sheet header/format mismatch on fraud_flag alone — if either
+// signal indicates fraud, the row counts as fraud.
+function rowIsFraud(r: { fraud_flag?: number | string | boolean | null; fraud_type?: string | null }): boolean {
+  if (isFraud(r.fraud_flag)) return true;
+  if (typeof r.fraud_type === 'string' && r.fraud_type.trim() !== '') return true;
+  return false;
+}
+
 export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMetrics[] {
   // Group SGD rows by inspector_id (the actual customs agent who processed them)
   const insIds = [...new Set(sgd.map(s => s.inspector_id).filter(Boolean))];
@@ -494,7 +504,7 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
     const baseline = BUREAU_BASELINES[primaryBureau] ?? 36;
 
     // Fraud detection: rows where this inspector found fraud (fraud_flag=1 on their SGDs)
-    const fraudRows = rows.filter(r => isFraud(r.fraud_flag));
+    const fraudRows = rows.filter(r => rowIsFraud(r));
     const fraudDetected = fraudRows.length;
     const fraudRate = rows.length > 0 ? fraudDetected / rows.length : 0;
 
@@ -549,7 +559,7 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
       monthMap[m].revenue  += r.revenue_collected;
       monthMap[m].assessed += (r.taxes_assessed ?? 0);
       monthMap[m].hours    += r.clearance_hours;
-      if (isFraud(r.fraud_flag)) {
+      if (rowIsFraud(r)) {
         monthMap[m].fraud++;
         monthMap[m].tax_gap += (r.tax_gap ?? 0);
         if (r.channel !== 'ROUGE') monthMap[m].proactive++;
@@ -729,7 +739,7 @@ export function scoreDeclarationAnomalies(sgd: SGDRow[], fraud: FraudRow[]): Dec
   const insDetectionRate: Record<string, number> = {};
   [...new Set(sgd.map(s => s.inspector_id).filter(Boolean))].forEach(iid => {
     const rows = sgd.filter(s => s.inspector_id === iid);
-    insDetectionRate[iid] = rows.length > 0 ? rows.filter(r => isFraud(r.fraud_flag)).length / rows.length : 0;
+    insDetectionRate[iid] = rows.length > 0 ? rows.filter(r => rowIsFraud(r)).length / rows.length : 0;
   });
 
   const scores: DeclarationAnomalyScore[] = sgd.map(s => {
@@ -959,7 +969,7 @@ export function computeRiskDrift(sgd: SGDRow[], fraud: FraudRow[]): RiskDrift[] 
       const mSGD = sgd.filter(s => s.importer_id === id && dateMatchesMonth(s.date, month));
       const mFraud = fraud.filter(f => f.importer_id === id && dateMatchesMonth(f.date_detection, month));
       if (!mSGD.length) return { month, score: 0 };
-      const fraudRate = mSGD.filter(s => isFraud(s.fraud_flag)).length / mSGD.length;
+      const fraudRate = mSGD.filter(s => rowIsFraud(s)).length / mSGD.length;
       const revGap = mSGD.reduce((s,r) => s + Math.max(0, r.taxes_declared - r.revenue_collected), 0) /
                      Math.max(mSGD.reduce((s,r) => s + r.taxes_declared, 0), 1);
       const score = Math.min(99, Math.round(fraudRate * 60 + revGap * 30 + (mFraud.length > 0 ? 15 : 0)));
@@ -1020,8 +1030,8 @@ export function predictNextDeclaration(sgd: SGDRow[], fraud: FraudRow[]): NextDe
     const fraudRows = fraud.filter(f => f.importer_id === id);
 
     // Feature engineering on recent behaviour
-    const recentFraudRate  = recent.filter(r => isFraud(r.fraud_flag)).length / recent.length;
-    const allFraudRate     = rows.filter(r => isFraud(r.fraud_flag)).length / rows.length;
+    const recentFraudRate  = recent.filter(r => rowIsFraud(r)).length / recent.length;
+    const allFraudRate     = rows.filter(r => rowIsFraud(r)).length / rows.length;
     const recentRevGap     = recent.reduce((s,r) => s + Math.max(0, r.taxes_declared - r.revenue_collected), 0) /
                              Math.max(recent.reduce((s,r) => s + r.taxes_declared, 0), 1);
     const decRecency       = fraudRows.length > 0 ? 1 : 0; // had recent confirmed fraud
@@ -1247,7 +1257,7 @@ export function computeCollusionExposure(sgd: SGDRow[], fraud: FraudRow[]): Coll
     const highRiskDecls = rows.filter(r => fraudImporters.has(r.importer_id));
     const exposureRate  = highRiskDecls.length / rows.length;
     const isCollusion   = collusionInspectors.has(iid) ? 1 : 0;
-    const fraudOnRows   = rows.filter(r => isFraud(r.fraud_flag)).length;
+    const fraudOnRows   = rows.filter(r => rowIsFraud(r)).length;
 
     const score = Math.min(99, Math.round(
       exposureRate * 40 +

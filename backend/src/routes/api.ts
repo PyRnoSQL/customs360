@@ -8,9 +8,27 @@ import {
 const router = Router();
 
 // Helper — wraps async handlers
-// Inline helper for fraud_flag comparison (handles string '1' or number 1)
-const isFraud = (flag: number | string | boolean | undefined): boolean =>
-  flag === 1 || flag === '1' || flag === true;
+// Inline helper for fraud_flag comparison — handles any live-sheet representation
+// (string '1'/'1.0'/'TRUE'/'oui'/'yes', number 1, boolean true).
+const isFraud = (flag: number | string | boolean | undefined | null): boolean => {
+  if (flag === undefined || flag === null || flag === '') return false;
+  if (flag === true) return true;
+  if (flag === false) return false;
+  if (typeof flag === 'number') return flag === 1;
+  const s = String(flag).trim().toLowerCase();
+  if (s === '1' || s === '1.0' || s === 'true' || s === 'oui' || s === 'yes') return true;
+  const n = Number(s);
+  return !isNaN(n) && n === 1;
+};
+
+// Robust fraud detection for SGD rows: combines fraud_flag with a fallback on
+// fraud_type (only populated for actual fraud rows). Protects against any
+// live-sheet header/format mismatch on fraud_flag alone.
+const rowIsFraud = (r: { fraud_flag?: number | string | boolean | null; fraud_type?: string | null }): boolean => {
+  if (isFraud(r.fraud_flag)) return true;
+  if (typeof r.fraud_type === 'string' && r.fraud_type.trim() !== '') return true;
+  return false;
+};
 
 const wrap = (fn: (req: Request, res: Response) => Promise<void>) =>
   (req: Request, res: Response) => fn(req, res).catch(err => {
@@ -25,14 +43,17 @@ router.get('/debug/fraud-trend', wrap(async (_req, res) => {
   const { buildOverview } = await import('../services/analytics.js');
   const overview = buildOverview(sgd, fraud);
 
-  // Ground truth: what does fraud_flag ACTUALLY look like coming off the live sheet?
+  // Ground truth: what does fraud_flag / fraud_type ACTUALLY look like coming off the live sheet?
   const rawSample = sgd.slice(0, 5).map(r => ({
     sgd_id: r.sgd_id,
     fraud_flag_value: r.fraud_flag,
     fraud_flag_typeof: typeof r.fraud_flag,
     fraud_flag_json: JSON.stringify(r.fraud_flag),
+    fraud_type_value: r.fraud_type,
   }));
-  const uniqueValues = [...new Set(sgd.map(r => JSON.stringify(r.fraud_flag)))];
+  const uniqueFlagValues = [...new Set(sgd.map(r => JSON.stringify(r.fraud_flag)))];
+  const uniqueTypeValues = [...new Set(sgd.map(r => r.fraud_type).filter(Boolean))].slice(0, 10);
+  const nonEmptyFraudTypeCount = sgd.filter(r => typeof r.fraud_type === 'string' && r.fraud_type.trim() !== '').length;
 
   res.json({
     deployed_at: new Date().toISOString(),
@@ -51,7 +72,9 @@ router.get('/debug/fraud-trend', wrap(async (_req, res) => {
     office_sample: overview.office_distribution.slice(0, 2),
     // ── Ground truth diagnostics ──────────────────────────────────────────
     raw_fraud_flag_sample: rawSample,
-    raw_fraud_flag_unique_values: uniqueValues,
+    raw_fraud_flag_unique_values: uniqueFlagValues,
+    raw_fraud_type_unique_sample: uniqueTypeValues,
+    non_empty_fraud_type_count: nonEmptyFraudTypeCount,
   });
 }));
 
@@ -128,7 +151,7 @@ router.get('/graph', wrap(async (_req, res) => {
   });
 
   sgd.filter(s => impIds.includes(s.importer_id)).slice(0, 80).forEach(s => {
-    nodes.push({ id: s.sgd_id, label: s.sgd_id, type: 'sgd', risk: isFraud(s.fraud_flag) ? 90 : 10, fraud: isFraud(s.fraud_flag) });
+    nodes.push({ id: s.sgd_id, label: s.sgd_id, type: 'sgd', risk: rowIsFraud(s) ? 90 : 10, fraud: rowIsFraud(s) });
     links.push({ source: s.importer_id, target: s.sgd_id, fraud: fraudSGDs.has(s.sgd_id) });
     if (!decIds.has(s.declarant_id)) {
       nodes.push({ id: s.declarant_id, label: s.declarant_id, type: 'declarant', risk: 30 });
@@ -286,7 +309,7 @@ router.get('/analytics/cohorts', wrap(async (req, res) => {
     if (!isNaN(d.getTime())) {
       const dow = d.getDay();
       dowTotal[dow]++;
-      if (isFraud(s.fraud_flag)) dowFraud[dow]++;
+      if (rowIsFraud(s)) dowFraud[dow]++;
     }
   });
   const DOW = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
@@ -301,7 +324,7 @@ router.get('/analytics/cohorts', wrap(async (req, res) => {
   sgd.forEach(s => {
     if (!countryMap[s.country]) countryMap[s.country] = { total: 0, fraud: 0, revenue: 0 };
     countryMap[s.country].total++;
-    if (isFraud(s.fraud_flag)) countryMap[s.country].fraud++;
+    if (rowIsFraud(s)) countryMap[s.country].fraud++;
     countryMap[s.country].revenue += s.revenue_collected;
   });
   const country_analysis = Object.entries(countryMap)
@@ -383,8 +406,8 @@ router.get('/advanced/fraud-score', wrap(async (req, res) => {
     const tc = r.tariff_code;
     if (!tariffTotal[tc]) { tariffTotal[tc]=0; tariffFraud[tc]=0; tariffCIF[tc]=[]; }
     tariffTotal[tc]++;
-    if (isFraud(r.fraud_flag)) tariffFraud[tc]++;
-    if (!isFraud(r.fraud_flag) && r.quantity > 0) tariffCIF[tc].push(r.cif_value/r.quantity);
+    if (rowIsFraud(r)) tariffFraud[tc]++;
+    if (!rowIsFraud(r) && r.quantity > 0) tariffCIF[tc].push(r.cif_value/r.quantity);
   });
   const tariffRate: Record<string,number> = {};
   const tariffAvgCIF: Record<string,number> = {};
@@ -398,7 +421,7 @@ router.get('/advanced/fraud-score', wrap(async (req, res) => {
   // Importer historical fraud rate
   const impFraud: Record<string,number> = {};
   const impTotal: Record<string,number> = {};
-  allSgd.forEach(r => { impTotal[r.importer_id]=(impTotal[r.importer_id]||0)+1; if(isFraud(r.fraud_flag)) impFraud[r.importer_id]=(impFraud[r.importer_id]||0)+1; });
+  allSgd.forEach(r => { impTotal[r.importer_id]=(impTotal[r.importer_id]||0)+1; if(rowIsFraud(r)) impFraud[r.importer_id]=(impFraud[r.importer_id]||0)+1; });
 
   const scored = sgd.map(s => {
     let score = 0; const factors: string[] = [];
@@ -426,7 +449,7 @@ router.get('/advanced/fraud-score', wrap(async (req, res) => {
       tariff_code: s.tariff_code, tariff_description: s.tariff_description ?? '',
       country: s.country, cif_value: s.cif_value, tax_gap: s.tax_gap,
       risk_score_system: s.risk_score_system, channel: s.channel,
-      fraud_flag: isFraud(s.fraud_flag), fraud_type: s.fraud_type,
+      fraud_flag: rowIsFraud(s), fraud_type: s.fraud_type,
       anomaly_score, factors,
       predicted_fraud_prob: Math.min(0.97, anomaly_score/100*1.15),
       revenue_at_risk: Math.round(s.taxes_declared * (anomaly_score/100) * 0.6),
@@ -449,7 +472,7 @@ router.get('/advanced/revenue-forecast', wrap(async (_req, res) => {
   const toM = (d: string) => { try { const dt=new Date(d); return isNaN(dt.getTime())?'': `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; } catch{return '';} };
   const FR=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
   const monthly: Record<string,{rev:number;assessed:number;evasion:number;fraud:number;sgds:number}> = {};
-  sgd.forEach(r => { const m=toM(r.date); if(!m||m==='') return; if(!monthly[m]) monthly[m]={rev:0,assessed:0,evasion:0,fraud:0,sgds:0}; monthly[m].rev+=r.revenue_collected; monthly[m].assessed+=(r.taxes_assessed??0); monthly[m].sgds++; if(isFraud(r.fraud_flag)) monthly[m].fraud++; });
+  sgd.forEach(r => { const m=toM(r.date); if(!m||m==='') return; if(!monthly[m]) monthly[m]={rev:0,assessed:0,evasion:0,fraud:0,sgds:0}; monthly[m].rev+=r.revenue_collected; monthly[m].assessed+=(r.taxes_assessed??0); monthly[m].sgds++; if(rowIsFraud(r)) monthly[m].fraud++; });
   fraud.forEach(r => { const m=toM(r.date_detection); if(!m||!monthly[m]) return; monthly[m].evasion+=(r.tax_evasion_amount??0); });
   const months = Object.keys(monthly).sort();
   const revSeries = months.map(m=>monthly[m].rev);
@@ -484,7 +507,7 @@ router.get('/advanced/recommendations', wrap(async (_req, res) => {
 
   // Importers with high fraud rate > 15%
   const impFraud: Record<string,{total:number;fraud:number;name:string;evasion:number}> = {};
-  sgd.forEach(r => { if(!impFraud[r.importer_id]) impFraud[r.importer_id]={total:0,fraud:0,name:r.importer_name??r.importer_id,evasion:0}; impFraud[r.importer_id].total++; if(isFraud(r.fraud_flag)) impFraud[r.importer_id].fraud++; });
+  sgd.forEach(r => { if(!impFraud[r.importer_id]) impFraud[r.importer_id]={total:0,fraud:0,name:r.importer_name??r.importer_id,evasion:0}; impFraud[r.importer_id].total++; if(rowIsFraud(r)) impFraud[r.importer_id].fraud++; });
   fraud.forEach(r => { if(impFraud[r.importer_id]) impFraud[r.importer_id].evasion+=(r.tax_evasion_amount??0); });
   const highRiskImps = Object.entries(impFraud).filter(([,v])=>v.total>=5&&v.fraud/v.total>0.15).sort((a,b)=>b[1].fraud/b[1].total-a[1].fraud/a[1].total).slice(0,5);
   if(highRiskImps.length>0) recs.push({ priority:1, category:'INSPECTION', title:'Inspection physique systématique', description:`${highRiskImps.length} importateurs présentent un taux de fraude > 15%. Inspection physique obligatoire sur toutes nouvelles déclarations.`, impact:'Haut', action:'Mise sous surveillance immédiate', entities:highRiskImps.map(([,v])=>v.name) });
@@ -495,7 +518,7 @@ router.get('/advanced/recommendations', wrap(async (_req, res) => {
 
   // High fraud tariff codes
   const tariffFraud: Record<string,{fraud:number;total:number;desc:string}> = {};
-  sgd.forEach(r => { if(!tariffFraud[r.tariff_code]) tariffFraud[r.tariff_code]={fraud:0,total:0,desc:r.tariff_description??r.tariff_code}; tariffFraud[r.tariff_code].total++; if(isFraud(r.fraud_flag)) tariffFraud[r.tariff_code].fraud++; });
+  sgd.forEach(r => { if(!tariffFraud[r.tariff_code]) tariffFraud[r.tariff_code]={fraud:0,total:0,desc:r.tariff_description??r.tariff_code}; tariffFraud[r.tariff_code].total++; if(rowIsFraud(r)) tariffFraud[r.tariff_code].fraud++; });
   const highFraudTariffs=Object.entries(tariffFraud).filter(([,v])=>v.total>=20&&v.fraud/v.total>0.15).sort((a,b)=>b[1].fraud/b[1].total-a[1].fraud/a[1].total).slice(0,5);
   if(highFraudTariffs.length>0) recs.push({ priority:3, category:'CIBLAGE', title:'Renforcement scrutin codes tarifaires à risque', description:`${highFraudTariffs.length} codes HS présentent un taux de fraude > 15%. Basculer en canal ROUGE automatique.`, impact:'Élevé', action:'Mise à jour règles de ciblage automatique', entities:highFraudTariffs.map(([k,v])=>`${k} (${v.desc})`) });
 
@@ -530,7 +553,7 @@ router.get('/advanced/network', wrap(async (_req, res) => {
 
   // Build importer risk scores
   const impData: Record<string,{fraud:number;total:number;name:string}> = {};
-  sgd.forEach(r=>{if(!impData[r.importer_id])impData[r.importer_id]={fraud:0,total:0,name:r.importer_name??r.importer_id};impData[r.importer_id].total++;if(isFraud(r.fraud_flag))impData[r.importer_id].fraud++;});
+  sgd.forEach(r=>{if(!impData[r.importer_id])impData[r.importer_id]={fraud:0,total:0,name:r.importer_name??r.importer_id};impData[r.importer_id].total++;if(rowIsFraud(r))impData[r.importer_id].fraud++;});
   const INSPECTOR_NAMES: Record<string,string> = {INS001:'MBARGA J-P',INS002:'TCHOUMBA A',INS003:'NKENGUE M',INS004:'ESSOMBA P',INS005:'BIYA-FOUDA S',INS006:'MOHAMADOU A',INS007:'KANA H',INS008:'FOUDA-BELL E',INS009:'ABENA C',INS010:'ONDOUA P',INS011:'NJOYA I',INS012:'ATANGA S',INS013:'BELL M',INS014:'NGOUMOU T',INS015:'EYINGA R',INS016:'MEKOULOU S',INS017:'KOUM B',INS018:'DANG F',INS019:'OWONA C',INS020:'NTYAM L'};
   const DEC_NAMES: Record<string,string> = {DEC001:'CAMTRANS',DEC002:'TRANSIT LITTORAL',DEC003:'DOUALA CLEARING',DEC004:'INTER-FRET',DEC005:'LOGISTICAM',DEC006:'TRANS-EQUATEUR',DEC007:'MFOUNDI TRANSIT',DEC008:'CAMEREX',DEC009:'SAHEL TRANSIT',DEC010:'ATL. DÉDOUANEMENT'};
   const OFF_NAMES: Record<string,string> = {DLA001:'Douala Port',KBI001:'Kribi Port',DLA002:'Douala Aéro',YDE001:'Yaoundé NSM',YDE002:'Yaoundé CTR',NGD001:'Ngaoundéré',BFR001:'Bafoussam',GRA001:'Garoua'};
@@ -546,7 +569,7 @@ router.get('/advanced/network', wrap(async (_req, res) => {
     addNode(r.office_id, OFF_NAMES[r.office_id]??r.office_id, 'office', 10);
     nodes[r.importer_id].total++;
     nodes[r.declarant_id].total++;
-    if(isFraud(r.fraud_flag)){nodes[r.importer_id].fraud_count++;nodes[r.declarant_id].fraud_count++;}
+    if(rowIsFraud(r)){nodes[r.importer_id].fraud_count++;nodes[r.declarant_id].fraud_count++;}
     const isCol = collusionPairs.has(`${r.inspector_id}|${r.declarant_id}`);
     addEdge(r.importer_id, r.declarant_id, 'imp-dec');
     addEdge(r.declarant_id, r.inspector_id, 'dec-ins', isCol);
@@ -578,7 +601,7 @@ router.get('/advanced/inspector-deep', wrap(async (_req, res) => {
     const rows = sgd.filter(s=>s.inspector_id===iid);
     const info = INSPECTOR_INFO[iid]??{name:iid,grade:'Inspecteur',bureau:rows[0]?.office_id??''};
     const baseline = BASELINES[info.bureau]??36;
-    const fraudRows = rows.filter(r=>isFraud(r.fraud_flag));
+    const fraudRows = rows.filter(r=>rowIsFraud(r));
     const proactive = fraudRows.filter(r=>r.channel!=='ROUGE');
     const taxGapRec = fraudRows.reduce((s,r)=>s+(r.tax_gap??0),0);
     const assessed = rows.reduce((s,r)=>s+(r.taxes_assessed??0),0);
@@ -588,7 +611,7 @@ router.get('/advanced/inspector-deep', wrap(async (_req, res) => {
     const avgHours = rows.reduce((s,r)=>s+r.clearance_hours,0)/Math.max(rows.length,1);
     // Monthly trend
     const monthMap: Record<string,{decls:number;fraud:number;proactive:number;hours:number;gap:number}> = {};
-    rows.forEach(r=>{const m=toM(r.date);if(!m)return;if(!monthMap[m])monthMap[m]={decls:0,fraud:0,proactive:0,hours:0,gap:0};monthMap[m].decls++;monthMap[m].hours+=r.clearance_hours;if(isFraud(r.fraud_flag)){monthMap[m].fraud++;monthMap[m].gap+=(r.tax_gap??0);if(r.channel!=='ROUGE')monthMap[m].proactive++;}});
+    rows.forEach(r=>{const m=toM(r.date);if(!m)return;if(!monthMap[m])monthMap[m]={decls:0,fraud:0,proactive:0,hours:0,gap:0};monthMap[m].decls++;monthMap[m].hours+=r.clearance_hours;if(rowIsFraud(r)){monthMap[m].fraud++;monthMap[m].gap+=(r.tax_gap??0);if(r.channel!=='ROUGE')monthMap[m].proactive++;}});
     const trend = Object.keys(monthMap).sort().map(m=>{const[y,mo]=m.split('-');return{month:m,label:`${FR[Number(mo)-1]} ${y.slice(2)}`,...monthMap[m]};});
     // Fraud types caught
     const fraudTypes: Record<string,number>={};
@@ -621,7 +644,7 @@ router.get('/advanced/office-deep', wrap(async (_req, res) => {
 
   const result = offIds.map(oid => {
     const rows = sgd.filter(s=>s.office_id===oid);
-    const fraudRows = rows.filter(r=>isFraud(r.fraud_flag));
+    const fraudRows = rows.filter(r=>rowIsFraud(r));
     const baseline = BASELINES[oid]??36;
     const revenue = rows.reduce((s,r)=>s+r.revenue_collected,0);
     const assessed = rows.reduce((s,r)=>s+(r.taxes_assessed??0),0);
@@ -635,10 +658,10 @@ router.get('/advanced/office-deep', wrap(async (_req, res) => {
     const countries: Record<string,number>={};
     rows.forEach(r=>{countries[r.country]=(countries[r.country]||0)+1;});
     const monthMap: Record<string,{sgds:number;fraud:number;rev:number;evasion:number}> = {};
-    rows.forEach(r=>{const m=toM(r.date);if(!m)return;if(!monthMap[m])monthMap[m]={sgds:0,fraud:0,rev:0,evasion:0};monthMap[m].sgds++;monthMap[m].rev+=r.revenue_collected;if(isFraud(r.fraud_flag))monthMap[m].fraud++;});
+    rows.forEach(r=>{const m=toM(r.date);if(!m)return;if(!monthMap[m])monthMap[m]={sgds:0,fraud:0,rev:0,evasion:0};monthMap[m].sgds++;monthMap[m].rev+=r.revenue_collected;if(rowIsFraud(r))monthMap[m].fraud++;});
     fraud.filter(f=>f.office_id===oid).forEach(f=>{const m=toM(f.date_detection);if(m&&monthMap[m])monthMap[m].evasion+=(f.tax_evasion_amount??0);});
     const trend = Object.keys(monthMap).sort().map(m=>{const[y,mo]=m.split('-');return{month:m,label:`${FR[Number(mo)-1]} ${y.slice(2)}`,...monthMap[m]};});
-    const inspectors = [...new Set(rows.map(r=>r.inspector_id))].map(iid=>{const iRows=rows.filter(r=>r.inspector_id===iid);return{id:iid,name:rows.find(r=>r.inspector_id===iid)?.inspector_name??iid,total:iRows.length,fraud:iRows.filter(r=>isFraud(r.fraud_flag)).length};}).sort((a,b)=>b.fraud-a.fraud);
+    const inspectors = [...new Set(rows.map(r=>r.inspector_id))].map(iid=>{const iRows=rows.filter(r=>r.inspector_id===iid);return{id:iid,name:rows.find(r=>r.inspector_id===iid)?.inspector_name??iid,total:iRows.length,fraud:iRows.filter(r=>rowIsFraud(r)).length};}).sort((a,b)=>b.fraud-a.fraud);
     const fraudTypes: Record<string,number>={};
     rows.filter(r=>r.fraud_type).forEach(r=>{fraudTypes[r.fraud_type]=(fraudTypes[r.fraud_type]||0)+1;});
     return { office_id:oid, name:NAMES[oid]??oid, baseline_hours:baseline, kpis:{total_sgds:rows.length,fraud_count:fraudRows.length,fraud_rate:rows.length>0?fraudRows.length/rows.length:0,revenue_collected:revenue,taxes_assessed:assessed,tax_gap_recovered:taxGap,avg_clearance_hours:Math.round(avgHours*10)/10,seizures,efficiency_score:Math.round(Math.min(98,Math.max(40,(baseline/Math.max(avgHours,1))*100))),channel_distribution:channels,inspection_types:inspTypes,top_countries:Object.entries(countries).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([c,n])=>({country:c,count:n})),fraud_types:fraudTypes}, inspectors:inspectors.slice(0,10), monthly_trend:trend };
@@ -655,7 +678,7 @@ router.get('/advanced/importer-deep', wrap(async (_req, res) => {
 
   const result = impIds.map(iid => {
     const rows = sgd.filter(s=>s.importer_id===iid);
-    const fraudRows = rows.filter(r=>isFraud(r.fraud_flag));
+    const fraudRows = rows.filter(r=>rowIsFraud(r));
     const fraudCases = fraud.filter(f=>f.importer_id===iid);
     const revenue = rows.reduce((s,r)=>s+r.revenue_collected,0);
     const assessed = rows.reduce((s,r)=>s+(r.taxes_assessed??0),0);
@@ -669,11 +692,11 @@ router.get('/advanced/importer-deep', wrap(async (_req, res) => {
     const countries: Record<string,number>={};
     rows.forEach(r=>{countries[r.country]=(countries[r.country]||0)+1;});
     const tariffs: Record<string,{count:number;desc:string;fraud:number}> = {};
-    rows.forEach(r=>{if(!tariffs[r.tariff_code])tariffs[r.tariff_code]={count:0,desc:r.tariff_description??r.tariff_code,fraud:0};tariffs[r.tariff_code].count++;if(isFraud(r.fraud_flag))tariffs[r.tariff_code].fraud++;});
+    rows.forEach(r=>{if(!tariffs[r.tariff_code])tariffs[r.tariff_code]={count:0,desc:r.tariff_description??r.tariff_code,fraud:0};tariffs[r.tariff_code].count++;if(rowIsFraud(r))tariffs[r.tariff_code].fraud++;});
     const declarants: Record<string,{count:number;name:string;fraud:number}> = {};
-    rows.forEach(r=>{if(!declarants[r.declarant_id])declarants[r.declarant_id]={count:0,name:r.declarant_name??r.declarant_id,fraud:0};declarants[r.declarant_id].count++;if(isFraud(r.fraud_flag))declarants[r.declarant_id].fraud++;});
+    rows.forEach(r=>{if(!declarants[r.declarant_id])declarants[r.declarant_id]={count:0,name:r.declarant_name??r.declarant_id,fraud:0};declarants[r.declarant_id].count++;if(rowIsFraud(r))declarants[r.declarant_id].fraud++;});
     const monthMap: Record<string,{sgds:number;fraud:number;rev:number;cif:number}> = {};
-    rows.forEach(r=>{const m=toM(r.date);if(!m)return;if(!monthMap[m])monthMap[m]={sgds:0,fraud:0,rev:0,cif:0};monthMap[m].sgds++;monthMap[m].rev+=r.revenue_collected;monthMap[m].cif+=r.cif_value;if(isFraud(r.fraud_flag))monthMap[m].fraud++;});
+    rows.forEach(r=>{const m=toM(r.date);if(!m)return;if(!monthMap[m])monthMap[m]={sgds:0,fraud:0,rev:0,cif:0};monthMap[m].sgds++;monthMap[m].rev+=r.revenue_collected;monthMap[m].cif+=r.cif_value;if(rowIsFraud(r))monthMap[m].fraud++;});
     const trend = Object.keys(monthMap).sort().map(m=>{const[y,mo]=m.split('-');return{month:m,label:`${FR[Number(mo)-1]} ${y.slice(2)}`,...monthMap[m]};});
     const fraudTypes: Record<string,number>={};
     fraudRows.forEach(r=>{if(r.fraud_type)fraudTypes[r.fraud_type]=(fraudTypes[r.fraud_type]||0)+1;});
