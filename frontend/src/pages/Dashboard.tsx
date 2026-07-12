@@ -208,42 +208,22 @@ export default function Dashboard() {
         </FadeIn>
       </div>
 
-      {/* ── ROW 2: Fraud trend + Case pipeline + Channel ── */}
+      {/* ── ROW 2: Fraud trend (2/3) + Case pipeline (1/3) ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <FadeIn delay={0.05} className="xl:col-span-1">
+        <FadeIn delay={0.05} className="xl:col-span-2">
           <div className="card h-full">
             <SectionTitle icon="📡">Tendance Fraude Mensuelle</SectionTitle>
             {trendData.length > 0
-              ? <ReactECharts option={fraudTrendOption} style={{height:220}}/>
-              : <div className="h-56 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
+              ? <ReactECharts option={fraudTrendOption} style={{height:240}}/>
+              : <div className="h-60 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
           </div>
         </FadeIn>
         <FadeIn delay={0.1}>
           <div className="card h-full">
             <SectionTitle icon="⚖️">Pipeline des Dossiers Fraude</SectionTitle>
             {statusDist.length > 0
-              ? <ReactECharts option={pipelineOption} style={{height:240}}/>
-              : <div className="h-60 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
-          </div>
-        </FadeIn>
-        <FadeIn delay={0.15}>
-          <div className="card h-full">
-            <SectionTitle icon="🚦">Canaux de Contrôle Douanier</SectionTitle>
-            <ReactECharts option={channelOption} style={{height:120}}/>
-            <div className="mt-4 space-y-2">
-              {channelDist.map((c:{channel:string;count:number;pct:number}) => (
-                <div key={c.channel} className="flex items-center gap-3">
-                  <span className="text-xs font-bold w-14" style={{color:CHANNEL_COLORS[c.channel]??'#fff'}}>{c.channel}</span>
-                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}>
-                    <div className="h-full rounded-full" style={{width:`${c.pct}%`,background:CHANNEL_COLORS[c.channel]??'#64748b'}}/>
-                  </div>
-                  <span className="text-xs font-bold text-white w-8 text-right">{c.pct}%</span>
-                </div>
-              ))}
-              <p className="text-[10px] text-muted mt-2 pt-2 border-t border-white/5">
-                ROUGE = inspection obligatoire · JAUNE = contrôle documentaire · VERT = passage libre
-              </p>
-            </div>
+              ? <ReactECharts option={pipelineOption} style={{height:280}}/>
+              : <div className="h-72 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
           </div>
         </FadeIn>
       </div>
