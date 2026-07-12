@@ -141,7 +141,7 @@ router.get('/graph', wrap(async (_req, res) => {
   const nodes: object[] = [];
   const links: object[] = [];
   const impIds = [...new Set(sgd.map(s => s.importer_id))].slice(0, 12);
-  const decIds = new Set<string>();
+  const offiderIds = new Set<string>(); // inspector/officer node ids seen so far
   const offIds = new Set<string>();
   const fraudSGDs = new Set(fraud.map(f => f.sgd_id));
 
@@ -153,11 +153,11 @@ router.get('/graph', wrap(async (_req, res) => {
   sgd.filter(s => impIds.includes(s.importer_id)).slice(0, 80).forEach(s => {
     nodes.push({ id: s.sgd_id, label: s.sgd_id, type: 'sgd', risk: rowIsFraud(s) ? 90 : 10, fraud: rowIsFraud(s) });
     links.push({ source: s.importer_id, target: s.sgd_id, fraud: fraudSGDs.has(s.sgd_id) });
-    if (!decIds.has(s.declarant_id)) {
-      nodes.push({ id: s.declarant_id, label: s.declarant_id, type: 'declarant', risk: 30 });
-      decIds.add(s.declarant_id);
+    if (!offiderIds.has(s.inspector_id)) {
+      nodes.push({ id: s.inspector_id, label: s.inspector_name ?? s.inspector_id, type: 'officer', risk: 30 });
+      offiderIds.add(s.inspector_id);
     }
-    links.push({ source: s.declarant_id, target: s.sgd_id, fraud: fraudSGDs.has(s.sgd_id) });
+    links.push({ source: s.inspector_id, target: s.sgd_id, fraud: fraudSGDs.has(s.sgd_id) });
     if (!offIds.has(s.office_id)) {
       nodes.push({ id: s.office_id, label: s.office_id, type: 'office', risk: 40 });
       offIds.add(s.office_id);

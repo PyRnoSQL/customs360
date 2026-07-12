@@ -17,15 +17,16 @@ interface GraphNode {
 interface GraphLink { source: string | GraphNode; target: string | GraphNode; fraud: boolean; }
 interface SGDRow {
   sgd_id: string; date: string; importer_id: string; declarant_id: string;
+  inspector_id: string; inspector_name?: string;
   office_id: string; tariff_code: string; cif_value: number; fraud_flag: number;
   taxes_declared: number; revenue_collected: number;
 }
-interface FraudCase { case_id: string; sgd_id: string; importer_id: string; declarant_id: string; loss_net: number; ai_risk_score: number; date_detection: string; office_id: string; }
+interface FraudCase { case_id: string; sgd_id: string; importer_id: string; declarant_id: string; inspector_id: string; loss_net: number; ai_risk_score: number; date_detection: string; office_id: string; }
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
-const TYPE_COLOR: Record<string, string> = { importer: '#3b82f6', declarant: '#10b981', sgd: '#8b5cf6', office: '#f59e0b' };
-const TYPE_LABEL: Record<string, string> = { importer: 'Importateur', declarant: 'Déclarant', sgd: 'SGD', office: 'Bureau' };
-const TYPE_RADIUS: Record<string, number> = { importer: 18, declarant: 14, sgd: 9, office: 20 };
+const TYPE_COLOR: Record<string, string> = { importer: '#3b82f6', officer: '#a78bfa', sgd: '#8b5cf6', office: '#f59e0b' };
+const TYPE_LABEL: Record<string, string> = { importer: 'Importateur', officer: 'Agent Douanier', sgd: 'SGD', office: 'Bureau' };
+const TYPE_RADIUS: Record<string, number> = { importer: 18, officer: 14, sgd: 9, office: 20 };
 const riskColor = (r: number) => r >= 80 ? '#ef4444' : r >= 60 ? '#f97316' : r >= 40 ? '#eab308' : '#10b981';
 const OFFICE_NAMES: Record<string,string> = { DLA001:'Douala Port', KBI001:'Kribi Port', DLA002:'Douala Aéroport', YDE001:'Yaoundé', YDE002:'Yaoundé Centre' };
 const CHART_TT = { contentStyle: { background:'rgba(15,23,42,0.95)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:8, color:'#f1f5f9' }, labelStyle:{ color:'#94a3b8' } };
@@ -39,7 +40,7 @@ function ForceGraph({ nodes: initNodes, links: initLinks }: { nodes: GraphNode[]
   const [links] = useState<GraphLink[]>(initLinks);
   const [selected, setSelected] = useState<GraphNode | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [filterMode, setFilterMode] = useState<'ALL'|'FRAUD'|'IMPORTERS'|'DECLARANTS'>('ALL');
+  const [filterMode, setFilterMode] = useState<'ALL'|'FRAUD'|'IMPORTERS'|'OFFICERS'>('ALL');
   const simRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transformRef = useRef({ x: 0, y: 0, k: 1 });
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
@@ -99,7 +100,7 @@ function ForceGraph({ nodes: initNodes, links: initLinks }: { nodes: GraphNode[]
     else if(isPanningRef.current){transformRef.current={...transformRef.current,x:e.clientX-panStartRef.current.x,y:e.clientY-panStartRef.current.y}; setTransform({...transformRef.current});}
   };
   const handleSvgUp = () => { isPanningRef.current=false; if(draggingRef.current){draggingRef.current.fx=null;draggingRef.current.fy=null;draggingRef.current=null;} };
-  const isVis = (n: GraphNode) => filterMode==='ALL'?true:filterMode==='FRAUD'?(n.fraud||n.risk>=70):filterMode==='IMPORTERS'?n.type==='importer':n.type==='declarant';
+  const isVis = (n: GraphNode) => filterMode==='ALL'?true:filterMode==='FRAUD'?(n.fraud||n.risk>=70):filterMode==='IMPORTERS'?n.type==='importer':n.type==='officer';
   const nodeMap = new Map(nodes.map(n=>[n.id,n]));
 
   return (
@@ -108,7 +109,7 @@ function ForceGraph({ nodes: initNodes, links: initLinks }: { nodes: GraphNode[]
       <div className="flex items-center gap-3 px-5 py-3 flex-wrap" style={{ background:'rgba(0,0,0,0.2)', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
         <span className="text-sm font-bold text-white">🕸️ Graphe DATE — Réseau Entités</span>
         <div className="flex gap-2 ml-3">
-          {([['ALL','Tout','#3b82f6'],['FRAUD','Fraudes','#ef4444'],['IMPORTERS','Importateurs','#3b82f6'],['DECLARANTS','Déclarants','#10b981']] as [string,string,string][]).map(([v,l,c])=>(
+          {([['ALL','Tout','#3b82f6'],['FRAUD','Fraudes','#ef4444'],['IMPORTERS','Importateurs','#3b82f6'],['OFFICERS','Agents','#a78bfa']] as [string,string,string][]).map(([v,l,c])=>(
             <button key={v} onClick={()=>setFilterMode(v as typeof filterMode)} className="text-xs px-3 py-1 rounded-full font-semibold transition-all"
               style={{ background:filterMode===v?c+'22':'transparent', border:`1px solid ${filterMode===v?c:'rgba(255,255,255,0.08)'}`, color:filterMode===v?c:'#64748b' }}>{l}</button>
           ))}
@@ -175,19 +176,19 @@ function ForceGraph({ nodes: initNodes, links: initLinks }: { nodes: GraphNode[]
 // ══════════════════════════════════════════════════════════════════════════════
 function CollusionMatrix({ sgd }: { sgd: SGDRow[] }) {
   const importers = [...new Set(sgd.map(s=>s.importer_id))].slice(0,12);
-  const declarants = [...new Set(sgd.map(s=>s.declarant_id))].slice(0,10);
-  const [hovCell, setHovCell] = useState<{imp:string;dec:string}|null>(null);
+  const officers = [...new Set(sgd.map(s=>s.inspector_id))].slice(0,10);
+  const [hovCell, setHovCell] = useState<{imp:string;off:string}|null>(null);
 
   const matrix: Record<string, Record<string,number>> = {};
   const fraudMatrix: Record<string, Record<string,number>> = {};
-  importers.forEach(i=>{matrix[i]={};fraudMatrix[i]={};declarants.forEach(d=>{matrix[i][d]=0;fraudMatrix[i][d]=0;});});
+  importers.forEach(i=>{matrix[i]={};fraudMatrix[i]={};officers.forEach(o=>{matrix[i][o]=0;fraudMatrix[i][o]=0;});});
   sgd.forEach(s=>{
-    if(matrix[s.importer_id]?.[s.declarant_id]!==undefined){
-      matrix[s.importer_id][s.declarant_id]++;
-      if(s.fraud_flag) fraudMatrix[s.importer_id][s.declarant_id]++;
+    if(matrix[s.importer_id]?.[s.inspector_id]!==undefined){
+      matrix[s.importer_id][s.inspector_id]++;
+      if(s.fraud_flag) fraudMatrix[s.importer_id][s.inspector_id]++;
     }
   });
-  const maxVal = Math.max(...importers.flatMap(i=>declarants.map(d=>matrix[i][d])),1);
+  const maxVal = Math.max(...importers.flatMap(i=>officers.map(o=>matrix[i][o])),1);
   const cellColor = (count:number, fraud:number) => {
     if(count===0) return 'rgba(255,255,255,0.02)';
     const intensity = count/maxVal;
@@ -197,25 +198,25 @@ function CollusionMatrix({ sgd }: { sgd: SGDRow[] }) {
 
   return (
     <div className="card">
-      <SectionTitle icon="🔥">Matrice de Collusion — Importateurs × Déclarants</SectionTitle>
-      <p className="text-xs text-muted mb-4">Intensité = volume de SGDs partagés · <span style={{color:'#ef4444'}}>Rouge = fraude détectée</span> · <span style={{color:'#3b82f6'}}>Bleu = normal</span> · Concentration sur une cellule = signal collusion</p>
+      <SectionTitle icon="🔥">Matrice de Collusion — Importateurs × Agents Douaniers</SectionTitle>
+      <p className="text-xs text-muted mb-4">Intensité = volume de SGDs traités ensemble · <span style={{color:'#ef4444'}}>Rouge = fraude détectée</span> · <span style={{color:'#3b82f6'}}>Bleu = normal</span> · Concentration sur une cellule = signal collusion</p>
       <div className="overflow-x-auto">
         <table style={{borderCollapse:'collapse',width:'100%'}}>
           <thead>
             <tr>
-              <th style={{width:80,padding:'4px 8px',fontSize:9,color:'#475569',textAlign:'right',fontWeight:600}}>IMP\DEC</th>
-              {declarants.map(d=><th key={d} style={{padding:'4px 6px',fontSize:9,color:'#64748b',textAlign:'center',fontWeight:600,writingMode:'vertical-rl',height:70}}>{d}</th>)}
+              <th style={{width:80,padding:'4px 8px',fontSize:9,color:'#475569',textAlign:'right',fontWeight:600}}>IMP\AGT</th>
+              {officers.map(o=><th key={o} style={{padding:'4px 6px',fontSize:9,color:'#64748b',textAlign:'center',fontWeight:600,writingMode:'vertical-rl',height:70}}>{o}</th>)}
             </tr>
           </thead>
           <tbody>
             {importers.map(imp=>(
               <tr key={imp}>
                 <td style={{padding:'3px 8px',fontSize:9,color:'#64748b',textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{imp}</td>
-                {declarants.map(dec=>{
-                  const count=matrix[imp][dec]; const fraud=fraudMatrix[imp][dec];
-                  const isHov=hovCell?.imp===imp&&hovCell?.dec===dec;
+                {officers.map(off=>{
+                  const count=matrix[imp][off]; const fraud=fraudMatrix[imp][off];
+                  const isHov=hovCell?.imp===imp&&hovCell?.off===off;
                   return (
-                    <td key={dec} onMouseEnter={()=>setHovCell({imp,dec})} onMouseLeave={()=>setHovCell(null)}
+                    <td key={off} onMouseEnter={()=>setHovCell({imp,off})} onMouseLeave={()=>setHovCell(null)}
                       style={{padding:2,position:'relative'}}>
                       <motion.div whileHover={{scale:1.15}} transition={{duration:0.1}}
                         style={{width:42,height:32,background:cellColor(count,fraud),borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',border:`1px solid ${fraud>0?'rgba(239,68,68,0.3)':count>0?'rgba(59,130,246,0.15)':'rgba(255,255,255,0.03)'}`,cursor:count>0?'pointer':'default',boxShadow:isHov&&count>0?`0 0 12px ${fraud>0?'rgba(239,68,68,0.4)':'rgba(59,130,246,0.3)'}`:'none'}}>
@@ -230,14 +231,14 @@ function CollusionMatrix({ sgd }: { sgd: SGDRow[] }) {
           </tbody>
         </table>
       </div>
-      {hovCell&&matrix[hovCell.imp]?.[hovCell.dec]>0&&(
+      {hovCell&&matrix[hovCell.imp]?.[hovCell.off]>0&&(
         <motion.div initial={{opacity:0,y:4}} animate={{opacity:1,y:0}} className="mt-3 p-3 rounded-xl text-xs flex gap-4"
           style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)'}}>
           <span>🏢 <b className="text-white">{hovCell.imp}</b></span>
-          <span>👤 <b className="text-white">{hovCell.dec}</b></span>
-          <span>📋 <b style={{color:'#60a5fa'}}>{matrix[hovCell.imp][hovCell.dec]} SGDs partagés</b></span>
-          {fraudMatrix[hovCell.imp][hovCell.dec]>0&&<span style={{color:'#f87171'}}>🚨 <b>{fraudMatrix[hovCell.imp][hovCell.dec]} fraudes</b></span>}
-          {matrix[hovCell.imp][hovCell.dec]/(sgd.filter(s=>s.importer_id===hovCell.imp).length||1)>0.7&&<span style={{color:'#fbbf24'}}>⚠️ Concentration suspecte</span>}
+          <span>👮 <b className="text-white">{hovCell.off}</b></span>
+          <span>📋 <b style={{color:'#60a5fa'}}>{matrix[hovCell.imp][hovCell.off]} SGDs traités ensemble</b></span>
+          {fraudMatrix[hovCell.imp][hovCell.off]>0&&<span style={{color:'#f87171'}}>🚨 <b>{fraudMatrix[hovCell.imp][hovCell.off]} fraudes</b></span>}
+          {matrix[hovCell.imp][hovCell.off]/(sgd.filter(s=>s.importer_id===hovCell.imp).length||1)>0.7&&<span style={{color:'#fbbf24'}}>⚠️ Concentration suspecte</span>}
         </motion.div>
       )}
     </div>
@@ -251,24 +252,24 @@ function SankeyFlow({ sgd }: { sgd: SGDRow[] }) {
   const [hovPath, setHovPath] = useState<string|null>(null);
   const W=780; const H=320; const PAD=20;
   const COL_X = [PAD+40, PAD+220, PAD+420, PAD+600];
-  const COL_LABELS = ['Importateurs','Déclarants','Bureaux','Codes Tarif'];
-  const COL_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6'];
+  const COL_LABELS = ['Importateurs','Agents Douaniers','Bureaux','Codes Tarif'];
+  const COL_COLORS = ['#3b82f6','#a78bfa','#f59e0b','#8b5cf6'];
 
   // Build aggregations
   const impMap: Record<string,{volume:number;fraud:number}> = {};
-  const decMap: Record<string,{volume:number;fraud:number}> = {};
+  const offiderMap: Record<string,{volume:number;fraud:number}> = {};
   const offMap: Record<string,{volume:number;fraud:number}> = {};
   const tarMap: Record<string,{volume:number;fraud:number}> = {};
   sgd.forEach(s=>{
-    [impMap,decMap,offMap,tarMap].forEach((m,i)=>{
-      const k=[s.importer_id,s.declarant_id,s.office_id,s.tariff_code][i];
+    [impMap,offiderMap,offMap,tarMap].forEach((m,i)=>{
+      const k=[s.importer_id,s.inspector_id,s.office_id,s.tariff_code][i];
       if(!m[k])m[k]={volume:0,fraud:0};
       m[k].volume++; if(s.fraud_flag)m[k].fraud++;
     });
   });
 
   const topImporters=Object.entries(impMap).sort((a,b)=>b[1].volume-a[1].volume).slice(0,6);
-  const topDeclarants=Object.entries(decMap).sort((a,b)=>b[1].volume-a[1].volume).slice(0,5);
+  const topOfficers=Object.entries(offiderMap).sort((a,b)=>b[1].volume-a[1].volume).slice(0,5);
   const topOffices=Object.entries(offMap).sort((a,b)=>b[1].volume-a[1].volume).slice(0,4);
   const topTariffs=Object.entries(tarMap).sort((a,b)=>b[1].volume-a[1].volume).slice(0,5);
 
@@ -281,33 +282,33 @@ function SankeyFlow({ sgd }: { sgd: SGDRow[] }) {
 
   const h=H-60;
   const p0=nodeY(topImporters,0,h);
-  const p1=nodeY(topDeclarants,1,h);
+  const p1=nodeY(topOfficers,1,h);
   const p2=nodeY(topOffices,2,h);
   const p3=nodeY(topTariffs,3,h);
   const positions=[p0,p1,p2,p3];
 
-  // Flows: imp→dec
+  // Flows: imp→officer
   const flows: {from:string;to:string;col1:number;col2:number;volume:number;fraud:number;key:string}[]=[];
   sgd.forEach(s=>{
-    if(!p0[s.importer_id]||!p1[s.declarant_id]) return;
-    const key=`${s.importer_id}->${s.declarant_id}`;
+    if(!p0[s.importer_id]||!p1[s.inspector_id]) return;
+    const key=`${s.importer_id}->${s.inspector_id}`;
     const ex=flows.find(f=>f.key===key);
     if(ex){ex.volume++;if(s.fraud_flag)ex.fraud++;}
-    else flows.push({from:s.importer_id,to:s.declarant_id,col1:0,col2:1,volume:1,fraud:s.fraud_flag?1:0,key});
+    else flows.push({from:s.importer_id,to:s.inspector_id,col1:0,col2:1,volume:1,fraud:s.fraud_flag?1:0,key});
   });
 
   const BAR_W=16;
 
   return (
     <div className="card">
-      <SectionTitle icon="🌊">Flux Sankey — Importateurs → Déclarants → Bureaux → Tarifs</SectionTitle>
-      <p className="text-xs text-muted mb-4">Épaisseur des rubans = volume de déclarations · <span style={{color:'#ef4444'}}>Rouge = flux frauduleux dominants</span></p>
+      <SectionTitle icon="🌊">Flux Sankey — Importateurs → Agents Douaniers → Bureaux → Tarifs</SectionTitle>
+      <p className="text-xs text-muted mb-4">Épaisseur des rubans = volume de déclarations traitées par agent · <span style={{color:'#ef4444'}}>Rouge = flux frauduleux dominants</span></p>
       <div className="overflow-x-auto">
         <svg width={W} height={H} style={{fontFamily:'Inter,sans-serif'}}>
           {/* Column labels */}
           {COL_LABELS.map((l,i)=><text key={l} x={COL_X[i]+BAR_W/2} y={14} textAnchor="middle" fontSize={10} fontWeight={700} fill={COL_COLORS[i]}>{l}</text>)}
 
-          {/* Flow ribbons imp→dec */}
+          {/* Flow ribbons imp→officer */}
           {flows.filter(f=>f.volume>1).map(f=>{
             const a=p0[f.from]; const b=p1[f.to]; if(!a||!b) return null;
             const x1=COL_X[0]+BAR_W; const x2=COL_X[1];
@@ -323,7 +324,7 @@ function SankeyFlow({ sgd }: { sgd: SGDRow[] }) {
           })}
 
           {/* Nodes — all 4 columns */}
-          {[topImporters,topDeclarants,topOffices,topTariffs].map((items,ci)=>
+          {[topImporters,topOfficers,topOffices,topTariffs].map((items,ci)=>
             items.map(([k,v])=>{
               const pos=positions[ci][k]; if(!pos) return null;
               const fraudRate=v.fraud/v.volume;
@@ -337,7 +338,7 @@ function SankeyFlow({ sgd }: { sgd: SGDRow[] }) {
           )}
         </svg>
       </div>
-      {hovPath&&(()=>{const f=flows.find(x=>x.key===hovPath); return f?<motion.div initial={{opacity:0}} animate={{opacity:1}} className="mt-2 p-3 rounded-xl text-xs flex gap-4" style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)'}}><span>🏢 <b className="text-white">{f.from}</b></span><span>→</span><span>👤 <b className="text-white">{f.to}</b></span><span>📋 <b style={{color:'#60a5fa'}}>{f.volume} SGDs</b></span>{f.fraud>0&&<span style={{color:'#f87171'}}>🚨 {f.fraud} fraudes ({Math.round(f.fraud/f.volume*100)}%)</span>}</motion.div>:null;})()}
+      {hovPath&&(()=>{const f=flows.find(x=>x.key===hovPath); return f?<motion.div initial={{opacity:0}} animate={{opacity:1}} className="mt-2 p-3 rounded-xl text-xs flex gap-4" style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)'}}><span>🏢 <b className="text-white">{f.from}</b></span><span>→</span><span>👮 <b className="text-white">{f.to}</b></span><span>📋 <b style={{color:'#60a5fa'}}>{f.volume} SGDs</b></span>{f.fraud>0&&<span style={{color:'#f87171'}}>🚨 {f.fraud} fraudes ({Math.round(f.fraud/f.volume*100)}%)</span>}</motion.div>:null;})()}
     </div>
   );
 }
@@ -435,6 +436,7 @@ export default function GraphPage() {
     if(fraudData?.cases){
       const synth: SGDRow[] = fraudData.cases.map((f: FraudCase)=>({
         sgd_id:f.sgd_id, date:f.date_detection, importer_id:f.importer_id, declarant_id:f.declarant_id,
+        inspector_id:f.inspector_id,
         office_id:f.office_id, tariff_code:'', cif_value:0, fraud_flag:1,
         taxes_declared:f.loss_net, revenue_collected:0,
       }));
@@ -466,7 +468,7 @@ export default function GraphPage() {
   // Build SGD rows from fraud cases for visualizations
   const allSGD: SGDRow[] = fraudCases.map(f=>({
     sgd_id:f.sgd_id, date:f.date_detection||'2024-01-01', importer_id:f.importer_id,
-    declarant_id:f.declarant_id, office_id:f.office_id, tariff_code:'85044000',
+    declarant_id:f.declarant_id, inspector_id:f.inspector_id, office_id:f.office_id, tariff_code:'85044000',
     cif_value:f.loss_net*2, fraud_flag:1, taxes_declared:f.loss_net,
     revenue_collected:f.loss_net*0.6,
   }));
