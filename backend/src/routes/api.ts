@@ -19,6 +19,29 @@ const wrap = (fn: (req: Request, res: Response) => Promise<void>) =>
   });
 
 // ── GET /api/overview ─────────────────────────────────────────────────────────
+// ── DEBUG: verify fraud_trend shape matches expected contract ──────────────
+router.get('/debug/fraud-trend', wrap(async (_req, res) => {
+  const { sgd, fraud } = await getSheetData();
+  const { buildOverview } = await import('../services/analytics.js');
+  const overview = buildOverview(sgd, fraud);
+  res.json({
+    deployed_at: new Date().toISOString(),
+    sgd_count: sgd.length,
+    fraud_trend_sample: overview.fraud_trend.slice(0, 3),
+    field_types: {
+      count: typeof overview.fraud_trend[0]?.count,
+      rate: typeof overview.fraud_trend[0]?.rate,
+      total: typeof overview.fraud_trend[0]?.total,
+    },
+    invariant_sum_check: {
+      sum_monthly_count: overview.fraud_trend.reduce((s, m) => s + m.count, 0),
+      total_fraud_confirmed: overview.fraud_confirmed,
+      fraud_count_field: overview.fraud_count,
+    },
+    office_sample: overview.office_distribution.slice(0, 2),
+  });
+}));
+
 router.get('/overview', wrap(async (_req, res) => {
   const { sgd, fraud } = await getSheetData();
   res.json(buildOverview(sgd, fraud));

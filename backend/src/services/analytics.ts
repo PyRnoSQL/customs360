@@ -311,6 +311,18 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
     };
   });
 
+  // ── Invariant check: monthly fraud counts must sum to total fraud rows ────
+  // Logs a warning only — never blocks the response — so a data-shape
+  // regression shows up immediately in server logs instead of as a silent
+  // "flat 0%" chart on the frontend.
+  const sumMonthlyFraud = fraudTrend.reduce((s, m) => s + m.count, 0);
+  if (sumMonthlyFraud !== fraudRows.length) {
+    console.warn(
+      `[buildOverview] INVARIANT VIOLATION: sum(fraud_trend.count)=${sumMonthlyFraud} ` +
+      `!== fraudRows.length=${fraudRows.length}. Check date parsing / isFraud().`
+    );
+  }
+
   return {
     total_sgd:          sgd.length,
     total_revenue:      totalRevenue,
