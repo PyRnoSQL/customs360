@@ -139,7 +139,7 @@ ${p.percent}%`,
         <SectionTitle icon="🚨">Tous les Cas de Fraude</SectionTitle>
         <PaginatedTable
           pageSize={15}
-          headers={<tr><th>Cas</th><th>Importateur</th><th>Déclarant</th><th>Type</th><th>Évasion</th><th>Pénalité</th><th>Score IA</th><th>Bureau</th><th>Statut</th></tr>}
+          headers={<tr><th>Cas</th><th>Importateur</th><th>Déclarant</th><th>Type</th><th>Évasion</th><th>Pénalité</th><th>Score IA</th><th>Secteur</th><th>Statut</th></tr>}
           rows={filteredCases.map((f: { case_id: string; sgd_id: string; importer_id: string; importer_name?: string; declarant_id: string; declarant_name?: string; fraud_type: string; loss_net: number; tax_evasion_amount?: number; penalty_amount?: number; ai_risk_score: number; office_id: string; office_name?: string; status: string }) => (
             <tr key={f.case_id}>
               <td><Code>{f.case_id}</Code></td>
@@ -187,7 +187,7 @@ function FraudAnomalyScoring({ bureau, period }: { bureau: string; period: strin
         <span className="text-xs px-2 py-1 rounded-full font-bold" style={{ background:'rgba(239,68,68,0.15)', color:'#f87171' }}>{high_risk} critiques</span>
       </div>
       <PaginatedTable pageSize={10}
-        headers={<tr><th>SGD</th><th>Importateur</th><th>Tarif</th><th>Bureau</th><th>Score</th><th>Prob.</th><th>Revenu à risque</th><th>Action</th></tr>}
+        headers={<tr><th>SGD</th><th>Importateur</th><th>Tarif</th><th>Secteur</th><th>Score</th><th>Prob.</th><th>Revenu à risque</th><th>Action</th></tr>}
         rows={(top_anomalies as Anomaly[]).map(a => (
           <tr key={a.sgd_id}>
             <td><Code>{a.sgd_id}</Code></td>
@@ -230,7 +230,7 @@ export function Delays() {
         <SectionTitle icon="⏱️">Déclarations avec Délais Anormaux</SectionTitle>
         <PaginatedTable
           pageSize={15}
-          headers={<tr><th>SGD</th><th>Importateur</th><th>Bureau</th><th>Pays</th><th>Délai Standard</th><th>Délai Réel</th><th>Dépassement</th><th>Tarif</th><th>Fraude</th></tr>}
+          headers={<tr><th>SGD</th><th>Importateur</th><th>Secteur</th><th>Pays</th><th>Délai Standard</th><th>Délai Réel</th><th>Dépassement</th><th>Tarif</th><th>Fraude</th></tr>}
           rows={filtered.map((d: { sgd_id: string; office_id: string; office_name?: string; importer_id: string; importer_name?: string; country: string; declared_hours: number; clearance_hours: number; overshoot_hours: number; tariff_code: string; tariff_description?: string; fraud_flag: number }) => (
             <tr key={d.sgd_id}>
               <td><Code>{d.sgd_id}</Code></td>
@@ -305,7 +305,7 @@ function DelaysCausalAnalysis() {
             ))}
           </div>
           <table className="tbl">
-            <thead><tr><th>SGD</th><th>Bureau</th><th>Importateur</th><th>Cause</th><th>Dépassement</th><th>Confiance</th><th>Action recommandée</th></tr></thead>
+            <thead><tr><th>SGD</th><th>Secteur</th><th>Importateur</th><th>Cause</th><th>Dépassement</th><th>Confiance</th><th>Action recommandée</th></tr></thead>
             <tbody>
               {(delay_causes as DelayCause[]).slice(0,20).map((d: DelayCause) => (
                 <tr key={d.sgd_id} style={{background:d.cause==='INTENTIONAL'?'rgba(239,68,68,0.04)':undefined}}>
@@ -326,7 +326,7 @@ function DelaysCausalAnalysis() {
       {/* Bureau trajectories — moved from Prédictions IA */}
       {bureau_trajectories && bureau_trajectories.length > 0 && (
         <div className="card">
-          <SectionTitle icon="🏛️">Trajectoire des Bureaux — Tendance Recettes</SectionTitle>
+          <SectionTitle icon="🏛️">Trajectoire des Secteurs — Tendance Recettes</SectionTitle>
           {fraud_velocity && (
             <div className="mb-4 p-3 rounded-xl text-xs flex items-center gap-3" style={{background:'rgba(59,130,246,0.06)',border:'1px solid rgba(59,130,246,0.15)'}}>
               <span>⚡ Vélocité fraude:</span>
@@ -368,15 +368,15 @@ export function Offices() {
     <div className="space-y-5">
       <PageHeader />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Bureaux Actifs" value={fmt(filteredOffices.length)} color="accent" />
+        <KPICard label="Secteurs Actifs" value={fmt(filteredOffices.length)} color="accent" />
         <KPICard label="Total Recettes" value={fmtM(filteredOffices.reduce((s: number, o: { total_revenue: number }) => s + o.total_revenue, 0)) + ' FCFA'} color="success" />
         <KPICard label="Meilleure Efficacité" value={filteredOffices.length ? Math.max(...filteredOffices.map((o: { efficiency_score: number }) => o.efficiency_score)) + '%' : '—'} color="teal" />
         <KPICard label="Total SGDs" value={fmt(filteredOffices.reduce((s: number, o: { total_sgds: number }) => s + o.total_sgds, 0))} color="gold" />
       </div>
       <div className="card">
-        <SectionTitle icon="🏛️">Classement Bureaux Douaniers</SectionTitle>
+        <SectionTitle icon="🏛️">Classement Secteurs Douaniers</SectionTitle>
         <table className="tbl">
-          <thead><tr><th>#</th><th>Bureau</th><th>SGDs</th><th>% Trafic</th><th>Recettes</th><th>Délai Moy.</th><th>Fraudes</th><th>Efficacité</th></tr></thead>
+          <thead><tr><th>#</th><th>Secteur</th><th>SGDs</th><th>% Trafic</th><th>Recettes</th><th>Délai Moy.</th><th>Fraudes</th><th>Efficacité</th></tr></thead>
           <tbody>
             {sorted.map((o, i) => (
               <tr key={o.office_id}>
@@ -678,7 +678,7 @@ export function GraphPage() {
         <div className="flex items-center gap-4 mb-3 flex-wrap">
           <SectionTitle icon="🕸️">Graphe DATE — Réseau Entités Douanières</SectionTitle>
           <div className="ml-auto flex gap-4">
-            {[['#3b82f6','Importateur'],['#10b981','Déclarant'],['#8b5cf6','SGD'],['#f59e0b','Bureau'],['#ef4444','Fraude']].map(([c,l]) => (
+            {[['#3b82f6','Importateur'],['#10b981','Déclarant'],['#8b5cf6','SGD'],['#f59e0b','Secteur'],['#ef4444','Fraude']].map(([c,l]) => (
               <span key={l} className="flex items-center gap-1 text-xs text-sub">
                 <span className="w-2 h-2 rounded-full inline-block" style={{ background: c }} />{l}
               </span>

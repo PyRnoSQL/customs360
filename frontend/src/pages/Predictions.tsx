@@ -298,7 +298,7 @@ function DelayClassifierPanel({ delays }: { delays: DelayCause[] }) {
         </div>
         <div className="xl:col-span-2 overflow-y-auto" style={{ maxHeight:260 }}>
           <table className="tbl">
-            <thead><tr><th>SGD</th><th>Bureau</th><th>Cause</th><th>Dépassement</th><th>Confiance</th><th>Action</th></tr></thead>
+            <thead><tr><th>SGD</th><th>Secteur</th><th>Cause</th><th>Dépassement</th><th>Confiance</th><th>Action</th></tr></thead>
             <tbody>
               {delays.slice(0, 15).map(d => (
                 <motion.tr key={d.sgd_id} initial={{ opacity:0 }} animate={{ opacity:1 }}>
@@ -455,7 +455,7 @@ export default function Predictions() {
       {/* Info banner: moved sections */}
       <div className="p-3 rounded-xl text-xs text-muted" style={{ background:'rgba(59,130,246,0.05)', border:'1px solid rgba(59,130,246,0.1)' }}>
         💡 <b style={{color:'#60a5fa'}}>Contenu déplacé vers les pages dédiées:</b>&nbsp;
-        Scoring Anomalies → <b>Détection Fraude</b> · Délais + Trajectoires Bureaux → <b>Délais Suspects</b> · Dérive Risque + Prochaine Décl → <b>Importateurs</b> · Collusion → <b>Performance Agents</b>
+        Scoring Anomalies → <b>Détection Fraude</b> · Délais + Trajectoires Secteurs → <b>Délais Suspects</b> · Dérive Risque + Prochaine Décl → <b>Importateurs</b> · Collusion → <b>Performance Agents</b>
       </div>
     </div>
   );

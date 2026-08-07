@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import { getSheetData, invalidateCache, cacheStatus } from '../services/sheets';
 import {
   buildOverview, buildImporterProfiles, buildOfficeStats,
-  buildTariffRisk, buildDelays, buildMonthlyRevenue
+  buildTariffRisk, buildDelays, buildMonthlyRevenue,
+  OFFICE_NAMES, OFFICE_BASELINES
 } from '../services/analytics';
 
 const router = Router();
@@ -523,7 +524,7 @@ router.get('/advanced/recommendations', wrap(async (_req, res) => {
   if(highFraudTariffs.length>0) recs.push({ priority:3, category:'CIBLAGE', title:'Renforcement scrutin codes tarifaires à risque', description:`${highFraudTariffs.length} codes HS présentent un taux de fraude > 15%. Basculer en canal ROUGE automatique.`, impact:'Élevé', action:'Mise à jour règles de ciblage automatique', entities:highFraudTariffs.map(([k,v])=>`${k} (${v.desc})`) });
 
   // Low efficiency offices
-  const BASELINES: Record<string,number>={DLA001:36,KBI001:28,DLA002:18,YDE001:22,YDE002:48,NGD001:72,BFR001:60,GRA001:24};
+  const BASELINES = OFFICE_BASELINES;
   const offHours: Record<string,number[]> = {};
   sgd.forEach(r=>{if(!offHours[r.office_id])offHours[r.office_id]=[];offHours[r.office_id].push(r.clearance_hours);});
   const slowOffices=Object.entries(offHours).filter(([oid,hrs])=>{ const avg=hrs.reduce((a,b)=>a+b,0)/hrs.length; return avg>((BASELINES[oid]??36)*1.3); }).map(([oid,hrs])=>({id:oid,avg:Math.round(hrs.reduce((a,b)=>a+b,0)/hrs.length),baseline:BASELINES[oid]??36})).sort((a,b)=>(b.avg/b.baseline)-(a.avg/a.baseline));
@@ -556,7 +557,7 @@ router.get('/advanced/network', wrap(async (_req, res) => {
   sgd.forEach(r=>{if(!impData[r.importer_id])impData[r.importer_id]={fraud:0,total:0,name:r.importer_name??r.importer_id};impData[r.importer_id].total++;if(rowIsFraud(r))impData[r.importer_id].fraud++;});
   const INSPECTOR_NAMES: Record<string,string> = {INS001:'MBARGA J-P',INS002:'TCHOUMBA A',INS003:'NKENGUE M',INS004:'ESSOMBA P',INS005:'BIYA-FOUDA S',INS006:'MOHAMADOU A',INS007:'KANA H',INS008:'FOUDA-BELL E',INS009:'ABENA C',INS010:'ONDOUA P',INS011:'NJOYA I',INS012:'ATANGA S',INS013:'BELL M',INS014:'NGOUMOU T',INS015:'EYINGA R',INS016:'MEKOULOU S',INS017:'KOUM B',INS018:'DANG F',INS019:'OWONA C',INS020:'NTYAM L'};
   const DEC_NAMES: Record<string,string> = {DEC001:'CAMTRANS',DEC002:'TRANSIT LITTORAL',DEC003:'DOUALA CLEARING',DEC004:'INTER-FRET',DEC005:'LOGISTICAM',DEC006:'TRANS-EQUATEUR',DEC007:'MFOUNDI TRANSIT',DEC008:'CAMEREX',DEC009:'SAHEL TRANSIT',DEC010:'ATL. DÉDOUANEMENT'};
-  const OFF_NAMES: Record<string,string> = {DLA001:'Douala Port',KBI001:'Kribi Port',DLA002:'Douala Aéro',YDE001:'Yaoundé NSM',YDE002:'Yaoundé CTR',NGD001:'Ngaoundéré',BFR001:'Bafoussam',GRA001:'Garoua'};
+  const OFF_NAMES = OFFICE_NAMES;
 
   // Collusion pairs from fraud cases
   const collusionPairs = new Set(fraud.filter(f=>f.collusion_suspected==='TRUE').map(f=>`${f.inspector_id}|${f.declarant_id}`));
@@ -593,8 +594,8 @@ router.get('/advanced/inspector-deep', wrap(async (_req, res) => {
   const { sgd, fraud } = await getSheetData();
   const toM = (d: string) => { try{const dt=new Date(d);return isNaN(dt.getTime())?'':`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;}catch{return'';} };
   const FR=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
-  const BASELINES: Record<string,number>={DLA001:36,KBI001:28,DLA002:18,YDE001:22,YDE002:48,NGD001:72,BFR001:60,GRA001:24};
-  const INSPECTOR_INFO: Record<string,{name:string;grade:string;bureau:string}> = {INS001:{name:'MBARGA Jean-Paul',grade:'Inspecteur Principal',bureau:'DLA001'},INS002:{name:'TCHOUMBA André',grade:'Inspecteur',bureau:'DLA001'},INS003:{name:'NKENGUE Marie',grade:'Inspecteur Principal',bureau:'DLA001'},INS004:{name:'ESSOMBA Pierre',grade:'Contrôleur',bureau:'DLA001'},INS005:{name:'BIYA-FOUDA Salatou',grade:'Inspecteur Principal',bureau:'DLA002'},INS006:{name:'MOHAMADOU Alim',grade:'Inspecteur',bureau:'DLA002'},INS007:{name:'KANA Hélène',grade:'Inspecteur',bureau:'KBI001'},INS008:{name:'FOUDA-BELL Ernest',grade:'Contrôleur',bureau:'KBI001'},INS009:{name:'ABENA Christine',grade:'Inspecteur Principal',bureau:'YDE001'},INS010:{name:'ONDOUA Patrick',grade:'Inspecteur',bureau:'YDE001'},INS011:{name:'NJOYA Ibrahim',grade:'Inspecteur',bureau:'YDE002'},INS012:{name:'ATANGA Sylvie',grade:'Contrôleur',bureau:'YDE002'},INS013:{name:'BELL Martin',grade:'Inspecteur',bureau:'NGD001'},INS014:{name:'NGOUMOU Théodore',grade:'Contrôleur',bureau:'NGD001'},INS015:{name:'EYINGA Rachel',grade:'Inspecteur',bureau:'BFR001'},INS016:{name:'MEKOULOU Samuel',grade:'Contrôleur',bureau:'BFR001'},INS017:{name:'KOUM Basile',grade:'Inspecteur',bureau:'GRA001'},INS018:{name:'DANG Fatima',grade:'Contrôleur',bureau:'GRA001'},INS019:{name:'OWONA Célestin',grade:'Inspecteur',bureau:'DLA001'},INS020:{name:'NTYAM Louise',grade:'Inspecteur',bureau:'KBI001'}};
+  const BASELINES = OFFICE_BASELINES;
+  const INSPECTOR_INFO: Record<string,{name:string;grade:string;bureau:string}> = {INS001:{name:'MBARGA Jean-Paul',grade:'Inspecteur Principal',bureau:'LT1'},INS002:{name:'TCHOUMBA André',grade:'Inspecteur',bureau:'LT1'},INS003:{name:'NKENGUE Marie',grade:'Inspecteur Principal',bureau:'LT1'},INS004:{name:'ESSOMBA Pierre',grade:'Contrôleur',bureau:'LT1'},INS005:{name:'BIYA-FOUDA Salatou',grade:'Inspecteur Principal',bureau:'LT2'},INS006:{name:'MOHAMADOU Alim',grade:'Inspecteur',bureau:'LT2'},INS007:{name:'KANA Hélène',grade:'Inspecteur',bureau:'SD2'},INS008:{name:'FOUDA-BELL Ernest',grade:'Contrôleur',bureau:'SD2'},INS009:{name:'ABENA Christine',grade:'Inspecteur Principal',bureau:'CTR'},INS010:{name:'ONDOUA Patrick',grade:'Inspecteur',bureau:'CTR'},INS011:{name:'NJOYA Ibrahim',grade:'Inspecteur',bureau:'CTR'},INS012:{name:'ATANGA Sylvie',grade:'Contrôleur',bureau:'CTR'},INS013:{name:'BELL Martin',grade:'Inspecteur',bureau:'ADM'},INS014:{name:'NGOUMOU Théodore',grade:'Contrôleur',bureau:'ADM'},INS015:{name:'EYINGA Rachel',grade:'Inspecteur',bureau:'OUE'},INS016:{name:'MEKOULOU Samuel',grade:'Contrôleur',bureau:'OUE'},INS017:{name:'KOUM Basile',grade:'Inspecteur',bureau:'NRD'},INS018:{name:'DANG Fatima',grade:'Contrôleur',bureau:'NRD'},INS019:{name:'OWONA Célestin',grade:'Inspecteur',bureau:'LT1'},INS020:{name:'NTYAM Louise',grade:'Inspecteur',bureau:'SD2'}};
   const insIds = [...new Set(sgd.map(s=>s.inspector_id).filter(Boolean))];
 
   const result = insIds.map(iid => {
@@ -638,8 +639,8 @@ router.get('/advanced/office-deep', wrap(async (_req, res) => {
   const { sgd, fraud } = await getSheetData();
   const toM = (d: string) => { try{const dt=new Date(d);return isNaN(dt.getTime())?'':`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;}catch{return'';} };
   const FR=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
-  const BASELINES: Record<string,number>={DLA001:36,KBI001:28,DLA002:18,YDE001:22,YDE002:48,NGD001:72,BFR001:60,GRA001:24};
-  const NAMES: Record<string,string>={DLA001:'Douala Port Principal',KBI001:'Kribi Port Autonome',DLA002:'Douala Aéroport',YDE001:'Yaoundé Nsimalen',YDE002:'Yaoundé Centre',NGD001:'Ngaoundéré Rail',BFR001:'Bafoussam Frontière',GRA001:'Garoua Aéroport'};
+  const BASELINES = OFFICE_BASELINES;
+  const NAMES = OFFICE_NAMES;
   const offIds = [...new Set(sgd.map(s=>s.office_id))];
 
   const result = offIds.map(oid => {

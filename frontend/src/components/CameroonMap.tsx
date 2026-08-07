@@ -4,12 +4,18 @@ import { motion } from 'framer-motion';
 import 'leaflet/dist/leaflet.css';
 
 const OFFICES = [
-  { id: 'DLA001', name: 'Douala Port Principal', region: 'Littoral', lat: 4.0511, lng: 9.7085,  type: 'Port',    color: '#3b82f6' },
-  { id: 'DLA002', name: 'Douala Aéroport',       region: 'Littoral', lat: 4.0061, lng: 9.7195,  type: 'Airport', color: '#8b5cf6' },
-  { id: 'KBI001', name: 'Kribi Port Autonome',   region: 'Sud',      lat: 2.9395, lng: 9.9118,  type: 'Port',    color: '#10b981' },
-  { id: 'YDE001', name: 'Yaoundé Nsimalen',      region: 'Centre',   lat: 3.7225, lng: 11.5533, type: 'Airport', color: '#f59e0b' },
-  { id: 'YDE002', name: 'Yaoundé Centre',        region: 'Centre',   lat: 3.8480, lng: 11.5021, type: 'Land',    color: '#ef4444' },
-  { id: 'NGD001', name: 'Ngaoundéré Rail',       region: 'Adamaoua', lat: 7.3220, lng: 13.5833, type: 'Rail',    color: '#06b6d4' },
+  { id: 'LT1', name: 'Littoral 1 (Douala Port)',    region: 'Littoral',     lat: 4.0511, lng: 9.7085,  type: 'Port',    color: '#3b82f6' },
+  { id: 'LT2', name: 'Littoral 2 (Douala Aéroport)', region: 'Littoral',    lat: 4.0061, lng: 9.7195,  type: 'Airport', color: '#8b5cf6' },
+  { id: 'SD2', name: 'Sud 2 (Kribi Port)',          region: 'Sud',         lat: 2.9395, lng: 9.9118,  type: 'Port',    color: '#10b981' },
+  { id: 'SD1', name: 'Sud 1 (Ebolowa)',             region: 'Sud',         lat: 2.9167, lng: 11.1500, type: 'Land',    color: '#059669' },
+  { id: 'CTR', name: 'Centre (Yaoundé)',            region: 'Centre',      lat: 3.8480, lng: 11.5021, type: 'Land',    color: '#f59e0b' },
+  { id: 'ADM', name: 'Adamaoua (Ngaoundéré)',       region: 'Adamaoua',    lat: 7.3220, lng: 13.5833, type: 'Rail',    color: '#06b6d4' },
+  { id: 'OUE', name: 'Ouest (Bafoussam)',           region: 'Ouest',       lat: 5.4737, lng: 10.4179, type: 'Land',    color: '#a855f7' },
+  { id: 'NRD', name: 'Nord (Garoua)',               region: 'Nord',        lat: 9.3017, lng: 13.3921, type: 'Airport', color: '#ef4444' },
+  { id: 'EXN', name: 'Extrême-Nord (Maroua)',       region: 'Extrême-Nord',lat: 10.5956, lng: 14.3247, type: 'Land',    color: '#f97316' },
+  { id: 'NRO', name: 'Nord-Ouest (Bamenda)',        region: 'Nord-Ouest',  lat: 5.9631, lng: 10.1591, type: 'Land',    color: '#ec4899' },
+  { id: 'SUO', name: 'Sud-Ouest (Buea/Limbe)',      region: 'Sud-Ouest',   lat: 4.1560, lng: 9.2410,  type: 'Port',    color: '#14b8a6' },
+  { id: 'EST', name: 'Est (Bertoua)',               region: 'Est',         lat: 4.5833, lng: 13.6833, type: 'Land',    color: '#84cc16' },
 ];
 
 const RISK_COLOR = (r: number) =>

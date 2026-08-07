@@ -9,7 +9,7 @@ import { useApi } from '../hooks/useApi';
 import { api, fmtM, fmt } from '../services/api';
 import { KPICard, SectionTitle, Loading, ErrorBox, FadeIn, StaggerGrid, AnimatedNumber } from '../components/UI';
 import { PageHeader } from '../App';
-import { useFilters } from '../context/FilterContext';
+import { useFilters, BureauFilter } from '../context/FilterContext';
 import CameroonMap from '../components/CameroonMap';
 
 const CHART_STYLE = {
@@ -93,7 +93,7 @@ export default function Offices() {
       <PageHeader />
 
       <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Bureaux actifs" value={data.length} icon="🏛️" color="accent" />
+        <KPICard label="Secteurs actifs" value={data.length} icon="🏛️" color="accent" />
         <KPICard label="Total recettes" value={Math.round(data.reduce((s: number, o: Office) => s + o.total_revenue, 0) / 1e9 * 10) / 10} suffix=" Mrd" icon="💰" color="success" />
         <KPICard label="Meilleure efficacité" value={best?.efficiency_score ?? 0} suffix="%" icon="🏆" color="teal" />
         <KPICard label="Total fraudes" value={data.reduce((s: number, o: Office) => s + o.fraud_cases, 0)} icon="🚨" color="danger" />
@@ -102,11 +102,11 @@ export default function Offices() {
       {/* Leaflet Map */}
       <FadeIn delay={0.1}>
         <div className="card">
-          <SectionTitle icon="🗺️">Carte des Bureaux Douaniers — Cameroun</SectionTitle>
+          <SectionTitle icon="🗺️">Carte des Secteurs Douaniers — Cameroun</SectionTitle>
           <CameroonMap
             selectedBureau={filters.bureau}
             officeStats={officeStats}
-            onSelect={(id) => setFilter('bureau', id === 'ALL' ? 'ALL' : id as 'DLA001' | 'KBI001' | 'DLA002' | 'YDE001' | 'YDE002')}
+            onSelect={(id) => setFilter('bureau', id === 'ALL' ? 'ALL' : id as BureauFilter)}
           />
         </div>
       </FadeIn>
@@ -178,11 +178,11 @@ export default function Offices() {
                   <PolarGrid stroke="#1e3a5f" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill:'#94a3b8', fontSize:10, fontWeight:600 }} />
                   <PolarRadiusAxis domain={[0,100]} tick={{ fill:'#475569', fontSize:8 }} tickCount={4} />
-                  <Radar name="Moyenne Bureaux" dataKey="benchmark"
+                  <Radar name="Moyenne Secteurs" dataKey="benchmark"
                     stroke="#334155" fill="#334155" fillOpacity={0.15}
                     strokeWidth={1} strokeDasharray="4 2"
                     isAnimationActive animationDuration={800} animationEasing="ease-out" />
-                  <Radar name="Score Bureau" dataKey="score"
+                  <Radar name="Score Secteur" dataKey="score"
                     stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25}
                     strokeWidth={2} dot={{ fill:'#3b82f6', r:4, strokeWidth:0 }}
                     isAnimationActive animationBegin={300} animationDuration={1200} animationEasing="ease-out" />
@@ -199,14 +199,14 @@ export default function Offices() {
                 <span className="w-4 h-0.5 rounded" style={{ borderTop:'1px dashed #334155', borderColor:'#334155' }}/>Moyenne
               </span>
             </div>
-            <div className="text-center text-xs text-muted mt-1">Cliquez sur un bureau pour voir son profil</div>
+            <div className="text-center text-xs text-muted mt-1">Cliquez sur un secteur pour voir son profil</div>
           </div>
         </FadeIn>
 
         {/* Pareto: revenue + fraud */}
         <FadeIn delay={0.15} className="xl:col-span-2 h-full">
           <div className="card h-full flex flex-col">
-            <SectionTitle icon="📊">Recettes & Fraudes par Bureau</SectionTitle>
+            <SectionTitle icon="📊">Recettes & Fraudes par Secteur</SectionTitle>
             <div className="flex-1">
               <ResponsiveContainer width="100%" height={340}>
                 <BarChart data={paretoData} margin={{ left: -10, right: 10, bottom: 8, top: 5 }}>
@@ -257,7 +257,7 @@ export default function Offices() {
                   );
                 }}
               />
-              <Scatter data={scatterData} name="Bureaux">
+              <Scatter data={scatterData} name="Secteurs">
                 {scatterData.map((entry: { id: string; efficiency: number }, i: number) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} fillOpacity={0.8} />
                 ))}

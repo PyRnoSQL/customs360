@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, BarChart, Bar,
+  ResponsiveContainer, Cell, BarChart, Bar, PieChart, Pie,
 } from 'recharts';
-import ReactECharts from 'echarts-for-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApi } from '../hooks/useApi';
 import { PageHeader } from '../App';
@@ -96,78 +95,10 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
   const fraudPct = o.total_declarations > 0
     ? Math.round((o.fraud_detected / o.total_declarations) * 100)
     : 0;
-  const pieEntries: Array<{ name: string; value: number; color: string }> = [];
-  if (o.total_declarations > 0) {
-    if (o.fraud_detected > 0)
-      pieEntries.push({ name: 'Fraudes d\u00e9tect\u00e9es', value: o.fraud_detected, color: '#ef4444' });
-    if (o.total_declarations - o.fraud_detected > 0)
-      pieEntries.push({ name: 'D\u00e9clarations normales', value: o.total_declarations - o.fraud_detected, color: '#3b82f6' });
-  }
-  const pieTotal = pieEntries.reduce((s, e) => s + e.value, 0);
-  const repartitionOption: Record<string, unknown> = {
-    backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'item',
-      backgroundColor: 'rgba(15,23,42,0.95)',
-      borderColor: 'rgba(59,130,246,0.3)',
-      borderWidth: 1,
-      textStyle: { color: '#f1f5f9', fontSize: 12 },
-      formatter: (p: { name: string; value: number; percent: string }) =>
-        `<span style="color:#f1f5f9"><b>${p.name}</b><br/>D\u00e9clarations: <b style="color:#fff">${p.value}</b> &nbsp;<span style="color:#94a3b8">(${p.percent}%)</span></span>`,
-    },
-    legend: {
-      orient: 'horizontal' as const,
-      bottom: 0,
-      left: 'center',
-      itemWidth: 10,
-      itemHeight: 10,
-      itemGap: 14,
-      textStyle: { color: '#94a3b8', fontSize: 10 },
-      formatter: (name: string) => {
-        const entry = pieEntries.find(e => e.name === name);
-        const val = entry ? entry.value : 0;
-        const pct = pieTotal > 0 ? Math.round((val / pieTotal) * 100) : 0;
-        return `${name}  ${val} (${pct}%)`;
-      },
-    },
-    series: [{
-      type: 'pie',
-      radius: ['32%', '54%'],
-      center: ['50%', '30%'],
-      avoidLabelOverlap: true,
-      label: {
-        show: true,
-        position: 'outside',
-        color: '#94a3b8',
-        fontSize: 11,
-        fontWeight: '500',
-        formatter: (p: { name: string; percent: string }) =>
-          `${p.name}\n${p.percent}%`,
-      },
-      labelLine: {
-        show: true,
-        length: 12,
-        length2: 8,
-        lineStyle: { color: 'rgba(148,163,184,0.5)', width: 1 },
-      },
-      emphasis: { scale: true, scaleSize: 6 },
-      data: pieEntries.length > 0 ? pieEntries.map(e => ({
-        name: e.name,
-        value: e.value,
-        itemStyle: {
-          color: e.color,
-          borderRadius: 3,
-          borderWidth: 2,
-          borderColor: 'rgba(15,23,42,0.9)',
-        },
-      })) : [{
-        name: 'Aucune donn\u00e9e',
-        value: 1,
-        itemStyle: { color: 'rgba(59,130,246,0.15)', borderWidth: 0 },
-        label: { show: false },
-      }],
-    }],
-  };
+  const pieData = o.fraud_detected === 0 && o.total_declarations === 0 ? [] : [
+    { name: `Fraudes (${fraudPct}%)`, value: Math.max(o.fraud_detected, 0), fill: '#ef4444' },
+    { name: `Normal (${100 - fraudPct}%)`, value: Math.max(o.total_declarations - o.fraud_detected, 0), fill: 'rgba(59,130,246,0.4)' },
+  ].filter(d => d.value > 0);
 
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
@@ -206,7 +137,7 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
               ['Recettes recouvrées', fmtM(o.revenue_recovered) + ' FCFA'],
               ['Écart fiscal récupéré', fmtM(o.total_tax_gap_recovered) + ' FCFA'],
               ['Score risque moyen', o.avg_risk_score + '/100'],
-              ['Rang bureau', `#${o.rank_in_bureau}/${o.total_in_bureau}`],
+              ['Rang secteur', `#${o.rank_in_bureau}/${o.total_in_bureau}`],
               ['Risque surmenage', o.burnout_risk],
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between py-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
@@ -234,7 +165,7 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
               />
               {/* Layer 1 — bureau benchmark (grey reference) */}
               <Radar
-                name="Benchmark Bureau"
+                name="Benchmark Secteur"
                 dataKey="benchmark"
                 stroke="#334155"
                 fill="#334155"
@@ -281,7 +212,23 @@ function OfficerDetail({ o, onBack }: { o: Officer; onBack: () => void }) {
         {/* Fraud pie */}
         <div className="card">
           <SectionTitle icon="📊">Déclarations — Répartition</SectionTitle>
-          <ReactECharts option={repartitionOption} style={{ height: 280 }} />
+          <ResponsiveContainer width="100%" height={160}>
+            <PieChart>
+              <Pie data={pieData.length ? pieData : [{ name: 'Aucune donnée', value: 1, fill: 'rgba(59,130,246,0.15)' }]}
+                cx="50%" cy="50%" innerRadius={45} outerRadius={65} dataKey="value" strokeWidth={2}
+                stroke="rgba(15,23,42,0.8)">
+                {(pieData.length ? pieData : [{ name: '', value: 1, fill: 'rgba(59,130,246,0.15)' }]).map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              </Pie>
+              <Tooltip {...CHART_STYLE.tooltip} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex justify-center gap-4">
+            {pieData.map(d => (
+              <span key={d.name} className="flex items-center gap-1.5 text-xs text-muted">
+                <span className="w-2 h-2 rounded-full" style={{ background: d.fill }} />{d.name}
+              </span>
+            ))}
+          </div>
 
           {/* Career events */}
           <div className="mt-4 space-y-2">

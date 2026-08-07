@@ -4,39 +4,43 @@ import { motion, AnimatePresence } from 'framer-motion';
 // ── Knowledge base built from actual demo data ────────────────────────────────
 const KB = {
   overview: {
-    total_sgd: 2700,
-    total_revenue: '3.18B FCFA',
-    fraud_count: 324,
+    total_sgd: 3125,
+    total_revenue: '2520B FCFA',
+    fraud_count: 376,
     fraud_rate: '12.0%',
-    tax_gap: '130M FCFA',
+    tax_gap: '109B FCFA',
     date_range: 'Jan 2023 – Déc 2024',
   },
   bureaux: [
-    { id:'DLA001', name:'Douala Port Principal',  sgds:930, fraud:113, fraud_rate:'12.2%', rev:'1.08B FCFA', efficiency:'73%', baseline:'36h' },
-    { id:'KBI001', name:'Kribi Port Autonome',    sgds:439, fraud:52,  fraud_rate:'11.8%', rev:'0.51B FCFA', efficiency:'73%', baseline:'28h' },
-    { id:'DLA002', name:'Douala Aéroport',        sgds:318, fraud:36,  fraud_rate:'11.3%', rev:'0.37B FCFA', efficiency:'40%', baseline:'18h' },
-    { id:'YDE001', name:'Yaoundé Nsimalen',       sgds:270, fraud:31,  fraud_rate:'11.5%', rev:'0.31B FCFA', efficiency:'66%', baseline:'22h' },
-    { id:'YDE002', name:'Yaoundé Centre',         sgds:270, fraud:39,  fraud_rate:'14.4%', rev:'0.31B FCFA', efficiency:'88%', baseline:'48h' },
-    { id:'NGD001', name:'Ngaoundéré Rail',        sgds:216, fraud:26,  fraud_rate:'12.0%', rev:'0.25B FCFA', efficiency:'98%', baseline:'72h' },
-    { id:'BFR001', name:'Bafoussam Frontière',    sgds:162, fraud:19,  fraud_rate:'11.7%', rev:'0.19B FCFA', efficiency:'84%', baseline:'60h' },
-    { id:'GRA001', name:'Garoua Aéroport',        sgds:95,  fraud:8,   fraud_rate:'8.4%',  rev:'0.11B FCFA', efficiency:'55%', baseline:'24h' },
+    { id:'LT1', name:'Littoral 1 (Douala Port)',      sgds:930, fraud:113, fraud_rate:'12.2%', rev:'1474.2B FCFA', efficiency:'98%', baseline:'36h' },
+    { id:'SD2', name:'Sud 2 (Kribi Port)',            sgds:439, fraud:52,  fraud_rate:'11.8%', rev:'793.8B FCFA',  efficiency:'98%', baseline:'28h' },
+    { id:'LT2', name:'Littoral 2 (Douala Aéroport)',  sgds:318, fraud:36,  fraud_rate:'11.3%', rev:'49.7B FCFA',   efficiency:'98%', baseline:'22h' },
+    { id:'CTR', name:'Centre (Yaoundé)',              sgds:541, fraud:65,  fraud_rate:'12.0%', rev:'49.7B FCFA',   efficiency:'98%', baseline:'26h' },
+    { id:'SUO', name:'Sud-Ouest (Buea/Limbe)',        sgds:110, fraud:11,  fraud_rate:'10.0%', rev:'26.5B FCFA',   efficiency:'70%', baseline:'32h' },
+    { id:'OUE', name:'Ouest (Bafoussam)',             sgds:149, fraud:20,  fraud_rate:'13.4%', rev:'26.5B FCFA',   efficiency:'88%', baseline:'40h' },
+    { id:'NRD', name:'Nord (Garoua)',                 sgds:99,  fraud:12,  fraud_rate:'12.1%', rev:'16.6B FCFA',   efficiency:'98%', baseline:'48h' },
+    { id:'NRO', name:'Nord-Ouest (Bamenda)',          sgds:90,  fraud:12,  fraud_rate:'13.3%', rev:'16.6B FCFA',   efficiency:'98%', baseline:'44h' },
+    { id:'EST', name:'Est (Bertoua)',                 sgds:65,  fraud:10,  fraud_rate:'15.4%', rev:'16.6B FCFA',   efficiency:'98%', baseline:'60h' },
+    { id:'SD1', name:'Sud 1 (Ebolowa)',               sgds:85,  fraud:13,  fraud_rate:'15.3%', rev:'16.6B FCFA',   efficiency:'67%', baseline:'30h' },
+    { id:'EXN', name:'Extrême-Nord (Maroua)',         sgds:75,  fraud:6,   fraud_rate:'8.0%',  rev:'16.6B FCFA',   efficiency:'98%', baseline:'50h' },
+    { id:'ADM', name:'Adamaoua (Ngaoundéré)',         sgds:224, fraud:26,  fraud_rate:'11.6%', rev:'16.6B FCFA',   efficiency:'98%', baseline:'72h' },
   ],
   fraud_types: [
-    { type:'SOUS_EVALUATION',           label:'Sous-évaluation',          count:123, pct:'38%' },
-    { type:'FAUSSE_DECLARATION_ORIGINE', label:'Fausse déclaration origine', count:80,  pct:'25%' },
-    { type:'CONTREBANDE_PARTIELLE',     label:'Contrebande partielle',    count:76,  pct:'23%' },
-    { type:'FAUX_DOCUMENTS',            label:'Faux documents',           count:45,  pct:'14%' },
+    { type:'SOUS_EVALUATION',           label:'Sous-évaluation',          count:143, pct:'38%' },
+    { type:'FAUSSE_DECLARATION_ORIGINE', label:'Fausse déclaration origine', count:93,  pct:'25%' },
+    { type:'CONTREBANDE_PARTIELLE',     label:'Contrebande partielle',    count:88,  pct:'23%' },
+    { type:'FAUX_DOCUMENTS',            label:'Faux documents',           count:52,  pct:'14%' },
   ],
   fraud_financial: {
-    total_evasion: '130M FCFA',
-    total_penalties: '310M FCFA',
-    total_recovered: '220M FCFA',
-    net_loss: '220M FCFA',
+    total_evasion: '109B FCFA',
+    total_penalties: '260B FCFA',
+    total_recovered: '185B FCFA',
+    net_loss: '184B FCFA',
     recovery_rate: '50%',
   },
   fraud_status: {
-    EN_COURS: 73, CLOTURE_AMIABLE: 99, CLOTURE_CONTENTIEUX: 86,
-    TRANSMIS_JUSTICE: 42, ABANDONNE: 24,
+    EN_COURS: 85, CLOTURE_AMIABLE: 115, CLOTURE_CONTENTIEUX: 100,
+    TRANSMIS_JUSTICE: 49, ABANDONNE: 27,
   },
   top_risky_importers: [
     { name:'ORANGE CAMEROUN S.A.', id:'IMP010', fraud:18, total:94, rate:'19%', risk:'HIGH' },
@@ -46,18 +50,18 @@ const KB = {
     { name:'CAMEROUN TRADING SERVICES',id:'IMP015',fraud:13,total:78,rate:'17%',risk:'HIGH'},
   ],
   top_inspectors: [
-    { name:'MBARGA Jean-Paul',  bureau:'DLA001', fraud:29, total:207, rate:'14.0%' },
-    { name:'ATANGA Sylvie',     bureau:'YDE002', fraud:21, total:132, rate:'15.9%' },
-    { name:'MOHAMADOU Alim',    bureau:'DLA002', fraud:21, total:160, rate:'13.1%' },
-    { name:'NKENGUE Marie',     bureau:'DLA001', fraud:23, total:187, rate:'12.3%' },
-    { name:'ESSOMBA Pierre',    bureau:'DLA001', fraud:22, total:185, rate:'11.9%' },
+    { name:'MBARGA Jean-Paul',  bureau:'LT1', fraud:29, total:207, rate:'14.0%' },
+    { name:'ATANGA Sylvie',     bureau:'CTR', fraud:21, total:132, rate:'15.9%' },
+    { name:'MOHAMADOU Alim',    bureau:'LT2', fraud:21, total:160, rate:'13.1%' },
+    { name:'NKENGUE Marie',     bureau:'LT1', fraud:23, total:187, rate:'12.3%' },
+    { name:'ESSOMBA Pierre',    bureau:'LT1', fraud:22, total:185, rate:'11.9%' },
   ],
   worst_delays: [
-    { importer:'GOLDEN TRADING SARL',       bureau:'Ngaoundéré Rail', overshoot:'+102h', cause:'Retard intentionnel suspect' },
-    { importer:'CAMEROON GLOBAL IMPORTS',   bureau:'Ngaoundéré Rail', overshoot:'+102h', cause:'Congestion inspection' },
-    { importer:'AFRICA COMMERCE GROUP',     bureau:'Ngaoundéré Rail', overshoot:'+100h', cause:'Retard intentionnel suspect' },
-    { importer:'CAM IMPORT INDUSTRIES',     bureau:'Yaoundé Centre',  overshoot:'+86h',  cause:'Problème documentaire' },
-    { importer:'SAHARA TRADING COMPANY',    bureau:'Kribi Port',      overshoot:'+84h',  cause:'Retard intentionnel suspect' },
+    { importer:'GOLDEN TRADING SARL',       bureau:'Adamaoua (Ngaoundéré)', overshoot:'+102h', cause:'Retard intentionnel suspect' },
+    { importer:'CAMEROON GLOBAL IMPORTS',   bureau:'Adamaoua (Ngaoundéré)', overshoot:'+102h', cause:'Congestion inspection' },
+    { importer:'AFRICA COMMERCE GROUP',     bureau:'Adamaoua (Ngaoundéré)', overshoot:'+100h', cause:'Retard intentionnel suspect' },
+    { importer:'CAM IMPORT INDUSTRIES',     bureau:'Centre (Yaoundé)',      overshoot:'+86h',  cause:'Problème documentaire' },
+    { importer:'SAHARA TRADING COMPANY',    bureau:'Sud 2 (Kribi Port)',    overshoot:'+84h',  cause:'Retard intentionnel suspect' },
   ],
   risky_tariffs: [
     { code:'64029900', desc:'Chaussures',            fraud:23, rate:'20%' },
@@ -79,7 +83,7 @@ function buildResponse(q: string): string {
 
   // KPI overview
   if (/\b(kpi|résumé|bilan|aperçu|overview|total|global|ensemble)\b/.test(ql)) {
-    return `📊 **Bilan global CUSTOMS360** (Jan 2023 – Déc 2024)\n\n• **${fmt(KB.overview.total_sgd)} déclarations** traitées\n• **${KB.overview.total_revenue}** de recettes collectées\n• **${KB.overview.fraud_count} cas de fraude** détectés (taux: ${KB.overview.fraud_rate})\n• **${KB.overview.tax_gap}** d'écart fiscal récupéré\n• Périmètre: 8 bureaux douaniers, 30 importateurs, 20 inspecteurs`;
+    return `📊 **Bilan global CUSTOMS360** (Jan 2023 – Déc 2024)\n\n• **${fmt(KB.overview.total_sgd)} déclarations** traitées\n• **${KB.overview.total_revenue}** de recettes collectées\n• **${KB.overview.fraud_count} cas de fraude** détectés (taux: ${KB.overview.fraud_rate})\n• **${KB.overview.tax_gap}** d'écart fiscal récupéré\n• Périmètre: 12 secteurs douaniers, 30 importateurs, 20 inspecteurs`;
   }
 
   // Fraud general
@@ -95,8 +99,8 @@ function buildResponse(q: string): string {
     return `🔍 **Types de fraude détectés**\n\n${rows}\n\n💡 La sous-évaluation CIF est le mécanisme le plus fréquent — les importateurs déclarent une valeur inférieure au marché pour réduire les taxes.`;
   }
 
-  // Bureaux
-  if (/\b(bureau|douane|port|aéroport|office|kribi|douala|yaoundé|ngaoundéré|bafoussam|garoua)\b/.test(ql)) {
+  // Secteurs
+  if (/\b(secteur|bureau|douane|port|aéroport|office|kribi|douala|yaoundé|ngaoundéré|bafoussam|garoua|maroua|bamenda|buea|limbe|bertoua|ebolowa)\b/.test(ql)) {
     const specific = KB.bureaux.find(b =>
       ql.includes(b.id.toLowerCase()) ||
       ql.includes(b.name.toLowerCase().split(' ')[0].toLowerCase())
@@ -105,7 +109,7 @@ function buildResponse(q: string): string {
       return `🏛️ **${specific.name}** (${specific.id})\n\n• Déclarations traitées: **${fmt(specific.sgds)}**\n• Cas de fraude: **${specific.fraud}** (${specific.fraud_rate})\n• Recettes collectées: **${specific.rev}**\n• Score d'efficience: **${specific.efficiency}**\n• Délai standard: ${specific.baseline}\n\n${specific.fraud_rate > '12%' ? '⚠️ Taux de fraude supérieur à la moyenne nationale (12%).' : '✅ Taux de fraude dans la norme.'}`;
     }
     const top3 = KB.bureaux.slice(0,3).map(b => `• **${b.name}**: ${b.sgds} SGDs, ${b.fraud} fraudes (${b.fraud_rate}), efficience ${b.efficiency}`).join('\n');
-    return `🏛️ **Performance des 8 bureaux douaniers**\n\n**Top 3 par volume:**\n${top3}\n\n• Bureau le plus efficace: **Ngaoundéré Rail** (98% — 72% plus rapide que le standard)\n• Bureau le plus sollicité: **Douala Port Principal** (${KB.bureaux[0].sgds} SGDs)\n• Bureau le plus sécurisé: **Garoua Aéroport** (taux fraude ${KB.bureaux[7].fraud_rate})`;
+    return `🏛️ **Performance des 12 secteurs douaniers**\n\n**Top 3 par recettes:**\n${top3}\n\n• Secteurs dominants: **Littoral 1 (Douala Port)** et **Sud 2 (Kribi Port)** génèrent à eux seuls **~90%** des recettes nationales\n• Secteur le plus sollicité en volume: **${KB.bureaux[0].name}** (${KB.bureaux[0].sgds} SGDs)\n• Secteur le plus sécurisé: **Extrême-Nord (Maroua)** (taux fraude ${KB.bureaux.find(b=>b.id==='EXN')?.fraud_rate})`;
   }
 
   // Importers
@@ -128,7 +132,7 @@ function buildResponse(q: string): string {
     const rows = KB.worst_delays.map((d,i) =>
       `${i+1}. **${d.importer}** @ ${d.bureau}: ${d.overshoot} — ${d.cause}`
     ).join('\n');
-    return `⏱️ **Délais suspects les plus critiques**\n\n${rows}\n\n💡 Ngaoundéré Rail concentre les pires retards car le bureau a le délai standard le plus élevé (72h). Les retards intentionnels suspects dépassent souvent 2× le délai standard.`;
+    return `⏱️ **Délais suspects les plus critiques**\n\n${rows}\n\n💡 Adamaoua (Ngaoundéré) concentre les pires retards car le secteur a le délai standard le plus élevé (72h). Les retards intentionnels suspects dépassent souvent 2× le délai standard.`;
   }
 
   // Inspectors / agents
@@ -160,17 +164,17 @@ function buildResponse(q: string): string {
 
   // Revenue
   if (/\b(recette|revenu|collecte|fiscal|taxe|fcfa)\b/.test(ql)) {
-    return `💰 **Recettes douanières**\n\n• Recettes collectées (2 ans): **${KB.overview.total_revenue}**\n• Taxes évaluées vs déclarées: **+${KB.overview.tax_gap}** d'écart récupéré\n• Pénalités levées sur fraudes: **${KB.fraud_financial.total_penalties}**\n• Recettes nettes perdues (fraude): **${KB.fraud_financial.net_loss}**\n\n💡 Le bureau Douala Port Principal génère ~34% des recettes totales. Renforcer les contrôles sur les déclarations CIF à ce bureau aurait le plus fort impact fiscal.`;
+    return `💰 **Recettes douanières**\n\n• Recettes collectées (2 ans): **${KB.overview.total_revenue}**\n• Taxes évaluées vs déclarées: **+${KB.overview.tax_gap}** d'écart récupéré\n• Pénalités levées sur fraudes: **${KB.fraud_financial.total_penalties}**\n• Recettes nettes perdues (fraude): **${KB.fraud_financial.net_loss}**\n\n💡 Les secteurs Littoral 1 (Douala Port) et Sud 2 (Kribi Port) génèrent à eux seuls ~90% des recettes totales. Renforcer les contrôles CIF sur ces deux points d'entrée aurait le plus fort impact fiscal national.`;
   }
 
   // Recommendations
   if (/\b(recommand|conseil|action|mesure|priorité|faire|améliorer)\b/.test(ql)) {
-    return `🎯 **Recommandations prioritaires CUSTOMS360**\n\n1. 🔴 **Inspection systématique** — Appliquer la vérification physique pour ORANGE CAMEROUN S.A. et PROMODIS SARL (taux fraude >15%)\n2. 🟠 **Renfort Ngaoundéré Rail** — 3 des 5 pires retards suspects sont à NGD001, risque de collusion documentaire\n3. 🟡 **Rotation inspecteurs** — ${KB.collusion.suspected_cases} couples inspecteur-déclarant suspects à auditer\n4. 🔵 **Cibler codes 64029900 et 62046200** — Chaussures et vêtements: 45 fraudes combinées, probable fausse origine\n5. ✅ **Capitaliser sur Yaoundé Centre** — Taux détection 14.4%, efficience 88%: modèle à reproduire`;
+    return `🎯 **Recommandations prioritaires CUSTOMS360**\n\n1. 🔴 **Inspection systématique** — Appliquer la vérification physique pour ORANGE CAMEROUN S.A. et PROMODIS SARL (taux fraude >15%)\n2. 🟠 **Renfort Adamaoua (Ngaoundéré)** — 3 des 5 pires retards suspects sont dans ce secteur, risque de collusion documentaire\n3. 🟡 **Rotation inspecteurs** — ${KB.collusion.suspected_cases} couples inspecteur-déclarant suspects à auditer\n4. 🔵 **Cibler codes 64029900 et 62046200** — Chaussures et vêtements: 45 fraudes combinées, probable fausse origine\n5. ✅ **Renforcer Littoral 1 et Sud 2** — Ces deux secteurs génèrent 90% des recettes: la moindre amélioration de détection y a un effet démultiplié`;
   }
 
   // Help / capabilities
   if (/\b(aide|help|quoi|que sais|peux|capacit|fonc|commande)\b/.test(ql)) {
-    return `🤖 **Je peux répondre à ces questions:**\n\n📊 KPIs globaux — *"Donne-moi le bilan général"*\n🚨 Fraudes — *"Combien de cas de fraude ?"*\n🏛️ Bureaux — *"Performance de Douala Port ?"*\n👤 Importateurs — *"Quels sont les importateurs à risque ?"*\n👮 Agents — *"Meilleurs inspecteurs ?"*\n⏱️ Délais — *"Quels sont les pires retards ?"*\n📦 Tarifs — *"Codes tarifaires à risque ?"*\n💰 Recettes — *"Bilan fiscal ?"*\n🔗 Collusion — *"Y a-t-il des cas de collusion ?"*\n⚡ Prédictions — *"Tendance de la fraude ?"*\n🎯 Recommandations — *"Que recommandez-vous ?"*`;
+    return `🤖 **Je peux répondre à ces questions:**\n\n📊 KPIs globaux — *"Donne-moi le bilan général"*\n🚨 Fraudes — *"Combien de cas de fraude ?"*\n🏛️ Secteurs — *"Performance de Douala Port ?"*\n👤 Importateurs — *"Quels sont les importateurs à risque ?"*\n👮 Agents — *"Meilleurs inspecteurs ?"*\n⏱️ Délais — *"Quels sont les pires retards ?"*\n📦 Tarifs — *"Codes tarifaires à risque ?"*\n💰 Recettes — *"Bilan fiscal ?"*\n🔗 Collusion — *"Y a-t-il des cas de collusion ?"*\n⚡ Prédictions — *"Tendance de la fraude ?"*\n🎯 Recommandations — *"Que recommandez-vous ?"*`;
   }
 
   // Fallback

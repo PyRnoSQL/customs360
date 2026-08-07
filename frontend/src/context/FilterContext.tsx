@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-export type BureauFilter = 'ALL' | 'DLA001' | 'KBI001' | 'DLA002' | 'YDE001' | 'YDE002' | 'NGD001' | 'BFR001' | 'GRA001';
+export type BureauFilter = 'ALL' | 'LT1' | 'LT2' | 'SD2' | 'SD1' | 'CTR' | 'ADM' | 'OUE' | 'NRD' | 'EXN' | 'NRO' | 'SUO' | 'EST';
 export type RiskFilter   = 'ALL' | 'CRITIQUE' | 'ELEVE' | 'MOYEN' | 'FAIBLE';
 export type PeriodFilter = 'ALL'
   | '2023-01' | '2023-02' | '2023-03' | '2023-04' | '2023-05' | '2023-06'

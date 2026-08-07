@@ -76,7 +76,7 @@ function ImporterDetail({ id, onBack }: { id: string; onBack: () => void }) {
         <div className="card">
           <SectionTitle icon="📄">SGDs Récents</SectionTitle>
           <table className="tbl">
-            <thead><tr><th>SGD</th><th>Date</th><th>Bureau</th><th>CIF</th><th>Délai</th><th>Fraude</th></tr></thead>
+            <thead><tr><th>SGD</th><th>Date</th><th>Secteur</th><th>CIF</th><th>Délai</th><th>Fraude</th></tr></thead>
             <tbody>
               {data.recent_sgds.slice(0, 12).map(s => (
                 <tr key={s.sgd_id}>
@@ -218,7 +218,7 @@ export default function Importers() {
         <PaginatedTable
           pageSize={15}
           headers={<tr>
-            <th>#</th><th>Importateur</th><th>Pays</th><th>Bureaux</th>
+            <th>#</th><th>Importateur</th><th>Pays</th><th>Secteurs</th>
             <th>Déclarations</th><th>Valeur CIF</th><th>Score DATE</th><th>Fraudes</th><th></th>
           </tr>}
           rows={filtered.map((imp: ImporterProfile, i: number) => (

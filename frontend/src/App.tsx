@@ -30,7 +30,7 @@ const ALL_NAV = [
   { path: '/importers',   icon: '🏢', label: 'Importateurs',         group: 'OPÉRATIONS'    },
   { path: '/fraud',       icon: '🚨', label: 'Détection Fraude',     group: 'OPÉRATIONS'    },
   { path: '/delays',      icon: '⏱️', label: 'Délais Suspects',      group: 'OPÉRATIONS'    },
-  { path: '/offices',     icon: '🏛️', label: 'Bureaux Douaniers',    group: 'OPÉRATIONS'    },
+  { path: '/offices',     icon: '🏛️', label: 'Secteurs Douaniers',    group: 'OPÉRATIONS'    },
   { path: '/predictions', icon: '🔮', label: 'Prédictions IA',       group: 'INTELLIGENCE'  },
   { path: '/graph',       icon: '🕸️', label: 'Graphe DATE',          group: 'INTELLIGENCE'  },
   { path: '/advanced',    icon: '🔬', label: 'Analytique Avancée',   group: 'INTELLIGENCE'  },
@@ -43,12 +43,12 @@ export const PAGE_META: Record<string, { title: string; sub: string }> = {
   '/importers': { title: 'Intelligence Importateurs',   sub: 'Algorithme DATE · Scoring risque · Profilage comportemental' },
   '/fraud':     { title: 'Centre de Détection Fraude',  sub: 'Isolation Forest · XGBoost · DATE Algorithm' },
   '/delays':    { title: 'Délais Suspects',              sub: 'Détection patterns · Dédouanement anormal · Risques collusion' },
-  '/offices':   { title: 'Performance Bureaux',         sub: 'Classement efficacité · Recettes · KPIs opérationnels' },
+  '/offices':   { title: 'Performance Secteurs',         sub: 'Classement efficacité · Recettes · KPIs opérationnels' },
   '/ai':        { title: 'Recommandations IA',          sub: 'Assistant CUSTOMS360 · Analyse contextuelle · Groq AI' },
   '/graph':     { title: 'Graphe DATE — Réseau Entités',sub: 'Visualisation relations · Détection collusion' },
-  '/predictions':{ title: 'Centre de Prédiction IA',         sub: 'Prévision recettes · Scoring anomalies · Trajectoires bureaux' },
+  '/predictions':{ title: 'Centre de Prédiction IA',         sub: 'Prévision recettes · Scoring anomalies · Trajectoires secteurs' },
   '/analytics':  { title: 'Analytique Avancée',               sub: 'Segmentation importateurs · Patterns temporels · Flux géographiques' },
-  '/officers':   { title: 'Performance des Agents Douaniers', sub: 'Scorecards individuels · Carrière · Classement bureaux' },
+  '/officers':   { title: 'Performance des Agents Douaniers', sub: 'Scorecards individuels · Carrière · Classement secteurs' },
 };
 
 function LiveClock() {

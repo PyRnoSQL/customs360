@@ -7,13 +7,27 @@ const HIGH_RISK_TARIFFS = new Set([
   '85044000','62046200','85176200','87032390','84715000','85258000'
 ]);
 
-const OFFICE_NAMES: Record<string, string> = {
-  DLA001: 'Douala Port Principal',
-  KBI001: 'Kribi Port Autonome',
-  DLA002: 'Douala Aéroport',
-  YDE001: 'Yaoundé Nsimalen',
-  YDE002: 'Yaoundé Centre',
-  NGD001: 'Ngaoundéré Rail',
+// ── Canonical 12-Sector Structure (Secteurs Douaniers) ──────────────────────
+// Cameroon customs geography: each region = 1 sector, except Littoral and Sud
+// which each split into 2 sectors (their major port vs. rest of region).
+// LT1 (Douala Port) + SD2 (Kribi Port) together generate ~90% of national revenue.
+export const OFFICE_NAMES: Record<string, string> = {
+  LT1: 'Littoral 1 (Douala Port)',
+  LT2: 'Littoral 2 (Douala Aéroport)',
+  SD2: 'Sud 2 (Kribi Port)',
+  SD1: 'Sud 1 (Ebolowa)',
+  CTR: 'Centre (Yaoundé)',
+  ADM: 'Adamaoua (Ngaoundéré)',
+  OUE: 'Ouest (Bafoussam)',
+  NRD: 'Nord (Garoua)',
+  EXN: 'Extrême-Nord (Maroua)',
+  NRO: 'Nord-Ouest (Bamenda)',
+  SUO: 'Sud-Ouest (Buea/Limbe)',
+  EST: 'Est (Bertoua)',
+};
+export const OFFICE_BASELINES: Record<string, number> = {
+  LT1: 36, LT2: 22, SD2: 28, SD1: 30, CTR: 26, ADM: 72,
+  OUE: 40, NRD: 48, EXN: 50, NRO: 44, SUO: 32, EST: 60,
 };
 
 // ── DATE Algorithm ────────────────────────────────────────────────────────────
@@ -110,10 +124,6 @@ export function buildImporterProfiles(sgd: SGDRow[], fraud: FraudRow[]): Importe
 }
 
 export function buildOfficeStats(sgd: SGDRow[], fraud: FraudRow[]): OfficeStats[] {
-  const OFFICE_BASELINES: Record<string, number> = {
-    DLA001: 36, KBI001: 28, DLA002: 18, YDE001: 22,
-    YDE002: 48, NGD001: 72, BFR001: 60, GRA001: 24,
-  };
   const officeIds = [...new Set(sgd.map(s => s.office_id))];
   const total = sgd.length;
 
@@ -193,9 +203,7 @@ export function buildMonthlyRevenue(sgd: SGDRow[], fraud: FraudRow[]): MonthlyRe
 }
 
 export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
-  const BASELINES: Record<string,number> = {
-    DLA001:36,KBI001:28,DLA002:18,YDE001:22,YDE002:48,NGD001:72,BFR001:60,GRA001:24,
-  };
+  const BASELINES = OFFICE_BASELINES;
   const FR_MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
   // ── Financial aggregates ──────────────────────────────────────────────────
@@ -354,9 +362,7 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
 }
 
 export function buildDelays(sgd: SGDRow[]): (SGDRow & { overshoot_hours: number; is_suspicious: boolean })[] {
-  const OFFICE_BASELINE: Record<string, number> = {
-    DLA001: 36, KBI001: 28, DLA002: 18, YDE001: 22, YDE002: 48, NGD001: 72, BFR001: 60, GRA001: 24,
-  };
+  const OFFICE_BASELINE = OFFICE_BASELINES;
   return sgd
     .map(s => {
       const baseline = OFFICE_BASELINE[s.office_id] ?? 36;
@@ -407,10 +413,7 @@ export interface OfficerMetrics {
   revenue_vs_taxes_gap: number;
 }
 
-const BUREAU_BASELINES: Record<string, number> = {
-  DLA001: 36, KBI001: 28, DLA002: 18, YDE001: 22, YDE002: 48, NGD001: 72,
-  BFR001: 60, GRA001: 24,
-};
+const BUREAU_BASELINES = OFFICE_BASELINES;
 
 // Inspector lookup: id → { name, grade } — sourced from dataset
 const INSPECTOR_INFO: Record<string, { name: string; grade: string }> = {
@@ -500,7 +503,7 @@ export function buildOfficerMetrics(sgd: SGDRow[], fraud: FraudRow[]): OfficerMe
     const rows = sgd.filter(s => s.inspector_id === iid);
     // Inspector is always at their assigned bureau — use first row's office_id
     const bureaus = [...new Set(rows.map(r => r.office_id))];
-    const primaryBureau = bureaus[0] ?? 'DLA001';
+    const primaryBureau = bureaus[0] ?? 'LT1';
     const baseline = BUREAU_BASELINES[primaryBureau] ?? 36;
 
     // Fraud detection: rows where this inspector found fraud (fraud_flag=1 on their SGDs)
@@ -864,10 +867,7 @@ export function forecastRevenue(sgd: SGDRow[], fraud: FraudRow[]): RevenueForeca
 
 export function bureauTrajectories(sgd: SGDRow[], fraud: FraudRow[]): BureauTrajectory[] {
   const offices = buildOfficeStats(sgd, fraud);
-  const NAMES: Record<string, string> = {
-    DLA001:'Douala Port Principal', KBI001:'Kribi Port Autonome',
-    DLA002:'Douala Aéroport', YDE001:'Yaoundé Nsimalen', YDE002:'Yaoundé Centre', NGD001:'Ngaoundéré Rail',
-  };
+  const NAMES = OFFICE_NAMES;
   const monthlyRevenue = buildMonthlyRevenue(sgd, fraud);
 
   return offices.map(o => {
@@ -1176,7 +1176,7 @@ const CAUSE_ACTIONS: Record<DelayCause, string> = {
 };
 
 export function classifyDelays(sgd: SGDRow[], fraud: FraudRow[]): DelayClassification[] {
-  const BASELINES: Record<string,number> = { DLA001:36, KBI001:28, DLA002:18, YDE001:22, YDE002:48, NGD001:72 };
+  const BASELINES = OFFICE_BASELINES;
   const fraudImporters = new Set(fraud.filter(f => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE').map(f => f.importer_id));
 
   // Compute office avg clearance for backlog detection

@@ -11,7 +11,7 @@ import { useFilters, applyPeriodFilter, applyBureauFilter } from '../context/Fil
 const riskColor = (r: number) => r >= 70 ? '#ef4444' : r >= 40 ? '#f59e0b' : '#10b981';
 const eff_color = (e: number) => e >= 75 ? '#10b981' : e >= 55 ? '#f59e0b' : '#ef4444';
 const CHANNEL_COLORS: Record<string,string> = { VERT:'#10b981', JAUNE:'#f59e0b', ROUGE:'#ef4444' };
-const OFF_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#f97316','#a78bfa'];
+const OFF_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#14b8a6','#a855f7','#ef4444','#ec4899','#84cc16','#059669','#f97316','#06b6d4'];
 const CHART_TT = { backgroundColor:'rgba(15,23,42,0.95)', borderColor:'rgba(59,130,246,0.3)', borderWidth:1, textStyle:{color:'#f1f5f9',fontSize:12} };
 
 export default function Dashboard() {
@@ -231,7 +231,7 @@ export default function Dashboard() {
       {/* ── ROW 3: Office league table ── */}
       <FadeIn delay={0.1}>
         <div className="card">
-          <SectionTitle icon="🏛️">Classement des Bureaux Douaniers — Recettes & Taux de Fraude</SectionTitle>
+          <SectionTitle icon="🏛️">Classement des Secteurs Douaniers — Recettes & Taux de Fraude</SectionTitle>
           <ReactECharts option={officeBarOption} style={{height:320}}/>
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 mt-4">
             {sortedOffices.map((o:{office_id:string;name:string;count:number;revenue:number;fraud_count:number;fraud_rate:number;efficiency:number}, i:number) => (
@@ -309,7 +309,7 @@ export default function Dashboard() {
               <div className="h-2 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}>
                 <div className="h-full rounded-full transition-all" style={{width:`${Math.min(100,data.clearance_overdue_pct??0)*4}%`,background:'#f59e0b'}}/>
               </div>
-              <div className="text-[10px] text-muted mt-1">{fmt(data.clearance_overdue_count??0)} déclarations dépassant 1.5× le délai standard du bureau</div>
+              <div className="text-[10px] text-muted mt-1">{fmt(data.clearance_overdue_count??0)} déclarations dépassant 1.5× le délai standard du secteur</div>
             </div>
             {/* Cases awaiting recovery */}
             <div className="mt-3 p-3 rounded-xl" style={{background:'rgba(239,68,68,0.06)',border:'1px solid rgba(239,68,68,0.15)'}}>
@@ -331,7 +331,7 @@ export default function Dashboard() {
             <div style={{overflowX:'auto'}}>
               <table className="tbl">
                 <thead>
-                  <tr><th>Cas</th><th>Importateur</th><th>Type</th><th>Évasion</th><th>Score IA</th><th>Bureau</th><th>Statut</th></tr>
+                  <tr><th>Cas</th><th>Importateur</th><th>Type</th><th>Évasion</th><th>Score IA</th><th>Secteur</th><th>Statut</th></tr>
                 </thead>
                 <tbody>
                   {filteredCases.slice(0,10).map((f:{case_id:string;importer_id:string;importer_name?:string;fraud_type:string;tax_evasion_amount?:number;loss_net:number;ai_risk_score:number;office_name?:string;office_id:string;status:string}) => (

@@ -48,18 +48,18 @@ const MODULE_SLIDES: Record<string, [Slide, Slide, Slide]> = {
       body: 'Les retards systémiques liés à la collusion ou à des défaillances opérationnelles passent inaperçus. Aucun pattern n\'est identifié. Les mêmes problèmes se reproduisent sans correction. La fluidité du commerce en pâtit.' },
     { tag: 'VISION DOUANES', tagColor: '#f59e0b', borderColor: '#f59e0b', icon: '🎯',
       title: 'Optimisation intelligente des flux',
-      body: 'Identification proactive des causes de retard par bureau, par agent, par tarif. Détection des anomalies chronologiques. Recommandations d\'action ciblées pour fluidifier le commerce tout en renforçant les contrôles.' },
+      body: 'Identification proactive des causes de retard par secteur, par agent, par tarif. Détection des anomalies chronologiques. Recommandations d\'action ciblées pour fluidifier le commerce tout en renforçant les contrôles.' },
   ],
   offices: [
     { tag: 'DÉFI', tagColor: '#f59e0b', borderColor: '#f59e0b', icon: '⚠️',
-      title: 'Performance des bureaux non mesurée',
+      title: 'Performance des secteurs non mesurée',
       body: 'Comment comparer objectivement l\'efficacité de Douala Port, Kribi et Yaoundé ? Sans données centralisées et indicateurs standardisés, les décisions de management restent subjectives et les écarts de performance invisibles.' },
     { tag: 'IMPACT NÉGATIF', tagColor: '#ef4444', borderColor: '#f43f5e', icon: '📉',
       title: 'Sans analytics opérationnels',
-      body: 'Les bureaux les moins performants ne sont jamais identifiés. Les bonnes pratiques restent isolées. Les ressources sont allouées sans données probantes. L\'excellence opérationnelle devient une aspiration sans boussole.' },
+      body: 'Les secteurs les moins performants ne sont jamais identifiés. Les bonnes pratiques restent isolées. Les ressources sont allouées sans données probantes. L\'excellence opérationnelle devient une aspiration sans boussole.' },
     { tag: 'VISION DOUANES', tagColor: '#10b981', borderColor: '#10b981', icon: '🎯',
       title: 'Excellence opérationnelle mesurée',
-      body: 'Classement en temps réel des bureaux douaniers : recettes collectées, délais moyens, taux d\'inspection, fraudes évitées. Un système de benchmarking qui valorise la performance et oriente les décisions de renforcement.' },
+      body: 'Classement en temps réel des secteurs douaniers : recettes collectées, délais moyens, taux d\'inspection, fraudes évitées. Un système de benchmarking qui valorise la performance et oriente les décisions de renforcement.' },
   ],
   ai: [
     { tag: 'DÉFI', tagColor: '#f59e0b', borderColor: '#f59e0b', icon: '⚠️',
@@ -319,7 +319,7 @@ export default function Welcome() {
                       {mod.key === 'fraud' ? 'Pertes estimées détectées' :
                        mod.key === 'importers' ? 'Importateurs haut risque' :
                        mod.key === 'delays' ? 'Délai max détecté' :
-                       mod.key === 'offices' ? 'Bureaux douaniers actifs' :
+                       mod.key === 'offices' ? 'Secteurs douaniers actifs' :
                        mod.key === 'ai' ? 'Temps de réponse IA' : 'Clusters suspects identifiés'}
                     </div>
                     <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background:mod.color }}/><span className="text-[10px]" style={{ color:'#64748b' }}>Données en temps réel</span></div>
@@ -334,7 +334,7 @@ export default function Welcome() {
                       {mod.key === 'fraud' ? 'Déclarations contrôlées manuellement' :
                        mod.key === 'importers' ? 'Alertes systémiques sans profilage' :
                        mod.key === 'delays' ? 'Dépassement du délai standard' :
-                       mod.key === 'offices' ? 'Benchmarking inter-bureaux' :
+                       mod.key === 'offices' ? 'Benchmarking inter-secteurs' :
                        mod.key === 'ai' ? 'Pour une analyse manuelle équivalente' : 'Clusters détectés manuellement'}
                     </div>
                     <div className="text-[10px] text-slate-500">Sans CUSTOMS360</div>

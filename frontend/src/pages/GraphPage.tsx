@@ -25,10 +25,14 @@ interface FraudCase { case_id: string; sgd_id: string; importer_id: string; decl
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
 const TYPE_COLOR: Record<string, string> = { importer: '#3b82f6', officer: '#a78bfa', sgd: '#8b5cf6', office: '#f59e0b' };
-const TYPE_LABEL: Record<string, string> = { importer: 'Importateur', officer: 'Agent Douanier', sgd: 'SGD', office: 'Bureau' };
+const TYPE_LABEL: Record<string, string> = { importer: 'Importateur', officer: 'Agent Douanier', sgd: 'SGD', office: 'Secteur' };
 const TYPE_RADIUS: Record<string, number> = { importer: 18, officer: 14, sgd: 9, office: 20 };
 const riskColor = (r: number) => r >= 80 ? '#ef4444' : r >= 60 ? '#f97316' : r >= 40 ? '#eab308' : '#10b981';
-const OFFICE_NAMES: Record<string,string> = { DLA001:'Douala Port', KBI001:'Kribi Port', DLA002:'Douala Aéroport', YDE001:'Yaoundé', YDE002:'Yaoundé Centre' };
+const OFFICE_NAMES: Record<string,string> = {
+  LT1:'Littoral 1 (Douala Port)', LT2:'Littoral 2 (Douala Aéroport)', SD2:'Sud 2 (Kribi Port)',
+  SD1:'Sud 1 (Ebolowa)', CTR:'Centre (Yaoundé)', ADM:'Adamaoua (Ngaoundéré)', OUE:'Ouest (Bafoussam)',
+  NRD:'Nord (Garoua)', EXN:'Extrême-Nord (Maroua)', NRO:'Nord-Ouest (Bamenda)', SUO:'Sud-Ouest (Buea/Limbe)', EST:'Est (Bertoua)',
+};
 const CHART_TT = { contentStyle: { background:'rgba(15,23,42,0.95)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:8, color:'#f1f5f9' }, labelStyle:{ color:'#94a3b8' } };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -252,7 +256,7 @@ function SankeyFlow({ sgd }: { sgd: SGDRow[] }) {
   const [hovPath, setHovPath] = useState<string|null>(null);
   const W=780; const H=320; const PAD=20;
   const COL_X = [PAD+40, PAD+220, PAD+420, PAD+600];
-  const COL_LABELS = ['Importateurs','Agents Douaniers','Bureaux','Codes Tarif'];
+  const COL_LABELS = ['Importateurs','Agents Douaniers','Secteurs','Codes Tarif'];
   const COL_COLORS = ['#3b82f6','#a78bfa','#f59e0b','#8b5cf6'];
 
   // Build aggregations
@@ -301,7 +305,7 @@ function SankeyFlow({ sgd }: { sgd: SGDRow[] }) {
 
   return (
     <div className="card">
-      <SectionTitle icon="🌊">Flux Sankey — Importateurs → Agents Douaniers → Bureaux → Tarifs</SectionTitle>
+      <SectionTitle icon="🌊">Flux Sankey — Importateurs → Agents Douaniers → Secteurs → Tarifs</SectionTitle>
       <p className="text-xs text-muted mb-4">Épaisseur des rubans = volume de déclarations traitées par agent · <span style={{color:'#ef4444'}}>Rouge = flux frauduleux dominants</span></p>
       <div className="overflow-x-auto">
         <svg width={W} height={H} style={{fontFamily:'Inter,sans-serif'}}>
@@ -347,8 +351,11 @@ function SankeyFlow({ sgd }: { sgd: SGDRow[] }) {
 // 4. FRAUD NETWORK TIMELINE
 // ══════════════════════════════════════════════════════════════════════════════
 function FraudTimeline({ sgd, fraud }: { sgd: SGDRow[]; fraud: FraudCase[] }) {
-  const OFFICES = ['DLA001','KBI001','DLA002','YDE001','YDE002'];
-  const OFF_COLORS: Record<string,string> = { DLA001:'#3b82f6', KBI001:'#10b981', DLA002:'#8b5cf6', YDE001:'#f59e0b', YDE002:'#ef4444' };
+  const OFFICES = ['LT1','SD2','LT2','CTR','SUO','OUE','NRD','NRO','EST','SD1','EXN','ADM'];
+  const OFF_COLORS: Record<string,string> = {
+    LT1:'#3b82f6', SD2:'#10b981', LT2:'#8b5cf6', CTR:'#f59e0b', SUO:'#14b8a6', OUE:'#a855f7',
+    NRD:'#ef4444', NRO:'#ec4899', EST:'#84cc16', SD1:'#059669', EXN:'#f97316', ADM:'#06b6d4',
+  };
 
   // Build scatter data from fraud cases
   const fraudSet = new Set(fraud.map(f=>f.sgd_id));
@@ -375,7 +382,7 @@ function FraudTimeline({ sgd, fraud }: { sgd: SGDRow[]; fraud: FraudCase[] }) {
   return (
     <div className="card">
       <SectionTitle icon="📅">Timeline Fraude — Évolution Temporelle du Risque</SectionTitle>
-      <p className="text-xs text-muted mb-1">Chaque bulle = 1 déclaration suspecte · Taille = montant des pertes · Couleur = bureau · Axe Y = probabilité fraude IA</p>
+      <p className="text-xs text-muted mb-1">Chaque bulle = 1 déclaration suspecte · Taille = montant des pertes · Couleur = secteur · Axe Y = probabilité fraude IA</p>
 
       <div className="mb-4">
         {/* Scatter timeline — full width */}

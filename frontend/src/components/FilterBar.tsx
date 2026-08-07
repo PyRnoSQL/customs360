@@ -5,12 +5,19 @@ import { useLocation } from 'react-router-dom';
 
 // ── Data ───────────────────────────────────────────────────────────────────────
 const BUREAUX: { value: BureauFilter; label: string }[] = [
-  { value: 'ALL',    label: 'Tous les bureaux' },
-  { value: 'DLA001', label: 'Douala Port Principal' },
-  { value: 'KBI001', label: 'Kribi Port Autonome' },
-  { value: 'DLA002', label: 'Douala Aéroport' },
-  { value: 'YDE001', label: 'Yaoundé Nsimalen' },
-  { value: 'YDE002', label: 'Yaoundé Centre' },
+  { value: 'ALL', label: 'Tous les secteurs' },
+  { value: 'LT1', label: 'Littoral 1 (Douala Port)' },
+  { value: 'SD2', label: 'Sud 2 (Kribi Port)' },
+  { value: 'LT2', label: 'Littoral 2 (Douala Aéroport)' },
+  { value: 'CTR', label: 'Centre (Yaoundé)' },
+  { value: 'OUE', label: 'Ouest (Bafoussam)' },
+  { value: 'SUO', label: 'Sud-Ouest (Buea/Limbe)' },
+  { value: 'ADM', label: 'Adamaoua (Ngaoundéré)' },
+  { value: 'NRD', label: 'Nord (Garoua)' },
+  { value: 'EXN', label: 'Extrême-Nord (Maroua)' },
+  { value: 'NRO', label: 'Nord-Ouest (Bamenda)' },
+  { value: 'SD1', label: 'Sud 1 (Ebolowa)' },
+  { value: 'EST', label: 'Est (Bertoua)' },
 ];
 
 const PERIODS: { value: PeriodFilter; label: string; group?: string }[] = [
