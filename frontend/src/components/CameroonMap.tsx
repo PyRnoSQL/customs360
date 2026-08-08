@@ -40,7 +40,7 @@ interface Props {
 
 function fmtRev(v: number) {
   if (v >= 1e9) return (v / 1e9).toFixed(1) + ' Mrd';
-  if (v >= 1e6) return Math.round(v / 1e6) + ' M';
+  if (v >= 1e6) return Math.round(v / 1e6) + ' MM';
   return v.toString();
 }
 

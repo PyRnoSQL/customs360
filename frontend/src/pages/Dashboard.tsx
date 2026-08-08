@@ -50,12 +50,12 @@ export default function Dashboard() {
   const revenueOption = {
     backgroundColor: 'transparent',
     tooltip: { trigger:'axis', ...CHART_TT, axisPointer:{type:'shadow'},
-      formatter: (p: {seriesName:string;value:number;marker:string}[]) =>
-        `<span style="color:#f1f5f9">${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.value}M FCFA</b>`).join('<br/>')}</span>` },
+      formatter: (p: {seriesName:string;value:number;marker:string;axisValueLabel?:string}[]) =>
+        `<span style="color:#f1f5f9"><b>${p[0]?.axisValueLabel??''}</b><br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${fmtM(s.value*1e6)} FCFA</b>`).join('<br/>')}</span>` },
     legend: { data:['Taxes évaluées','Recettes collectées','Évasion détectée'], textStyle:{color:'#64748b',fontSize:10}, top:0, itemWidth:10, itemHeight:10 },
     grid: { left:8, right:8, bottom:24, top:36, containLabel:true },
     xAxis: { type:'category', data:filteredRevenue.map((m:{label:string})=>m.label), axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisLabel:{color:'#475569',fontSize:10}, axisTick:{show:false} },
-    yAxis: { type:'value', axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>`${v}M`}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
+    yAxis: { type:'value', axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>fmtM(v*1e6)}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
     series: [
       { name:'Taxes évaluées', type:'bar', data:filteredRevenue.map((m:{expected:number})=>Math.round(m.expected/1e6)), itemStyle:{color:'rgba(59,130,246,0.35)',borderRadius:[3,3,0,0]}, barGap:'5%' },
       { name:'Recettes collectées', type:'bar', data:filteredRevenue.map((m:{collected:number})=>Math.round(m.collected/1e6)), itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(16,185,129,0.9)'},{offset:1,color:'rgba(16,185,129,0.4)'}]},borderRadius:[3,3,0,0]} },
@@ -78,7 +78,7 @@ export default function Dashboard() {
         {value:filteredRecovered||data.amount_recovered, itemStyle:{color:'rgba(16,185,129,0.8)',borderRadius:[0,4,4,0]}},
         {value:filteredLoss||data.net_loss, itemStyle:{color:'rgba(239,68,68,0.4)',borderRadius:[0,4,4,0]}},
       ],
-      label:{show:true,position:'right',color:'#94a3b8',fontSize:10,formatter:(p:{value:number})=>`${fmtM(p.value)}M`},
+      label:{show:true,position:'right',color:'#94a3b8',fontSize:10,formatter:(p:{value:number})=>fmtM(p.value)},
     }],
   };
 
@@ -141,12 +141,12 @@ export default function Dashboard() {
   const officeBarOption = {
     backgroundColor:'transparent',
     tooltip:{trigger:'axis',...CHART_TT,axisPointer:{type:'shadow'},
-      formatter:(p:{seriesName:string;value:number;marker:string}[])=>`<span style="color:#f1f5f9">${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName.toLowerCase().includes('fraude')?s.value+'%':fmtM(s.value)+'M FCFA'}</b>`).join('<br/>')}</span>`},
+      formatter:(p:{seriesName:string;value:number;marker:string}[])=>`<span style="color:#f1f5f9">${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName.toLowerCase().includes('fraude')?s.value+'%':fmtM(s.value*1e6)+' FCFA'}</b>`).join('<br/>')}</span>`},
     legend:{textStyle:{color:'#64748b',fontSize:9},top:0,right:0,itemWidth:8,itemHeight:8},
     grid:{left:8,right:50,bottom:20,top:28,containLabel:true},
     xAxis:{type:'category',data:sortedOffices.map((o:{name:string})=>o.name.split(' ')[0]),axisLabel:{color:'#475569',fontSize:9},axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}},axisTick:{show:false}},
     yAxis:[
-      {type:'value',axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>`${v}M`},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}},axisLine:{show:false}},
+      {type:'value',axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>fmtM(v*1e6)},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}},axisLine:{show:false}},
       {type:'value',position:'right',min:0,max:20,axisLabel:{color:'#f87171',fontSize:9,formatter:(v:number)=>`${v}%`},splitLine:{show:false},axisLine:{show:false}},
     ],
     series:[
@@ -171,10 +171,10 @@ export default function Dashboard() {
       <StaggerGrid className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
         <KPICard label="SGDs traités" value={fmt(filters.bureau==='ALL'?data.total_sgd:(filteredOffices[0]?.count??0))} icon="📋" color="accent"/>
         <KPICard label="Recettes" value={`${Math.round(filteredRevTotal/1e9*10)/10} Mrd`} icon="💰" color="success"/>
-        <KPICard label="Évasion détectée" value={`${fmtM(filteredEvasion||data.tax_evasion_total)}M`} icon="🚨" color="danger"/>
-        <KPICard label="Pénalités levées" value={`${fmtM(filteredPenalties||data.penalties_raised)}M`} icon="⚖️" color="gold"/>
-        <KPICard label="Montant récupéré" value={`${fmtM(filteredRecovered||data.amount_recovered)}M`} icon="💚" color="success"/>
-        <KPICard label="Perte nette" value={`${fmtM(filteredLoss||data.net_loss)}M`} icon="📉" color="danger"/>
+        <KPICard label="Évasion détectée" value={fmtM(filteredEvasion||data.tax_evasion_total)} icon="🚨" color="danger"/>
+        <KPICard label="Pénalités levées" value={fmtM(filteredPenalties||data.penalties_raised)} icon="⚖️" color="gold"/>
+        <KPICard label="Montant récupéré" value={fmtM(filteredRecovered||data.amount_recovered)} icon="💚" color="success"/>
+        <KPICard label="Perte nette" value={fmtM(filteredLoss||data.net_loss)} icon="📉" color="danger"/>
         <KPICard label="Taux recouvrement" value={`${filteredRecoveryRate||Math.round((data.recovery_rate??0)*100)}%`} icon="🔄" color={filteredRecoveryRate>60?'success':filteredRecoveryRate>40?'gold':'danger'}/>
         <KPICard label="Fraudes confirmées" value={filteredFraudConf||data.fraud_confirmed} icon="🎯" color="teal"/>
       </StaggerGrid>
@@ -315,7 +315,7 @@ export default function Dashboard() {
             <div className="mt-3 p-3 rounded-xl" style={{background:'rgba(239,68,68,0.06)',border:'1px solid rgba(239,68,68,0.15)'}}>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-red-400">Perte potentielle — dossiers EN_COURS</span>
-                <span className="text-xs font-black text-red-400">{fmtM(filteredCases.filter((f:{status:string})=>f.status==='EN_COURS').reduce((s:number,f:{loss_net:number})=>s+(f.loss_net??0),0)||0)}M FCFA</span>
+                <span className="text-xs font-black text-red-400">{fmtM(filteredCases.filter((f:{status:string})=>f.status==='EN_COURS').reduce((s:number,f:{loss_net:number})=>s+(f.loss_net??0),0)||0)} FCFA</span>
               </div>
               <div className="text-[10px] text-muted mt-0.5">{data.cases_open} dossiers encore ouverts · recouvrement en cours</div>
             </div>
@@ -342,7 +342,7 @@ export default function Dashboard() {
                         <div className="text-[10px] text-muted">{f.importer_id}</div>
                       </td>
                       <td><span className="text-xs text-slate-400">{f.fraud_type?.replace(/_/g,' ')}</span></td>
-                      <td><span className="text-xs font-bold text-red-400">{fmtM(f.tax_evasion_amount??f.loss_net)}M FCFA</span></td>
+                      <td><span className="text-xs font-bold text-red-400">{fmtM(f.tax_evasion_amount??f.loss_net)} FCFA</span></td>
                       <td>
                         <div className="flex items-center gap-1.5">
                           <div className="h-1 w-10 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}>

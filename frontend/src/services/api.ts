@@ -38,7 +38,7 @@ export const api = {
 export const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
 export const fmtM = (n: number) => {
   if (n >= 1e9) return (n / 1e9).toFixed(1) + ' Mrd';
-  if (n >= 1e6) return Math.round(n / 1e6) + ' M';
+  if (n >= 1e6) return Math.round(n / 1e6) + ' MM';
   return fmt(n);
 };
 export const riskColor = (s: number) =>
