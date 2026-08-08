@@ -323,11 +323,11 @@ export default function Welcome() {
           <div className="flex items-center gap-3 mb-2">
             <div className="h-5 w-0.5 rounded-full" style={{ background:'#fcd116' }}/>
             <p className="text-xs text-slate-400 leading-relaxed">
-              CUSTOMS360 intègre six modules d'intelligence opérationnelle interconnectés, couvrant l'intégralité du cycle douanier — de la déclaration à la performance institutionnelle.
+              CUSTOMS360 intègre neuf modules d'intelligence opérationnelle interconnectés, couvrant l'intégralité du cycle douanier — de la déclaration à la performance institutionnelle.
             </p>
           </div>
           <div className="text-center mt-4">
-            <div className="text-[10px] font-bold tracking-[4px] uppercase mb-1" style={{ color: mod.color }}>6 MODULES · 1 PLATEFORME</div>
+            <div className="text-[10px] font-bold tracking-[4px] uppercase mb-1" style={{ color: mod.color }}>9 MODULES · 1 PLATEFORME</div>
             <h2 className="text-xl font-black text-white">Chaque module, un levier de souveraineté fiscale</h2>
           </div>
         </div>
@@ -462,7 +462,7 @@ export default function Welcome() {
           {[
             { v:'10', l:'Régions couvertes',   icon:'🗺️', c:'#3b82f6' },
             { v: data ? fmt(data.total_sgd) : '500+', l:'Déclarations analysées', icon:'📋', c:'#10b981' },
-            { v:'6',  l:'Modules opérationnels',icon:'⚙️', c:'#8b5cf6' },
+            { v:'9',  l:'Modules opérationnels',icon:'⚙️', c:'#8b5cf6' },
             { v: data ? `${Math.round((data.fraud_confirmed / Math.max(data.total_sgd,1))*100)}%` : '—', l:'Taux détection fraude', icon:'🎯', c:'#ef4444' },
             { v:'Réel', l:'Données en temps réel', icon:'⚡', c:'#f59e0b' },
             { v:'IA',   l:'Modèles ML actifs', icon:'🤖', c:'#06b6d4' },
@@ -501,7 +501,7 @@ export default function Welcome() {
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background:'rgba(139,92,246,0.2)',border:'1px solid rgba(139,92,246,0.3)' }}>🤖</div>
           <div>
             <div className="text-sm font-black text-white">Douane AI Assistant™</div>
-            <div className="text-[10px]" style={{ color:'#64748b' }}>Intelligence Artificielle · Llama 3.3 70B · Analyse contextuelle douanière</div>
+            <div className="text-[10px]" style={{ color:'#64748b' }}>Intelligence Artificielle · Analyse contextuelle douanière</div>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"/>
