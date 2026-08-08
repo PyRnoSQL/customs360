@@ -460,7 +460,7 @@ export default function Welcome() {
         </div>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
           {[
-            { v:'10', l:'Régions couvertes',   icon:'🗺️', c:'#3b82f6' },
+            { v:'12', l:'Secteurs couverts',   icon:'🗺️', c:'#3b82f6' },
             { v: data ? fmt(data.total_sgd) : '500+', l:'Déclarations analysées', icon:'📋', c:'#10b981' },
             { v:'9',  l:'Modules opérationnels',icon:'⚙️', c:'#8b5cf6' },
             { v: data ? `${Math.round((data.fraud_confirmed / Math.max(data.total_sgd,1))*100)}%` : '—', l:'Taux détection fraude', icon:'🎯', c:'#ef4444' },
@@ -492,37 +492,6 @@ export default function Welcome() {
           <div className="h-px my-5 mx-auto w-24" style={{ background:'linear-gradient(90deg,transparent,#fcd116,transparent)' }}/>
           <p className="text-base font-black mb-1" style={{ color:'#fcd116' }}>Bienvenue à l'ère de l'intelligence douanière.</p>
           <p className="text-sm font-bold text-white tracking-widest">Anticiper. Décider. Agir.</p>
-        </div>
-      </div>
-
-      {/* ── SECTION 5 — AI assistant teaser ───────────────────────────── */}
-      <div className="rounded-2xl overflow-hidden" style={{ border:'1px solid #2d1f6e' }}>
-        <div className="px-6 py-4 flex items-center gap-3" style={{ background:'linear-gradient(90deg,#0f0a2a,#111827)' }}>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background:'rgba(139,92,246,0.2)',border:'1px solid rgba(139,92,246,0.3)' }}>🤖</div>
-          <div>
-            <div className="text-sm font-black text-white">Douane AI Assistant™</div>
-            <div className="text-[10px]" style={{ color:'#64748b' }}>Intelligence Artificielle · Analyse contextuelle douanière</div>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"/>
-            <span className="text-[10px] font-bold text-purple-400">IA ACTIVE</span>
-          </div>
-        </div>
-        <div className="px-6 py-5" style={{ background:'#0a0d1a' }}>
-          <p className="text-sm text-slate-300 leading-relaxed mb-4">Posez vos questions opérationnelles et obtenez instantanément des analyses basées sur vos données douanières en temps réel.</p>
-          <div className="space-y-2 mb-5">
-            {['Quels importateurs présentent un risque élevé ?','Pourquoi les délais augmentent-ils au Port de Douala ?','Quelles sont les sources principales de pertes fiscales ?'].map(p=>(
-              <div key={p} onClick={() => navigate('/ai')} className="flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-all hover:opacity-90"
-                style={{ background:'rgba(139,92,246,0.08)',border:'1px solid rgba(139,92,246,0.2)' }}>
-                <span className="text-purple-500 text-xs">▶</span>
-                <span className="text-sm text-slate-300">{p}</span>
-              </div>
-            ))}
-          </div>
-          <button onClick={() => navigate('/ai')} className="w-full py-3 rounded-xl text-sm font-black tracking-wide transition-all hover:opacity-90"
-            style={{ background:'linear-gradient(90deg,#7c3aed,#4f46e5)',color:'#fff' }}>
-            🤖 Ouvrir l'Assistant IA →
-          </button>
         </div>
       </div>
 
