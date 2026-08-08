@@ -327,17 +327,17 @@ export default function OfficersPage() {
   return (
     <div className="space-y-5">
       <PageHeader />
-      <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Total Agents" value={officers.length} icon="👤" color="accent" />
-        <KPICard label="PI Moyen" value={avgPI} suffix="/100" icon="📊" color="teal" />
-        <KPICard label="Fraudes Détectées" value={officers.reduce((s: number, o: Officer) => s + o.fraud_detected, 0)} icon="🎯" color="danger" />
-        <KPICard label="Détections Proactives" value={officers.reduce((s: number, o: Officer) => s + o.proactive_detections, 0)} icon="⚡" color="success" />
+      <StaggerGrid className="grid grid-cols-4 gap-2">
+        <KPICard compact label="Total Agents" value={officers.length} icon="👤" color="accent" />
+        <KPICard compact label="PI Moyen" value={avgPI} suffix="/100" icon="📊" color="teal" />
+        <KPICard compact label="Fraudes Détectées" value={officers.reduce((s: number, o: Officer) => s + o.fraud_detected, 0)} icon="🎯" color="danger" />
+        <KPICard compact label="Détections Proactives" value={officers.reduce((s: number, o: Officer) => s + o.proactive_detections, 0)} icon="⚡" color="success" />
       </StaggerGrid>
-      <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Eligible Promotion" value={eligible} icon="🏆" color="success" />
-        <KPICard label="Alerte Surmenage" value={burnoutHigh} icon="🔴" color="danger" />
-        <KPICard label="Saisies Totales" value={officers.reduce((s: number, o: Officer) => s + o.seizures_made, 0)} icon="🔒" color="accent" />
-        <KPICard label="Écart Fiscal Récupéré" value={fmtM(officers.reduce((s: number, o: Officer) => s + o.total_tax_gap_recovered, 0))} suffix=" MFCFA" icon="💰" color="teal" />
+      <StaggerGrid className="grid grid-cols-4 gap-2">
+        <KPICard compact label="Eligible Promotion" value={eligible} icon="🏆" color="success" />
+        <KPICard compact label="Alerte Surmenage" value={burnoutHigh} icon="🔴" color="danger" />
+        <KPICard compact label="Saisies Totales" value={officers.reduce((s: number, o: Officer) => s + o.seizures_made, 0)} icon="🔒" color="accent" />
+        <KPICard compact label="Écart Fiscal Récupéré" value={fmtM(officers.reduce((s: number, o: Officer) => s + o.total_tax_gap_recovered, 0))} suffix=" MFCFA" icon="💰" color="teal" />
       </StaggerGrid>
 
       {/* Scatter: PI vs fraud rate */}

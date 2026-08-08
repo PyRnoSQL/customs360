@@ -92,11 +92,11 @@ export default function Offices() {
     <div className="space-y-5">
       <PageHeader />
 
-      <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Secteurs actifs" value={data.length} icon="🏛️" color="accent" />
-        <KPICard label="Total recettes" value={Math.round(data.reduce((s: number, o: Office) => s + o.total_revenue, 0) / 1e9 * 10) / 10} suffix=" Mrd" icon="💰" color="success" />
-        <KPICard label="Meilleure efficacité" value={best?.efficiency_score ?? 0} suffix="%" icon="🏆" color="teal" />
-        <KPICard label="Total fraudes" value={data.reduce((s: number, o: Office) => s + o.fraud_cases, 0)} icon="🚨" color="danger" />
+      <StaggerGrid className="grid grid-cols-4 gap-2">
+        <KPICard compact label="Secteurs actifs" value={data.length} icon="🏛️" color="accent" />
+        <KPICard compact label="Total recettes" value={Math.round(data.reduce((s: number, o: Office) => s + o.total_revenue, 0) / 1e9 * 10) / 10} suffix=" Mrd" icon="💰" color="success" />
+        <KPICard compact label="Meilleure efficacité" value={best?.efficiency_score ?? 0} suffix="%" icon="🏆" color="teal" />
+        <KPICard compact label="Total fraudes" value={data.reduce((s: number, o: Office) => s + o.fraud_cases, 0)} icon="🚨" color="danger" />
       </StaggerGrid>
 
       {/* Leaflet Map */}

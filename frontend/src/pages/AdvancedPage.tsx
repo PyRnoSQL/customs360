@@ -55,11 +55,11 @@ function FraudDetectionTab() {
   };
   return (
     <div className="space-y-5">
-      <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Déclarations analysées" value={fmt(total)} icon="📋" color="accent" />
-        <KPICard label="Score Critique ≥70" value={high_risk} icon="🔴" color="danger" />
-        <KPICard label="Score Modéré 40-70" value={medium_risk} icon="🟡" color="gold" />
-        <KPICard label="Précision algorithme" value="92%" icon="✅" color="success" />
+      <StaggerGrid className="grid grid-cols-4 gap-2">
+        <KPICard compact label="Déclarations analysées" value={fmt(total)} icon="📋" color="accent" />
+        <KPICard compact label="Score Critique ≥70" value={high_risk} icon="🔴" color="danger" />
+        <KPICard compact label="Score Modéré 40-70" value={medium_risk} icon="🟡" color="gold" />
+        <KPICard compact label="Précision algorithme" value="92%" icon="✅" color="success" />
       </StaggerGrid>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="card">
@@ -134,11 +134,11 @@ function RecommendationsTab() {
   const CAT_COLOR: Record<string, string> = { INSPECTION: '#ef4444', INTÉGRITÉ: '#a78bfa', CIBLAGE: '#f59e0b', EFFICACITÉ: '#3b82f6', RECOUVREMENT: '#10b981' };
   return (
     <div className="space-y-5">
-      <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Recommandations actives" value={total} icon="💡" color="gold" />
-        <KPICard label="Priorité critique" value={(recommendations as Rec[]).filter(r => r.impact === 'Critique').length} icon="🔴" color="danger" />
-        <KPICard label="Impact élevé" value={(recommendations as Rec[]).filter(r => r.impact === 'Haut' || r.impact === 'Élevé').length} icon="🟠" color="accent" />
-        <KPICard label="Générées le" value={new Date(generated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} icon="🕐" color="teal" />
+      <StaggerGrid className="grid grid-cols-4 gap-2">
+        <KPICard compact label="Recommandations actives" value={total} icon="💡" color="gold" />
+        <KPICard compact label="Priorité critique" value={(recommendations as Rec[]).filter(r => r.impact === 'Critique').length} icon="🔴" color="danger" />
+        <KPICard compact label="Impact élevé" value={(recommendations as Rec[]).filter(r => r.impact === 'Haut' || r.impact === 'Élevé').length} icon="🟠" color="accent" />
+        <KPICard compact label="Générées le" value={new Date(generated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} icon="🕐" color="teal" />
       </StaggerGrid>
       <div className="space-y-4">
         {(recommendations as Rec[]).map((rec, i) => (
@@ -385,11 +385,11 @@ function AnalytiqueTab() {
 
   return (
     <div className="space-y-5">
-      <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Opérateurs analysés" value={totalDecls} icon="🏢" color="accent" />
-        <KPICard label="Codes tarifaires" value={fmt(tariff_matrix.length)} icon="🗂️" color="teal" />
-        <KPICard label="Pays d'origine" value={fmt(country_analysis.length)} icon="🌍" color="gold" />
-        <KPICard label="Jour pic fraude" value={DAY_FULL2[peakDay?.day] ?? peakDay?.day ?? '—'} icon="📅" color="danger" animate={false} />
+      <StaggerGrid className="grid grid-cols-4 gap-2">
+        <KPICard compact label="Opérateurs analysés" value={totalDecls} icon="🏢" color="accent" />
+        <KPICard compact label="Codes tarifaires" value={fmt(tariff_matrix.length)} icon="🗂️" color="teal" />
+        <KPICard compact label="Pays d'origine" value={fmt(country_analysis.length)} icon="🌍" color="gold" />
+        <KPICard compact label="Jour pic fraude" value={DAY_FULL2[peakDay?.day] ?? peakDay?.day ?? '—'} icon="📅" color="danger" animate={false} />
       </StaggerGrid>
 
       {/* Row 1: Segmentation (1/3) + Fraude par jour (2/3) */}

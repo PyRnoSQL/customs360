@@ -87,11 +87,11 @@ ${p.percent}%`,
   return (
     <div className="space-y-5">
       <PageHeader />
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Total Cas" value={fmt(filteredCases.length)} color="danger" />
-        <KPICard label="Pertes Totales" value={fmtM(totalLoss) + ' FCFA'} color="gold" />
-        <KPICard label="Dossiers Clôturés" value={fmt(filteredCases.filter((f: { status: string }) => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE').length)} color="danger" />
-        <KPICard label="En Cours" value={fmt(filteredCases.filter((f: { status: string }) => f.status === 'EN_COURS').length)} color="teal" />
+      <div className="grid grid-cols-4 gap-2">
+        <KPICard compact label="Total Cas" value={fmt(filteredCases.length)} color="danger" />
+        <KPICard compact label="Pertes Totales" value={fmtM(totalLoss) + ' FCFA'} color="gold" />
+        <KPICard compact label="Dossiers Clôturés" value={fmt(filteredCases.filter((f: { status: string }) => f.status === 'CLOTURE_AMIABLE' || f.status === 'CLOTURE_CONTENTIEUX' || f.status === 'TRANSMIS_JUSTICE').length)} color="danger" />
+        <KPICard compact label="En Cours" value={fmt(filteredCases.filter((f: { status: string }) => f.status === 'EN_COURS').length)} color="teal" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">

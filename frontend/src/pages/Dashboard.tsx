@@ -168,15 +168,15 @@ export default function Dashboard() {
       <PageHeader />
 
       {/* ── ROW 0: 8 Headline KPIs ── */}
-      <StaggerGrid className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
-        <KPICard label="SGDs traités" value={fmt(filters.bureau==='ALL'?data.total_sgd:(filteredOffices[0]?.count??0))} icon="📋" color="accent"/>
-        <KPICard label="Recettes" value={`${Math.round(filteredRevTotal/1e9*10)/10} Mrd`} icon="💰" color="success"/>
-        <KPICard label="Évasion détectée" value={fmtM(filteredEvasion||data.tax_evasion_total)} icon="🚨" color="danger"/>
-        <KPICard label="Pénalités levées" value={fmtM(filteredPenalties||data.penalties_raised)} icon="⚖️" color="gold"/>
-        <KPICard label="Montant récupéré" value={fmtM(filteredRecovered||data.amount_recovered)} icon="💚" color="success"/>
-        <KPICard label="Perte nette" value={fmtM(filteredLoss||data.net_loss)} icon="📉" color="danger"/>
-        <KPICard label="Taux recouvrement" value={`${filteredRecoveryRate||Math.round((data.recovery_rate??0)*100)}%`} icon="🔄" color={filteredRecoveryRate>60?'success':filteredRecoveryRate>40?'gold':'danger'}/>
-        <KPICard label="Fraudes confirmées" value={filteredFraudConf||data.fraud_confirmed} icon="🎯" color="teal"/>
+      <StaggerGrid className="grid grid-cols-8 gap-2">
+        <KPICard compact label="SGDs traités" value={fmt(filters.bureau==='ALL'?data.total_sgd:(filteredOffices[0]?.count??0))} icon="📋" color="accent"/>
+        <KPICard compact label="Recettes" value={`${Math.round(filteredRevTotal/1e9*10)/10} Mrd`} icon="💰" color="success"/>
+        <KPICard compact label="Évasion détectée" value={fmtM(filteredEvasion||data.tax_evasion_total)} icon="🚨" color="danger"/>
+        <KPICard compact label="Pénalités levées" value={fmtM(filteredPenalties||data.penalties_raised)} icon="⚖️" color="gold"/>
+        <KPICard compact label="Montant récupéré" value={fmtM(filteredRecovered||data.amount_recovered)} icon="💚" color="success"/>
+        <KPICard compact label="Perte nette" value={fmtM(filteredLoss||data.net_loss)} icon="📉" color="danger"/>
+        <KPICard compact label="Taux recouvrement" value={`${filteredRecoveryRate||Math.round((data.recovery_rate??0)*100)}%`} icon="🔄" color={filteredRecoveryRate>60?'success':filteredRecoveryRate>40?'gold':'danger'}/>
+        <KPICard compact label="Fraudes confirmées" value={filteredFraudConf||data.fraud_confirmed} icon="🎯" color="teal"/>
       </StaggerGrid>
 
       {/* ── ROW 1: Revenue trend + Recovery waterfall ── */}

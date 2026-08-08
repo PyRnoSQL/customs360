@@ -211,11 +211,11 @@ export default function Importers() {
   return (
     <div className="space-y-5">
       <PageHeader />
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Total Importateurs" value={fmt(data.length)} color="accent" />
-        <KPICard label="Haut Risque (≥70)" value={fmt(highRisk)} color="danger" />
-        <KPICard label="Total Fraudes" value={fmt(data.reduce((s: number, i: ImporterProfile) => s + i.fraud_cases, 0))} color="gold" />
-        <KPICard label="Importateurs Sains" value={fmt(data.filter((i: ImporterProfile) => i.risk_score < 35).length)} color="success" />
+      <div className="grid grid-cols-4 gap-2">
+        <KPICard compact label="Total Importateurs" value={fmt(data.length)} color="accent" />
+        <KPICard compact label="Haut Risque (≥70)" value={fmt(highRisk)} color="danger" />
+        <KPICard compact label="Total Fraudes" value={fmt(data.reduce((s: number, i: ImporterProfile) => s + i.fraud_cases, 0))} color="gold" />
+        <KPICard compact label="Importateurs Sains" value={fmt(data.filter((i: ImporterProfile) => i.risk_score < 35).length)} color="success" />
       </div>
 
       <div className="card">

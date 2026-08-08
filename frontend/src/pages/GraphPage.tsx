@@ -483,11 +483,11 @@ export default function GraphPage() {
   return (
     <div className="space-y-5">
       <PageHeader/>
-      <StaggerGrid className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Nœuds Graph" value={nodes.length} icon="🔵" color="accent"/>
-        <KPICard label="Connexions" value={links.length} icon="🔗" color="teal"/>
-        <KPICard label="Nœuds Fraude" value={fraudCount} icon="🔴" color="danger"/>
-        <KPICard label="Haut Risque" value={highRisk} icon="⚠️" color="gold"/>
+      <StaggerGrid className="grid grid-cols-4 gap-2">
+        <KPICard compact label="Nœuds Graph" value={nodes.length} icon="🔵" color="accent"/>
+        <KPICard compact label="Connexions" value={links.length} icon="🔗" color="teal"/>
+        <KPICard compact label="Nœuds Fraude" value={fraudCount} icon="🔴" color="danger"/>
+        <KPICard compact label="Haut Risque" value={highRisk} icon="⚠️" color="gold"/>
       </StaggerGrid>
 
       {/* 1. Force graph */}
