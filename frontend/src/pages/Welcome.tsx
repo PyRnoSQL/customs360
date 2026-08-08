@@ -150,8 +150,8 @@ const MODULE_METRICS: Record<string, [ModStat, ModStat, ModStat]> = {
     { value: '360°',   label: 'Visibilité opérateur complète' },
   ],
   delays: [
-    { value: '312h',   label: 'Délai max détecté' },
-    { value: '+780%',  label: 'Dépassement du délai standard' },
+    { value: '634h',   label: 'Délai max détecté' },
+    { value: '+1580%', label: 'Dépassement du délai standard' },
     { value: 'Live',   label: 'Monitoring des délais en continu' },
   ],
   offices: [
