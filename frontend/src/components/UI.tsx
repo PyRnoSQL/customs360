@@ -15,6 +15,7 @@ interface KPIProps {
   color?: 'accent' | 'gold' | 'danger' | 'success' | 'teal' | 'purple';
   icon?: string;
   animate?: boolean;
+  compact?: boolean;
 }
 
 const COLOR_MAP = {
@@ -27,7 +28,7 @@ const COLOR_MAP = {
 };
 
 export const KPICard: React.FC<KPIProps> = ({
-  label, value, prefix = '', suffix = '', sub, delta, deltaDir, color = 'accent', icon, animate = true
+  label, value, prefix = '', suffix = '', sub, delta, deltaDir, color = 'accent', icon, animate = true, compact = false
 }) => {
   const cm = COLOR_MAP[color];
   const isNumber = typeof value === 'number';
@@ -37,7 +38,7 @@ export const KPICard: React.FC<KPIProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="glass-card rounded-2xl p-5 relative overflow-hidden group"
+      className={`glass-card rounded-2xl relative overflow-hidden group ${compact ? 'p-3' : 'p-5'}`}
       style={{ boxShadow: `0 4px 24px ${cm.glow}` }}
       whileHover={{ scale: 1.02, boxShadow: `0 8px 32px ${cm.glow}` }}
     >
@@ -46,16 +47,16 @@ export const KPICard: React.FC<KPIProps> = ({
         style={{ background: `linear-gradient(90deg, transparent, ${cm.top}, transparent)` }} />
 
       {/* Background glow blob */}
-      <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full blur-2xl opacity-20 group-hover:opacity-30 transition-opacity"
+      <div className={`absolute -top-6 -right-6 rounded-full blur-2xl opacity-20 group-hover:opacity-30 transition-opacity ${compact ? 'w-14 h-14' : 'w-20 h-20'}`}
         style={{ background: cm.top }} />
 
       <div className="relative z-10">
-        <div className="flex items-start justify-between mb-2">
-          <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#475569' }}>{label}</div>
-          {icon && <span className="text-lg opacity-60">{icon}</span>}
+        <div className={`flex items-start justify-between ${compact ? 'mb-1' : 'mb-2'}`}>
+          <div className={`font-semibold uppercase tracking-widest ${compact ? 'text-[10px]' : 'text-xs'}`} style={{ color: '#475569' }}>{label}</div>
+          {icon && <span className={`opacity-60 ${compact ? 'text-sm' : 'text-lg'}`}>{icon}</span>}
         </div>
 
-        <div className="text-2xl font-black number-ticker mb-1" style={{ color: cm.text }}>
+        <div className={`font-black number-ticker mb-1 ${compact ? 'text-lg' : 'text-2xl'}`} style={{ color: cm.text }}>
           {isNumber && animate ? (
             <CountUp end={value as number} duration={2} separator=" " prefix={prefix} suffix={suffix}
               useEasing easingFn={(t, b, c, d) => { t /= d; return c * t * t * t + b; }} />
@@ -64,7 +65,7 @@ export const KPICard: React.FC<KPIProps> = ({
           )}
         </div>
 
-        {sub && <div className="text-xs mt-1" style={{ color: '#475569' }}>{sub}</div>}
+        {sub && <div className={`mt-1 truncate ${compact ? 'text-[10px]' : 'text-xs'}`} style={{ color: '#475569' }}>{sub}</div>}
         {delta && (
           <div className={`text-xs font-semibold mt-1.5 flex items-center gap-1 ${deltaDir === 'up' ? 'text-emerald-400' : deltaDir === 'down' ? 'text-red-400' : 'text-slate-500'}`}>
             {deltaDir === 'up' ? '▲' : deltaDir === 'down' ? '▼' : '●'} {delta}

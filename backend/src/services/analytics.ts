@@ -1217,7 +1217,7 @@ export function classifyDelays(sgd: SGDRow[], fraud: FraudRow[]): DelayClassific
         sgd_id: s.sgd_id, office_id: s.office_id, office_name: s.office_name ?? s.office_id,
         importer_id: s.importer_id, importer_name: s.importer_name ?? s.importer_id,
         actual_hours: s.clearance_hours, baseline_hours: baseline,
-        overshoot, cause, cause_label: CAUSE_LABELS[cause],
+        overshoot: Math.round(overshoot * 10) / 10, cause, cause_label: CAUSE_LABELS[cause],
         confidence, action: CAUSE_ACTIONS[cause],
       };
     })

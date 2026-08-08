@@ -220,11 +220,11 @@ export function Delays() {
   return (
     <div className="space-y-5">
       <PageHeader />
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KPICard label="Délais Suspects" value={fmt(filtered.length)} color="danger" />
-        <KPICard label="Pire Délai" value={worst ? worst.clearance_hours + 'h' : '—'} sub={worst?.sgd_id} color="gold" />
-        <KPICard label="Dépassement Moyen" value={avgOvershoot + 'h'} color="teal" />
-        <KPICard label="Bureaux Concernés" value={fmt(new Set(filtered.map((d: { office_id: string }) => d.office_id)).size)} color="accent" />
+      <div className="grid grid-cols-4 gap-2">
+        <KPICard compact label="Délais Suspects" value={fmt(filtered.length)} color="danger" />
+        <KPICard compact label="Pire Délai" value={worst ? worst.clearance_hours + 'h' : '—'} sub={worst?.sgd_id} color="gold" />
+        <KPICard compact label="Dépassement Moyen" value={avgOvershoot + 'h'} color="teal" />
+        <KPICard compact label="Secteurs Concernés" value={fmt(new Set(filtered.map((d: { office_id: string }) => d.office_id)).size)} color="accent" />
       </div>
       <div className="card">
         <SectionTitle icon="⏱️">Déclarations avec Délais Anormaux</SectionTitle>
@@ -304,22 +304,21 @@ function DelaysCausalAnalysis() {
               </div>
             ))}
           </div>
-          <table className="tbl">
-            <thead><tr><th>SGD</th><th>Secteur</th><th>Importateur</th><th>Cause</th><th>Dépassement</th><th>Confiance</th><th>Action recommandée</th></tr></thead>
-            <tbody>
-              {(delay_causes as DelayCause[]).slice(0,20).map((d: DelayCause) => (
-                <tr key={d.sgd_id} style={{background:d.cause==='INTENTIONAL'?'rgba(239,68,68,0.04)':undefined}}>
-                  <td><Code>{d.sgd_id}</Code></td>
-                  <td><span className="text-xs text-muted">{d.office_name ?? d.office_id}</span></td>
-                  <td><span className="text-xs text-white">{d.importer_name ?? d.importer_id}</span></td>
-                  <td><span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{background:(CAUSE_COLOR[d.cause]??'#64748b')+'18',color:CAUSE_COLOR[d.cause]??'#64748b'}}>{d.cause_label}</span></td>
-                  <td><span className="text-xs font-bold" style={{color:d.overshoot>72?'#ef4444':'#f59e0b'}}>+{d.overshoot}h</span></td>
-                  <td><span className="text-xs" style={{color:d.confidence>=80?'#10b981':'#f59e0b'}}>{d.confidence}%</span></td>
-                  <td><span className="text-[10px] text-slate-400">{d.action}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <PaginatedTable
+            pageSize={15}
+            headers={<tr><th>SGD</th><th>Secteur</th><th>Importateur</th><th>Cause</th><th>Dépassement</th><th>Confiance</th><th>Action recommandée</th></tr>}
+            rows={(delay_causes as DelayCause[]).map((d: DelayCause) => (
+              <tr key={d.sgd_id} style={{background:d.cause==='INTENTIONAL'?'rgba(239,68,68,0.04)':undefined}}>
+                <td><Code>{d.sgd_id}</Code></td>
+                <td><span className="text-xs text-muted">{d.office_name ?? d.office_id}</span></td>
+                <td><span className="text-xs text-white">{d.importer_name ?? d.importer_id}</span></td>
+                <td><span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{background:(CAUSE_COLOR[d.cause]??'#64748b')+'18',color:CAUSE_COLOR[d.cause]??'#64748b'}}>{d.cause_label}</span></td>
+                <td><span className="text-xs font-bold" style={{color:d.overshoot>72?'#ef4444':'#f59e0b'}}>+{Math.round(d.overshoot)}h</span></td>
+                <td><span className="text-xs" style={{color:d.confidence>=80?'#10b981':'#f59e0b'}}>{d.confidence}%</span></td>
+                <td><span className="text-[10px] text-slate-400">{d.action}</span></td>
+              </tr>
+            ))}
+          />
         </div>
       )}
 
