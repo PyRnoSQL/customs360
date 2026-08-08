@@ -28,7 +28,18 @@ function ImporterDetail({ id, onBack }: { id: string; onBack: () => void }) {
             <div>
               <div className="text-lg font-bold text-white">{data.name ?? data.importer_id}</div>
               <div className="text-xs text-muted mt-0.5">{data.importer_id}</div>
-              <div className="text-xs text-muted mt-1">{data.countries.join(', ')} · {(data.office_names ?? data.offices).join(', ')}</div>
+              <div className="mt-2 space-y-1">
+                <div className="text-[11px] text-sub">
+                  <span className="text-muted">Pays d'origine ({data.countries.length}):</span>{' '}
+                  {data.countries.slice(0, 6).join(', ')}
+                  {data.countries.length > 6 && <span className="text-muted"> +{data.countries.length - 6}</span>}
+                </div>
+                <div className="text-[11px] text-sub">
+                  <span className="text-muted">Secteurs douaniers ({(data.office_names ?? data.offices).length}):</span>{' '}
+                  {(data.office_names ?? data.offices).slice(0, 3).join(', ')}
+                  {(data.office_names ?? data.offices).length > 3 && <span className="text-muted"> +{(data.office_names ?? data.offices).length - 3}</span>}
+                </div>
+              </div>
             </div>
             <div className="text-right">
               <div className="text-3xl font-black" style={{ color: riskColor(data.risk_score) }}>{data.risk_score}%</div>
@@ -155,8 +166,8 @@ function ImporterPredictions() {
           <SectionTitle icon="🔮">Prédiction Prochaine Déclaration — Probabilité Fraude</SectionTitle>
           <p className="text-xs text-muted mb-4">Basé sur les 5 dernières déclarations de chaque importateur · Modèle statistique</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {(next_decl as ND[]).filter(p => p.next_fraud_prob >= 0.3).slice(0, 8).map((p: ND) => {
-              const color = p.next_fraud_prob >= 0.7 ? '#ef4444' : p.next_fraud_prob >= 0.45 ? '#f59e0b' : '#10b981';
+            {(next_decl as ND[]).filter(p => p.next_fraud_prob >= 30).slice(0, 8).map((p: ND) => {
+              const color = p.next_fraud_prob >= 70 ? '#ef4444' : p.next_fraud_prob >= 45 ? '#f59e0b' : '#10b981';
               return (
                 <div key={p.importer_id} className="card-sm flex items-center gap-3" style={{ borderColor: color + '33' }}>
                   <div className="flex-1">
@@ -165,7 +176,7 @@ function ImporterPredictions() {
                     <div className="text-[10px] mt-1" style={{ color }}>{p.recommended_action}</div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-xl font-black" style={{ color }}>{Math.round(p.next_fraud_prob * 100)}%</div>
+                    <div className="text-xl font-black" style={{ color }}>{Math.round(p.next_fraud_prob)}%</div>
                     <div className="text-[9px] text-muted">{p.confidence}</div>
                   </div>
                 </div>

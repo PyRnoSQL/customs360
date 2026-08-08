@@ -97,7 +97,7 @@ router.get('/importers/:id', wrap(async (req, res) => {
   if (!profile) return void res.status(404).json({ error: 'Importer not found' });
   const impSGDs = sgd.filter(s => s.importer_id === req.params.id).slice(0, 50);
   const impFraud = fraud.filter(f => f.importer_id === req.params.id);
-  res.json({ ...profile, recent_sgds: impSGDs, fraud_cases: impFraud });
+  res.json({ ...profile, recent_sgds: impSGDs, fraud_cases_detail: impFraud });
 }));
 
 // ── GET /api/fraud ────────────────────────────────────────────────────────────
