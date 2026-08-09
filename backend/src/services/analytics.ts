@@ -306,18 +306,22 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
       if (trendMap[m]) trendMap[m].evasion += (f.tax_evasion_amount ?? 0);
     } catch { return; }
   });
-  const fraudTrend = Object.keys(trendMap).sort().map(m => {
-    const [y,mo] = m.split('-');
-    const tm = trendMap[m];
-    return {
-      month: m,
-      label: `${FR_MONTHS[Number(mo)-1]} ${y.slice(2)}`,
-      count: tm.count,
-      total: tm.total,
-      evasion: tm.evasion,
-      rate: tm.total > 0 ? Math.round((tm.count / tm.total) * 1000) / 10 : 0, // already a % (e.g. 23.8)
-    };
-  });
+  const currentMonthKey = (() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`; })();
+  const fraudTrend = Object.keys(trendMap)
+    .filter(m => m !== currentMonthKey) // exclude the in-progress month — partial data skews the rate/count vs full months
+    .sort()
+    .map(m => {
+      const [y,mo] = m.split('-');
+      const tm = trendMap[m];
+      return {
+        month: m,
+        label: `${FR_MONTHS[Number(mo)-1]} ${y.slice(2)}`,
+        count: tm.count,
+        total: tm.total,
+        evasion: tm.evasion,
+        rate: tm.total > 0 ? Math.round((tm.count / tm.total) * 1000) / 10 : 0, // already a % (e.g. 23.8)
+      };
+    });
 
   // ── Invariant check: monthly fraud counts must sum to total fraud rows ────
   // Logs a warning only — never blocks the response — so a data-shape

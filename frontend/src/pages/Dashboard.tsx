@@ -141,13 +141,16 @@ export default function Dashboard() {
   const officeBarOption = {
     backgroundColor:'transparent',
     tooltip:{trigger:'axis',...CHART_TT,axisPointer:{type:'shadow'},
-      formatter:(p:{seriesName:string;value:number;marker:string}[])=>`<span style="color:#f1f5f9">${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName.toLowerCase().includes('fraude')?s.value+'%':fmtM(s.value*1e6)+' FCFA'}</b>`).join('<br/>')}</span>`},
+      formatter:(p:{seriesName:string;value:number;marker:string;dataIndex:number}[])=>{
+        const fullName = sortedOffices[p[0]?.dataIndex]?.name ?? '';
+        return `<span style="color:#f1f5f9"><b>${fullName}</b><br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName.toLowerCase().includes('fraude')?s.value+'%':fmtM(s.value*1e6)+' FCFA'}</b>`).join('<br/>')}</span>`;
+      }},
     legend:{textStyle:{color:'#64748b',fontSize:9},top:0,right:0,itemWidth:8,itemHeight:8},
     grid:{left:8,right:50,bottom:20,top:28,containLabel:true},
-    xAxis:{type:'category',data:sortedOffices.map((o:{name:string})=>o.name.split(' ')[0]),axisLabel:{color:'#475569',fontSize:9},axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}},axisTick:{show:false}},
+    xAxis:{type:'category',data:sortedOffices.map((o:{name:string})=>o.name.split('(')[0].trim()),axisLabel:{color:'#475569',fontSize:9,interval:0,rotate:20},axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}},axisTick:{show:false}},
     yAxis:[
       {type:'value',axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>fmtM(v*1e6)},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}},axisLine:{show:false}},
-      {type:'value',position:'right',min:0,max:20,axisLabel:{color:'#f87171',fontSize:9,formatter:(v:number)=>`${v}%`},splitLine:{show:false},axisLine:{show:false}},
+      {type:'value',position:'right',min:0,max:25,axisLabel:{color:'#f87171',fontSize:9,formatter:(v:number)=>`${v}%`},splitLine:{show:false},axisLine:{show:false}},
     ],
     series:[
       {name:'Recettes',type:'bar',yAxisIndex:0,data:sortedOffices.map((o:{revenue:number})=>Math.round(o.revenue/1e6)),itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(59,130,246,0.8)'},{offset:1,color:'rgba(59,130,246,0.3)'}]},borderRadius:[3,3,0,0]},barMaxWidth:28},
