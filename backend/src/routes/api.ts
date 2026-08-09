@@ -115,8 +115,22 @@ router.get('/importers/:id', wrap(async (req, res) => {
 }));
 
 // ── GET /api/fraud ────────────────────────────────────────────────────────────
-router.get('/fraud', wrap(async (_req, res) => {
-  const { sgd, fraud } = await getSheetData();
+router.get('/fraud', wrap(async (req, res) => {
+  const { sgd: allSgd, fraud: allFraud } = await getSheetData();
+  const bureau = (req.query.bureau as string) || 'ALL';
+  const period = (req.query.period as string) || 'ALL';
+
+  const toMonth = (d: string) => {
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? '' : `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+  };
+
+  const sgdByBureau   = bureau === 'ALL' ? allSgd   : allSgd.filter(s => s.office_id === bureau);
+  const fraudByBureau = bureau === 'ALL' ? allFraud : allFraud.filter(f => f.office_id === bureau);
+
+  const sgd   = period === 'ALL' ? sgdByBureau   : sgdByBureau.filter(s => toMonth(s.date) === period);
+  const fraud = period === 'ALL' ? fraudByBureau : fraudByBureau.filter(f => toMonth(f.date_detection) === period);
+
   const byType = fraud.reduce<Record<string, number>>((acc, f) => {
     acc[f.fraud_type] = (acc[f.fraud_type] ?? 0) + 1;
     return acc;

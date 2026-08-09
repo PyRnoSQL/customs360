@@ -28,7 +28,10 @@ export const api = {
   },
   importers:  ()    => get<ImporterProfile[]>('/importers'),
   importer:   (id: string) => get<ImporterProfile>(`/importers/${id}`),
-  fraud:      ()    => get<FraudResponse>('/fraud'),
+  fraud:      (bureau?: string, period?: string) => {
+    const qs = [bureau && bureau !== 'ALL' && `bureau=${bureau}`, period && period !== 'ALL' && `period=${period}`].filter(Boolean).join('&');
+    return get<FraudResponse>(`/fraud${qs ? '?' + qs : ''}`);
+  },
   offices:    ()    => get<OfficeStats[]>('/offices'),
   delays:     ()    => get<DelayRecord[]>('/delays'),
   revenue:    ()    => get<MonthlyRevenue[]>('/revenue'),
