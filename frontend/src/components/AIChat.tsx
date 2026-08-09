@@ -9,7 +9,7 @@ const KB = {
     fraud_count: 376,
     fraud_rate: '12.0%',
     tax_gap: '109B FCFA',
-    date_range: 'Jan 2023 – Déc 2024',
+    date_range: 'Aoû 2024 – Aoû 2026',
   },
   bureaux: [
     { id:'LT1', name:'Littoral 1 (Douala Port)',      sgds:930, fraud:113, fraud_rate:'12.2%', rev:'1474.2B FCFA', efficiency:'98%', baseline:'36h' },
@@ -83,7 +83,7 @@ function buildResponse(q: string): string {
 
   // KPI overview
   if (/\b(kpi|résumé|bilan|aperçu|overview|total|global|ensemble)\b/.test(ql)) {
-    return `📊 **Bilan global CUSTOMS360** (Jan 2023 – Déc 2024)\n\n• **${fmt(KB.overview.total_sgd)} déclarations** traitées\n• **${KB.overview.total_revenue}** de recettes collectées\n• **${KB.overview.fraud_count} cas de fraude** détectés (taux: ${KB.overview.fraud_rate})\n• **${KB.overview.tax_gap}** d'écart fiscal récupéré\n• Périmètre: 12 secteurs douaniers, 30 importateurs, 20 inspecteurs`;
+    return `📊 **Bilan global CUSTOMS360** (Aoû 2024 – Aoû 2026)\n\n• **${fmt(KB.overview.total_sgd)} déclarations** traitées\n• **${KB.overview.total_revenue}** de recettes collectées\n• **${KB.overview.fraud_count} cas de fraude** détectés (taux: ${KB.overview.fraud_rate})\n• **${KB.overview.tax_gap}** d'écart fiscal récupéré\n• Périmètre: 12 secteurs douaniers, 30 importateurs, 20 inspecteurs`;
   }
 
   // Fraud general

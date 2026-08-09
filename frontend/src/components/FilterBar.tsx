@@ -22,32 +22,34 @@ const BUREAUX: { value: BureauFilter; label: string }[] = [
 
 const PERIODS: { value: PeriodFilter; label: string; group?: string }[] = [
   { value: 'ALL',     label: 'Toute période' },
-  // 2023
-  { value: '2023-01', label: 'Jan 2023', group: '2023' },
-  { value: '2023-02', label: 'Fév 2023', group: '2023' },
-  { value: '2023-03', label: 'Mar 2023', group: '2023' },
-  { value: '2023-04', label: 'Avr 2023', group: '2023' },
-  { value: '2023-05', label: 'Mai 2023', group: '2023' },
-  { value: '2023-06', label: 'Jun 2023', group: '2023' },
-  { value: '2023-07', label: 'Jul 2023', group: '2023' },
-  { value: '2023-08', label: 'Aoû 2023', group: '2023' },
-  { value: '2023-09', label: 'Sep 2023', group: '2023' },
-  { value: '2023-10', label: 'Oct 2023', group: '2023' },
-  { value: '2023-11', label: 'Nov 2023', group: '2023' },
-  { value: '2023-12', label: 'Déc 2023', group: '2023' },
-  // 2024
-  { value: '2024-01', label: 'Jan 2024', group: '2024' },
-  { value: '2024-02', label: 'Fév 2024', group: '2024' },
-  { value: '2024-03', label: 'Mar 2024', group: '2024' },
-  { value: '2024-04', label: 'Avr 2024', group: '2024' },
-  { value: '2024-05', label: 'Mai 2024', group: '2024' },
-  { value: '2024-06', label: 'Jun 2024', group: '2024' },
-  { value: '2024-07', label: 'Jul 2024', group: '2024' },
+  // 2024 (Aoû–Déc)
   { value: '2024-08', label: 'Aoû 2024', group: '2024' },
   { value: '2024-09', label: 'Sep 2024', group: '2024' },
   { value: '2024-10', label: 'Oct 2024', group: '2024' },
   { value: '2024-11', label: 'Nov 2024', group: '2024' },
   { value: '2024-12', label: 'Déc 2024', group: '2024' },
+  // 2025
+  { value: '2025-01', label: 'Jan 2025', group: '2025' },
+  { value: '2025-02', label: 'Fév 2025', group: '2025' },
+  { value: '2025-03', label: 'Mar 2025', group: '2025' },
+  { value: '2025-04', label: 'Avr 2025', group: '2025' },
+  { value: '2025-05', label: 'Mai 2025', group: '2025' },
+  { value: '2025-06', label: 'Jun 2025', group: '2025' },
+  { value: '2025-07', label: 'Jul 2025', group: '2025' },
+  { value: '2025-08', label: 'Aoû 2025', group: '2025' },
+  { value: '2025-09', label: 'Sep 2025', group: '2025' },
+  { value: '2025-10', label: 'Oct 2025', group: '2025' },
+  { value: '2025-11', label: 'Nov 2025', group: '2025' },
+  { value: '2025-12', label: 'Déc 2025', group: '2025' },
+  // 2026 (Jan–Aoû)
+  { value: '2026-01', label: 'Jan 2026', group: '2026' },
+  { value: '2026-02', label: 'Fév 2026', group: '2026' },
+  { value: '2026-03', label: 'Mar 2026', group: '2026' },
+  { value: '2026-04', label: 'Avr 2026', group: '2026' },
+  { value: '2026-05', label: 'Mai 2026', group: '2026' },
+  { value: '2026-06', label: 'Jun 2026', group: '2026' },
+  { value: '2026-07', label: 'Jul 2026', group: '2026' },
+  { value: '2026-08', label: 'Aoû 2026', group: '2026' },
 ];
 
 const RISKS: { value: RiskFilter; label: string; color: string }[] = [
@@ -69,15 +71,14 @@ const STATUSES: { value: StatusFilter; label: string; color: string }[] = [
 
 const PAGE_FILTERS: Record<string, (keyof ReturnType<typeof useFilters>['filters'])[]> = {
   '/':            ['bureau', 'period'],
-  '/importers':   ['bureau', 'risk'],
+  '/importers':   ['bureau', 'risk', 'period'],
   '/fraud':       ['bureau', 'period', 'status'],
   '/delays':      ['bureau', 'period'],
   '/offices':     ['bureau'],
   '/predictions': ['bureau', 'period', 'risk'],
-  '/analytics':   ['bureau', 'period', 'risk'],
-  '/officers':    ['bureau', 'risk'],
+  '/advanced':    ['bureau', 'period', 'risk'],
+  '/officers':    ['bureau', 'risk', 'period'],
   '/welcome':     [],
-  '/ai':          [],
   '/graph':       [],
 };
 
