@@ -1248,7 +1248,23 @@ export interface CollusionExposure {
 
 export function computeCollusionExposure(sgd: SGDRow[], fraud: FraudRow[]): CollusionExposure[] {
   // Now tracks inspectors: flag those whose inspector+declarant pair appears in 3+ fraud cases
-  const fraudImporters = new Set(fraud.map(f => f.importer_id));
+
+  // "Confirmed fraudulent importer" = importer whose OWN fraud rate is meaningfully elevated
+  // (>15%, roughly the top decile), not merely "has had at least one fraud case ever" — with
+  // hundreds of declarations per importer, nearly every importer accumulates at least one fraud
+  // case over time, so an any-case-ever flag covered ~97% of importers and made exposure_rate
+  // saturate near 100% for almost every inspector, erasing any real differentiation.
+  const importerTotals = new Map<string, number>();
+  const importerFrauds = new Map<string, number>();
+  sgd.forEach(s => importerTotals.set(s.importer_id, (importerTotals.get(s.importer_id) ?? 0) + 1));
+  fraud.forEach(f => importerFrauds.set(f.importer_id, (importerFrauds.get(f.importer_id) ?? 0) + 1));
+  const fraudImporters = new Set(
+    [...importerTotals.keys()].filter(id => {
+      const total = importerTotals.get(id) ?? 0;
+      const frauds = importerFrauds.get(id) ?? 0;
+      return total > 0 && frauds / total > 0.15;
+    })
+  );
 
   // collusion_suspected pairs from FRAUD_CASES (pre-computed in dataset)
   const collusionInspectors = new Set(
@@ -1279,7 +1295,7 @@ export function computeCollusionExposure(sgd: SGDRow[], fraud: FraudRow[]): Coll
 
     const alert =
       flag === 'HIGH'
-        ? `Paire inspecteur-déclarant suspecte — ${Math.round(exposureRate*100)}% de déclarations à risque`
+        ? `Paire inspecteur-déclarant suspecte — ${Math.round(exposureRate*100)}% de déclarations liées à des importateurs à risque élevé`
         : flag === 'MEDIUM'
         ? `Exposition modérée — ${highRiskDecls.length} déclarations liées à des importateurs frauduleux`
         : null;

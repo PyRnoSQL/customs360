@@ -521,7 +521,7 @@ function OfficerCollusionExposure() {
                   <div className="text-[9px] text-muted">Taux exposition</div>
                 </div>
               </div>
-              {e.alert && <div className="mt-2 text-[10px] p-1.5 rounded-lg" style={{ background:`${ic}15`, color:ic }}>⚠️ {e.alert.slice(0,60)}</div>}
+              {e.alert && <div className="mt-2 text-[10px] p-1.5 rounded-lg leading-relaxed" style={{ background:`${ic}15`, color:ic }}>⚠️ {e.alert}</div>}
             </motion.div>
           );
         })}
