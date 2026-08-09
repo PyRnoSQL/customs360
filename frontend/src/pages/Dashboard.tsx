@@ -182,9 +182,9 @@ export default function Dashboard() {
         if (!t) return '';
         return `<span style="color:#f1f5f9"><b>${t.tariff_code}</b> — ${t.tariff_description || 'N/A'}<br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName.includes('Cumul')?s.value+'%':fmtM(s.value)+' FCFA'}</b>`).join('<br/>')}<br/>Déclarations: <b>${fmt(t.declarations)}</b></span>`;
       }},
-    legend: { data:['Recettes','% Cumulé'], textStyle:{color:'#64748b',fontSize:10}, top:0, right:0, itemWidth:10, itemHeight:10 },
-    grid: { left:8, right:50, bottom:60, top:36, containLabel:true },
-    xAxis: { type:'category', data:paretoData.map((t:{tariff_code:string})=>t.tariff_code), axisLabel:{color:'#475569',fontSize:9,rotate:45,interval:0}, axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisTick:{show:false} },
+    legend: { data:['Recettes','% Cumulé'], textStyle:{color:'#64748b',fontSize:10}, top:0, left:'center', itemWidth:10, itemHeight:10 },
+    grid: { left:8, right:50, bottom:40, top:52, containLabel:true },
+    xAxis: { type:'category', data:paretoData.map((t:{tariff_code:string})=>t.tariff_code), axisLabel:{color:'#475569',fontSize:9,rotate:0,interval:0}, axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisTick:{show:false} },
     yAxis: [
       { type:'value', name:'Recettes', nameTextStyle:{color:'#475569',fontSize:9}, axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>fmtM(v)}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
       { type:'value', name:'% Cumulé', min:0, max:100, nameTextStyle:{color:'#a78bfa',fontSize:9}, position:'right', axisLabel:{color:'#a78bfa',fontSize:9,formatter:(v:number)=>`${v}%`}, splitLine:{show:false}, axisLine:{show:false} },
@@ -291,7 +291,7 @@ export default function Dashboard() {
             <span className="text-[10px] text-muted">Ligne pointillée = seuil 80% (principe de Pareto)</span>
           </div>
           {paretoData.length > 0
-            ? <ReactECharts option={paretoOption} style={{ height: 340 }} />
+            ? <ReactECharts option={paretoOption} style={{ height: 420 }} />
             : <div className="h-80 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
         </div>
       </FadeIn>
