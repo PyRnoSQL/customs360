@@ -87,6 +87,7 @@ export interface ImporterProfile {
   tariff_codes: string[];
   unique_declarants: string[];
   date_factors: DATEFactor[];
+  flow: 'IMPORT' | 'EXPORT' | 'MIXED';
 }
 
 export interface DATEFactor {

@@ -103,6 +103,9 @@ export function buildImporterProfiles(sgd: SGDRow[], fraud: FraudRow[]): Importe
     const fraudRows = fraud.filter(f => f.importer_id === id);
     const factors = computeDATEFactors(id, sgd, fraud);
     const risk_score = computeRiskScore(factors);
+    const exportRows = rows.filter(r => r.regime_code === 'EX1').length;
+    const flow: 'IMPORT' | 'EXPORT' | 'MIXED' =
+      exportRows === 0 ? 'IMPORT' : exportRows === rows.length ? 'EXPORT' : 'MIXED';
     return {
       importer_id: id,
       name: rows[0]?.importer_name ?? id,
@@ -119,6 +122,7 @@ export function buildImporterProfiles(sgd: SGDRow[], fraud: FraudRow[]): Importe
       unique_declarants: [...new Set(rows.map(r => r.declarant_id))],
       unique_declarant_names: [...new Set(rows.map(r => r.declarant_name ?? r.declarant_id))],
       date_factors: factors,
+      flow,
     };
   }).sort((a, b) => b.risk_score - a.risk_score);
 }

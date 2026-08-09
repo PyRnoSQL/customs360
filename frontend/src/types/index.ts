@@ -58,6 +58,7 @@ export interface ImporterProfile {
   unique_declarant_names: string[];
   office_names: string[];
   date_factors: DATEFactor[];
+  flow: 'IMPORT' | 'EXPORT' | 'MIXED';
   recent_sgds?: SGDRow[];
   fraud_cases_detail?: FraudRow[];
 }

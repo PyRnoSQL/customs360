@@ -1,5 +1,6 @@
 import { useFilters, applyBureauFilter, applyRiskFilter } from '../context/FilterContext';
 import React, { useState } from 'react';
+import ReactECharts from 'echarts-for-react';
 import { useApi } from '../hooks/useApi';
 import { PageHeader } from '../App';
 import { api, fmtM, fmt, riskColor } from '../services/api';
@@ -26,7 +27,13 @@ function ImporterDetail({ id, onBack }: { id: string; onBack: () => void }) {
         <div className="card">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <div className="text-lg font-bold text-white">{data.name ?? data.importer_id}</div>
+              <div className="text-lg font-bold text-white flex items-center gap-2">
+                {data.name ?? data.importer_id}
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{
+                  background: data.flow==='EXPORT'?'#10b98122':data.flow==='MIXED'?'#f59e0b22':'#3b82f622',
+                  color: data.flow==='EXPORT'?'#10b981':data.flow==='MIXED'?'#f59e0b':'#3b82f6',
+                }}>{data.flow==='EXPORT'?'Export':data.flow==='MIXED'?'Mixte':'Import'}</span>
+              </div>
               <div className="text-xs text-muted mt-0.5">{data.importer_id}</div>
               <div className="mt-2 space-y-1">
                 <div className="text-[11px] text-sub">
@@ -194,66 +201,108 @@ export default function Importers() {
   const { filters } = useFilters();
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [flowFilter, setFlowFilter] = useState<'ALL' | 'IMPORT' | 'EXPORT'>('ALL');
 
   if (selected) return <ImporterDetail id={selected} onBack={() => setSelected(null)} />;
   if (loading) return <Loading />;
   if (error)   return <ErrorBox message={error} onRetry={reload} />;
   if (!data)   return null;
 
+  const flowFiltered = flowFilter === 'ALL' ? data : data.filter((i: ImporterProfile) => i.flow === flowFilter || (flowFilter === 'EXPORT' && i.flow === 'MIXED'));
   const filtered = applyRiskFilter(
     filters.bureau === 'ALL'
-      ? data
-      : data.filter((i: ImporterProfile) => i.offices && i.offices.includes(filters.bureau)),
+      ? flowFiltered
+      : flowFiltered.filter((i: ImporterProfile) => i.offices && i.offices.includes(filters.bureau)),
     filters.risk
-  ).filter((i: ImporterProfile) => i.importer_id.toLowerCase().includes(search.toLowerCase()));
+  ).filter((i: ImporterProfile) => i.importer_id.toLowerCase().includes(search.toLowerCase()) || (i.name ?? '').toLowerCase().includes(search.toLowerCase()));
   const highRisk = data.filter((i: ImporterProfile) => i.risk_score >= 70).length;
+  const exporters = data.filter((i: ImporterProfile) => i.flow === 'EXPORT' || i.flow === 'MIXED');
+  const exportRevenue = exporters.reduce((s: number, i: ImporterProfile) => s + i.total_revenue, 0);
+  const importRevenue = data.reduce((s: number, i: ImporterProfile) => s + i.total_revenue, 0) - exportRevenue;
+
+  const flowDonutOption = {
+    backgroundColor: 'transparent',
+    tooltip: { trigger:'item', backgroundColor:'rgba(15,23,42,0.95)', borderColor:'rgba(59,130,246,0.3)', borderWidth:1, textStyle:{color:'#f1f5f9',fontSize:12},
+      formatter: (p: { name:string; value:number; percent:string }) => `<span style="color:#f1f5f9"><b>${p.name}</b><br/>${fmtM(p.value)} FCFA (${p.percent}%)</span>` },
+    series: [{
+      type: 'pie', radius: ['45%','70%'], center: ['50%','50%'], avoidLabelOverlap: true,
+      label: { show:true, position:'outside', color:'#94a3b8', fontSize:12, formatter: (p: { name:string; value:number }) => `${p.name}\n${fmtM(p.value)}` },
+      labelLine: { show:true, length:10, length2:8, lineStyle:{color:'rgba(148,163,184,0.4)'} },
+      emphasis: { scale:true, scaleSize:6 },
+      data: [
+        { name:'Import', value:importRevenue, itemStyle:{color:'#3b82f6', borderRadius:4, borderWidth:2, borderColor:'rgba(15,23,42,0.9)'} },
+        { name:'Export', value:exportRevenue, itemStyle:{color:'#10b981', borderRadius:4, borderWidth:2, borderColor:'rgba(15,23,42,0.9)'} },
+      ],
+    }],
+  };
 
   return (
     <div className="space-y-5">
       <PageHeader />
-      <div className="grid grid-cols-4 gap-2">
-        <KPICard compact label="Total Importateurs" value={fmt(data.length)} color="accent" />
+      <div className="grid grid-cols-6 gap-2">
+        <KPICard compact label="Total Opérateurs" value={fmt(data.length)} color="accent" />
+        <KPICard compact label="Importateurs" value={fmt(data.length - exporters.length)} color="teal" />
+        <KPICard compact label="Exportateurs" value={fmt(exporters.length)} color="success" />
+        <KPICard compact label="Recettes Export" value={fmtM(exportRevenue)} color="success" />
         <KPICard compact label="Haut Risque (≥70)" value={fmt(highRisk)} color="danger" />
         <KPICard compact label="Total Fraudes" value={fmt(data.reduce((s: number, i: ImporterProfile) => s + i.fraud_cases, 0))} color="gold" />
-        <KPICard compact label="Importateurs Sains" value={fmt(data.filter((i: ImporterProfile) => i.risk_score < 35).length)} color="success" />
       </div>
 
-      <div className="card">
-        <div className="flex items-center gap-3 mb-4">
-          <SectionTitle icon="🏢">Importateurs — Classement par Score DATE</SectionTitle>
-          <input
-            className="input ml-auto w-56" placeholder="Rechercher ID importateur…"
-            value={search} onChange={e => setSearch(e.target.value)}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="card xl:col-span-1">
+          <SectionTitle icon="🌍">Répartition Import / Export</SectionTitle>
+          <ReactECharts option={flowDonutOption} style={{ height: 260 }} />
+        </div>
+        <div className="card xl:col-span-2">
+          <SectionTitle icon="🏢">Opérateurs — Classement par Score DATE</SectionTitle>
+          <div className="flex items-center gap-2 mb-4 mt-1">
+            {(['ALL','IMPORT','EXPORT'] as const).map(f => (
+              <button key={f} onClick={() => setFlowFilter(f)}
+                className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all ${flowFilter===f ? 'text-white' : 'text-muted'}`}
+                style={{ background: flowFilter===f ? (f==='EXPORT'?'#10b98122':f==='IMPORT'?'#3b82f622':'#64748b22') : 'rgba(255,255,255,0.03)', border:`1px solid ${flowFilter===f ? (f==='EXPORT'?'#10b981':f==='IMPORT'?'#3b82f6':'#64748b') : 'rgba(255,255,255,0.08)'}` }}>
+                {f==='ALL'?'Tous':f==='IMPORT'?'Import':'Export'}
+              </button>
+            ))}
+            <input
+              className="input ml-auto w-56" placeholder="Rechercher un opérateur…"
+              value={search} onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <PaginatedTable
+            pageSize={10}
+            headers={<tr>
+              <th>#</th><th>Opérateur</th><th>Régime</th><th>Pays</th><th>Secteurs</th>
+              <th>Déclarations</th><th>Valeur CIF</th><th>Score DATE</th><th>Fraudes</th><th></th>
+            </tr>}
+            rows={filtered.map((imp: ImporterProfile, i: number) => (
+              <tr key={imp.importer_id}>
+                <td><span className="text-muted text-xs font-bold">{i + 1}</span></td>
+                <td>
+                  <div className="text-sm font-semibold text-white">{imp.name ?? imp.importer_id}</div>
+                  <div className="text-[10px] text-muted">{imp.importer_id} · {imp.unique_declarants.length} déclarant(s)</div>
+                </td>
+                <td>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{
+                    background: imp.flow==='EXPORT'?'#10b98122':imp.flow==='MIXED'?'#f59e0b22':'#3b82f622',
+                    color: imp.flow==='EXPORT'?'#10b981':imp.flow==='MIXED'?'#f59e0b':'#3b82f6',
+                  }}>{imp.flow==='EXPORT'?'Export':imp.flow==='MIXED'?'Mixte':'Import'}</span>
+                </td>
+                <td><span className="text-sm">{imp.countries.slice(0, 2).join(', ')}</span></td>
+                <td><span className="text-xs text-sub">{(imp.office_names ?? imp.offices).slice(0,2).join(', ')}</span></td>
+                <td><span className="text-sm font-semibold">{fmt(imp.total_declarations)}</span></td>
+                <td><span className="text-sm font-semibold">{fmtM(imp.total_cif_value)}</span></td>
+                <td>
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 gauge-track"><div className="gauge-fill h-1.5" style={{ width: `${imp.risk_score}%`, background: riskColor(imp.risk_score) }} /></div>
+                    <span className="text-xs font-bold min-w-[28px]" style={{ color: riskColor(imp.risk_score) }}>{imp.risk_score}%</span>
+                  </div>
+                </td>
+                <td><span className={`text-sm font-bold ${imp.fraud_cases > 0 ? 'text-danger' : 'text-success'}`}>{imp.fraud_cases}</span></td>
+                <td><button onClick={() => setSelected(imp.importer_id)} className="btn btn-primary text-xs py-1 px-3">Voir 360°</button></td>
+              </tr>
+            ))}
           />
         </div>
-        <PaginatedTable
-          pageSize={15}
-          headers={<tr>
-            <th>#</th><th>Importateur</th><th>Pays</th><th>Secteurs</th>
-            <th>Déclarations</th><th>Valeur CIF</th><th>Score DATE</th><th>Fraudes</th><th></th>
-          </tr>}
-          rows={filtered.map((imp: ImporterProfile, i: number) => (
-            <tr key={imp.importer_id}>
-              <td><span className="text-muted text-xs font-bold">{i + 1}</span></td>
-              <td>
-                <div className="text-sm font-semibold text-white">{imp.name ?? imp.importer_id}</div>
-                <div className="text-[10px] text-muted">{imp.importer_id} · {imp.unique_declarants.length} déclarant(s)</div>
-              </td>
-              <td><span className="text-sm">{imp.countries.slice(0, 2).join(', ')}</span></td>
-              <td><span className="text-xs text-sub">{(imp.office_names ?? imp.offices).slice(0,2).join(', ')}</span></td>
-              <td><span className="text-sm font-semibold">{fmt(imp.total_declarations)}</span></td>
-              <td><span className="text-sm font-semibold">{fmtM(imp.total_cif_value)}</span></td>
-              <td>
-                <div className="flex items-center gap-2">
-                  <div className="w-16 gauge-track"><div className="gauge-fill h-1.5" style={{ width: `${imp.risk_score}%`, background: riskColor(imp.risk_score) }} /></div>
-                  <span className="text-xs font-bold min-w-[28px]" style={{ color: riskColor(imp.risk_score) }}>{imp.risk_score}%</span>
-                </div>
-              </td>
-              <td><span className={`text-sm font-bold ${imp.fraud_cases > 0 ? 'text-danger' : 'text-success'}`}>{imp.fraud_cases}</span></td>
-              <td><button onClick={() => setSelected(imp.importer_id)} className="btn btn-primary text-xs py-1 px-3">Voir 360°</button></td>
-            </tr>
-          ))}
-        />
       </div>
     </div>
   );

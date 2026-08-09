@@ -7,7 +7,7 @@ const COAT_OF_ARMS = 'iVBORw0KGgoAAAANSUhEUgAAAyAAAAMgCAYAAADbcAZoAAEAAElEQVR4nO
 
 const MODULES = [
   { icon: '📊', label: 'Tableau de Bord',       key: 'dashboard',   color: '#60a5fa', path: '/'            },
-  { icon: '📦', label: 'Importateurs',          key: 'importers',   color: '#3b82f6', path: '/importers'   },
+  { icon: '📦', label: 'Import-Export',         key: 'importers',   color: '#3b82f6', path: '/importers'   },
   { icon: '🚨', label: 'Détection Fraude',      key: 'fraud',       color: '#ef4444', path: '/fraud'       },
   { icon: '⏱',  label: 'Délais Suspects',       key: 'delays',      color: '#f59e0b', path: '/delays'      },
   { icon: '🏛️', label: 'Secteurs Douaniers',    key: 'offices',     color: '#10b981', path: '/offices'     },

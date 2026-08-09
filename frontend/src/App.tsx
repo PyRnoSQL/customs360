@@ -27,7 +27,7 @@ const COAT_OF_ARMS = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAyAAAAMgCAYA
 const ALL_NAV = [
   { path: '/welcome',     icon: '🏠', label: 'Accueil',              group: 'PRINCIPAL'     },
   { path: '/',            icon: '📊', label: 'Tableau de bord',      group: 'OPÉRATIONS'    },
-  { path: '/importers',   icon: '🏢', label: 'Importateurs',         group: 'OPÉRATIONS'    },
+  { path: '/importers',   icon: '🏢', label: 'Import-Export',       group: 'OPÉRATIONS'    },
   { path: '/fraud',       icon: '🚨', label: 'Détection Fraude',     group: 'OPÉRATIONS'    },
   { path: '/delays',      icon: '⏱️', label: 'Délais Suspects',      group: 'OPÉRATIONS'    },
   { path: '/offices',     icon: '🏛️', label: 'Secteurs Douaniers',    group: 'OPÉRATIONS'    },
@@ -40,7 +40,7 @@ const ALL_NAV = [
 export const PAGE_META: Record<string, { title: string; sub: string }> = {
   '/welcome':   { title: 'Bienvenue sur CUSTOMS360',    sub: 'Plateforme Intelligence Douanière — République du Cameroun' },
   '/':          { title: 'Tableau de bord exécutif',    sub: 'Direction Générale des Douanes — Vue 360°' },
-  '/importers': { title: 'Intelligence Importateurs',   sub: 'Algorithme DATE · Scoring risque · Profilage comportemental' },
+  '/importers': { title: 'Intelligence Import-Export',   sub: 'Algorithme DATE · Scoring risque · Profilage comportemental' },
   '/fraud':     { title: 'Centre de Détection Fraude',  sub: 'Isolation Forest · XGBoost · DATE Algorithm' },
   '/delays':    { title: 'Délais Suspects',              sub: 'Détection patterns · Dédouanement anormal · Risques collusion' },
   '/offices':   { title: 'Performance Secteurs',         sub: 'Classement efficacité · Recettes · KPIs opérationnels' },

@@ -171,7 +171,7 @@ export default function Dashboard() {
       <PageHeader />
 
       {/* ── ROW 0: 8 Headline KPIs ── */}
-      <StaggerGrid className="grid grid-cols-8 gap-2">
+      <StaggerGrid className="grid grid-cols-4 grid-rows-2 gap-2 auto-rows-fr">
         <KPICard compact label="SGDs traités" value={fmt(filters.bureau==='ALL'?data.total_sgd:(filteredOffices[0]?.count??0))} icon="📋" color="accent"/>
         <KPICard compact label="Recettes" value={`${Math.round(filteredRevTotal/1e9*10)/10} Mrd`} icon="💰" color="success"/>
         <KPICard compact label="Évasion détectée" value={fmtM(filteredEvasion||data.tax_evasion_total)} icon="🚨" color="danger"/>
