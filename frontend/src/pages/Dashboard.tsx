@@ -166,6 +166,36 @@ export default function Dashboard() {
     { label:'Transmis à la justice', value:data.cases_justice, color:'#ef4444', icon:'⚖️', urgent: data.cases_justice > 30 },
   ];
 
+  // 7. Pareto chart — top HS codes by revenue, with cumulative % line
+  const topTariffs = data.top_tariffs_by_revenue ?? [];
+  const tariffTotal = topTariffs.reduce((s: number, t: {revenue:number}) => s + t.revenue, 0);
+  let cumSum = 0;
+  const paretoData = topTariffs.map((t: {tariff_code:string;tariff_description:string;revenue:number;declarations:number}) => {
+    cumSum += t.revenue;
+    return { ...t, cumPct: tariffTotal > 0 ? Math.round((cumSum / tariffTotal) * 1000) / 10 : 0 };
+  });
+  const paretoOption = {
+    backgroundColor: 'transparent',
+    tooltip: { trigger:'axis', ...CHART_TT, axisPointer:{type:'shadow'},
+      formatter: (p: {seriesName:string;value:number;marker:string;dataIndex:number}[]) => {
+        const t = paretoData[p[0]?.dataIndex];
+        if (!t) return '';
+        return `<span style="color:#f1f5f9"><b>${t.tariff_code}</b> — ${t.tariff_description || 'N/A'}<br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName.includes('Cumul')?s.value+'%':fmtM(s.value)+' FCFA'}</b>`).join('<br/>')}<br/>Déclarations: <b>${fmt(t.declarations)}</b></span>`;
+      }},
+    legend: { data:['Recettes','% Cumulé'], textStyle:{color:'#64748b',fontSize:10}, top:0, right:0, itemWidth:10, itemHeight:10 },
+    grid: { left:8, right:50, bottom:60, top:36, containLabel:true },
+    xAxis: { type:'category', data:paretoData.map((t:{tariff_code:string})=>t.tariff_code), axisLabel:{color:'#475569',fontSize:9,rotate:45,interval:0}, axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisTick:{show:false} },
+    yAxis: [
+      { type:'value', name:'Recettes', nameTextStyle:{color:'#475569',fontSize:9}, axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>fmtM(v)}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
+      { type:'value', name:'% Cumulé', min:0, max:100, nameTextStyle:{color:'#a78bfa',fontSize:9}, position:'right', axisLabel:{color:'#a78bfa',fontSize:9,formatter:(v:number)=>`${v}%`}, splitLine:{show:false}, axisLine:{show:false} },
+    ],
+    series: [
+      { name:'Recettes', type:'bar', yAxisIndex:0, data:paretoData.map((t:{revenue:number})=>t.revenue), itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(59,130,246,0.85)'},{offset:1,color:'rgba(59,130,246,0.3)'}]},borderRadius:[3,3,0,0]}, barMaxWidth:28 },
+      { name:'% Cumulé', type:'line', yAxisIndex:1, data:paretoData.map((t:{cumPct:number})=>t.cumPct), smooth:true, lineStyle:{color:'#a78bfa',width:2}, itemStyle:{color:'#a78bfa'}, symbol:'circle', symbolSize:5,
+        markLine: { silent:true, symbol:'none', lineStyle:{color:'rgba(245,158,11,0.5)',type:'dashed',width:1.5}, label:{color:'#f59e0b',fontSize:9,formatter:'80%'}, data:[{yAxis:80}] } },
+    ],
+  };
+
   return (
     <div className="space-y-5">
       <PageHeader />
@@ -250,6 +280,19 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+        </div>
+      </FadeIn>
+
+      {/* ── ROW 3.5: Pareto — Top HS Codes by Revenue ── */}
+      <FadeIn delay={0.1}>
+        <div className="card">
+          <div className="flex items-center justify-between mb-1">
+            <SectionTitle icon="📦">Pareto — Top Codes Tarifaires par Recettes</SectionTitle>
+            <span className="text-[10px] text-muted">Ligne pointillée = seuil 80% (principe de Pareto)</span>
+          </div>
+          {paretoData.length > 0
+            ? <ReactECharts option={paretoOption} style={{ height: 340 }} />
+            : <div className="h-80 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
         </div>
       </FadeIn>
 

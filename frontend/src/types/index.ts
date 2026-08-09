@@ -29,6 +29,7 @@ export interface Overview {
     id: string; name: string; bureau: string;
     fraud_detected: number; total: number; detection_rate: number;
   }[];
+  top_tariffs_by_revenue: { tariff_code: string; tariff_description: string; revenue: number; declarations: number }[];
   fraud_trend: { month: string; label: string; count: number; total: number; rate: number /* already % e.g. 23.8 */; evasion: number }[];
   case_status_dist: { status: string; count: number; loss: number }[];
   monthly_revenue: MonthlyRevenue[];

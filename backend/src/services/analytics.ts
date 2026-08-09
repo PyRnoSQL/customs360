@@ -281,6 +281,19 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
     o.efficiency = maxR > minR ? Math.round(((maxR - effRatios[i]) / (maxR - minR)) * 58 + 40) : 70;
   });
 
+  // ── Top HS codes by revenue (for Pareto chart) ────────────────────────────
+  const tariffRevMap: Record<string, { revenue: number; count: number; desc: string }> = {};
+  sgd.forEach(r => {
+    if (!tariffRevMap[r.tariff_code]) tariffRevMap[r.tariff_code] = { revenue: 0, count: 0, desc: r.tariff_description ?? '' };
+    tariffRevMap[r.tariff_code].revenue += r.revenue_collected;
+    tariffRevMap[r.tariff_code].count += 1;
+    if (!tariffRevMap[r.tariff_code].desc && r.tariff_description) tariffRevMap[r.tariff_code].desc = r.tariff_description;
+  });
+  const topTariffsByRevenue = Object.entries(tariffRevMap)
+    .map(([code, v]) => ({ tariff_code: code, tariff_description: v.desc, revenue: v.revenue, declarations: v.count }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 15);
+
   // ── Top inspectors ────────────────────────────────────────────────────────
   const insMap: Record<string,{fraud:number;total:number;name:string;bureau:string}> = {};
   sgd.forEach(r => {
@@ -363,6 +376,7 @@ export function buildOverview(sgd: SGDRow[], fraud: FraudRow[]): Overview {
     channel_distribution:    channelDist,
     office_distribution:     officeRows,
     top_inspectors:          topInspectors,
+    top_tariffs_by_revenue:  topTariffsByRevenue,
     fraud_trend:             fraudTrend,
     case_status_dist:        caseStatusDist,
     monthly_revenue:         buildMonthlyRevenue(sgd, fraud),
