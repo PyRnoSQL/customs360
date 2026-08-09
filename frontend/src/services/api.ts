@@ -22,7 +22,10 @@ async function post<T>(path: string, body: object): Promise<T> {
 }
 
 export const api = {
-  overview:   ()    => get<Overview>('/overview'),
+  overview:   (bureau?: string, period?: string) => {
+    const qs = [bureau && bureau !== 'ALL' && `bureau=${bureau}`, period && period !== 'ALL' && `period=${period}`].filter(Boolean).join('&');
+    return get<Overview>(`/overview${qs ? '?' + qs : ''}`);
+  },
   importers:  ()    => get<ImporterProfile[]>('/importers'),
   importer:   (id: string) => get<ImporterProfile>(`/importers/${id}`),
   fraud:      ()    => get<FraudResponse>('/fraud'),

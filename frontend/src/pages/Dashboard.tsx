@@ -15,15 +15,17 @@ const OFF_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#14b8a6','#a855f7',
 const CHART_TT = { backgroundColor:'rgba(15,23,42,0.95)', borderColor:'rgba(59,130,246,0.3)', borderWidth:1, textStyle:{color:'#f1f5f9',fontSize:12} };
 
 export default function Dashboard() {
-  const { data, loading, error, reload } = useApi(api.overview);
-  const { data: fraud } = useApi(api.fraud);
   const { filters } = useFilters();
+  const { data, loading, error, reload } = useApi(() => api.overview(filters.bureau, filters.period), [filters.bureau, filters.period]);
+  const { data: fraud } = useApi(api.fraud);
 
   if (loading) return <><PageHeader /><Loading rows={4} /></>;
   if (error)   return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
   if (!data)   return null;
 
-  // Apply filters
+  // Server already scopes `data` to the active bureau/period (see api.overview call above).
+  // The re-application below is a harmless no-op safety net for `data.*` fields, and is the
+  // only filtering pass for `fraud.cases`, which comes from a separate, unfiltered endpoint.
   const filteredRevenue = applyPeriodFilter(data.monthly_revenue ?? [], filters.period);
   const filteredOffices = filters.bureau === 'ALL'
     ? (data.office_distribution ?? [])
