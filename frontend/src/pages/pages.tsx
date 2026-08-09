@@ -6,14 +6,20 @@ import ReactECharts from 'echarts-for-react';
 import { useApi } from '../hooks/useApi';
 import { api, fmtM, fmt } from '../services/api';
 import { KPICard, SectionTitle, StatusBadge, Loading, ErrorBox, Code, PaginatedTable } from '../components/UI';
+import type { TariffRisk } from '../types';
 
 export function Fraud() {
   const { data, loading, error, reload } = useApi(api.fraud);
   const { filters } = useFilters();
+  const [selectedTariff, setSelectedTariff] = useState<string | null>(null);
   if (loading) return <Loading />;
   if (error)   return <ErrorBox message={error} onRetry={reload} />;
   if (!data)   return null;
   const filteredCases = applyStatusFilter(applyBureauFilter(applyPeriodFilter(data.cases, filters.period), filters.bureau), filters.status);
+  if (selectedTariff) {
+    const info = (data.tariff_risk ?? []).find((t: TariffRisk) => t.tariff_code === selectedTariff);
+    return <TariffDetail code={selectedTariff} info={info} cases={filteredCases} onBack={() => setSelectedTariff(null)} />;
+  }
   const totalLoss = filteredCases.reduce((s: number, f: { loss_net: number }) => s + f.loss_net, 0);
 
   // Derive fraud type counts from filteredCases
@@ -105,28 +111,37 @@ ${p.percent}%`,
         <div className="card xl:col-span-2">
           <SectionTitle icon="📋">Codes Tarifaires à Risque</SectionTitle>
           {(() => {
-            const tariffMap: Record<string,{cases:number;total:number;desc:string}> = {};
-            filteredCases.forEach((f: { tariff_code: string; tariff_description?: string }) => {
-              if (!tariffMap[f.tariff_code]) tariffMap[f.tariff_code] = {cases:0,total:0,desc:''};
-              tariffMap[f.tariff_code].cases++;
-              tariffMap[f.tariff_code].total++;
-              if (f.tariff_description) tariffMap[f.tariff_code].desc = f.tariff_description;
+            // Numerator: fraud count within the current filtered view (respects period/bureau/status filters)
+            const filteredCounts: Record<string, number> = {};
+            filteredCases.forEach((f: { tariff_code: string }) => {
+              filteredCounts[f.tariff_code] = (filteredCounts[f.tariff_code] ?? 0) + 1;
             });
-            const tariffRows = Object.entries(tariffMap)
-              .map(([code, v]) => ({ code, cases: v.cases, rate: v.cases / Math.max(v.total,1), desc: v.desc }))
+            // Denominator + description: from backend's tariff_risk, computed against ALL declarations
+            // for that code (not just fraud rows) — this is what makes the rate meaningful instead of
+            // always reading 100% (numerator and denominator were previously both fraud-only counts).
+            const tariffRows = (data.tariff_risk ?? [])
+              .filter((t: TariffRisk) => filteredCounts[t.tariff_code])
+              .map((t: TariffRisk) => ({
+                code: t.tariff_code,
+                desc: t.tariff_description,
+                cases: filteredCounts[t.tariff_code],
+                total: t.total_declarations,
+                rate: t.total_declarations > 0 ? filteredCounts[t.tariff_code] / t.total_declarations : 0,
+              }))
               .sort((a,b) => b.cases - a.cases);
             return tariffRows.length === 0
               ? <div className="text-center text-muted py-4">Aucun cas pour les filtres sélectionnés</div>
               : (
               <PaginatedTable
                 pageSize={15}
-                headers={<tr><th>Code SH</th><th>Description</th><th>Fraudes</th><th>Taux</th></tr>}
+                headers={<tr><th>Code SH</th><th>Description</th><th>Fraudes</th><th>Taux</th><th></th></tr>}
                 rows={tariffRows.map(t => (
-                  <tr key={t.code}>
+                  <tr key={t.code} onClick={() => setSelectedTariff(t.code)} style={{ cursor:'pointer' }} className="hover:bg-white/[0.02] transition-colors">
                     <td><Code>{t.code}</Code></td>
-                    <td><span className="text-xs text-sub">{t.desc ?? '—'}</span></td>
+                    <td><span className="text-xs text-sub">{t.desc || '—'}</span></td>
                     <td><span className="font-bold text-danger">{t.cases}</span></td>
                     <td><span className="text-xs font-bold" style={{ color: t.rate > 0.3 ? '#ef4444' : t.rate > 0.15 ? '#f59e0b' : '#10b981' }}>{(t.rate * 100).toFixed(1)}%</span></td>
+                    <td><button onClick={(e) => { e.stopPropagation(); setSelectedTariff(t.code); }} className="btn btn-primary text-xs py-1 px-3">Voir 360°</button></td>
                   </tr>
                 ))}
               />
@@ -201,6 +216,111 @@ function FraudAnomalyScoring({ bureau, period }: { bureau: string; period: strin
           </tr>
         ))}
       />
+    </div>
+  );
+}
+
+// ── Tariff Code 360 Detail — fraud cases attributed to a given HS code ────────
+interface FraudCaseRow {
+  case_id: string; sgd_id: string; importer_id: string; importer_name?: string;
+  declarant_id: string; declarant_name?: string; office_id: string; office_name?: string;
+  tariff_code: string; fraud_type: string; loss_net: number; tax_evasion_amount?: number;
+  penalty_amount?: number; ai_risk_score: number; status: string; date_detection?: string;
+}
+function TariffDetail({ code, info, cases, onBack }: { code: string; info?: TariffRisk; cases: FraudCaseRow[]; onBack: () => void }) {
+  const codeCases = cases.filter(c => c.tariff_code === code);
+  const totalLoss = codeCases.reduce((s, c) => s + (c.loss_net ?? 0), 0);
+  const totalEvasion = codeCases.reduce((s, c) => s + (c.tax_evasion_amount ?? 0), 0);
+  const avgRisk = codeCases.length ? Math.round(codeCases.reduce((s, c) => s + (c.ai_risk_score ?? 0), 0) / codeCases.length) : 0;
+  const rate = info && info.total_declarations > 0 ? Math.round((codeCases.length / info.total_declarations) * 1000) / 10 : 0;
+  const byOffice: Record<string, number> = {};
+  codeCases.forEach(c => { const o = c.office_name ?? c.office_id; byOffice[o] = (byOffice[o] ?? 0) + 1; });
+  const topOffices = Object.entries(byOffice).sort((a,b) => b[1]-a[1]).slice(0,5);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="btn btn-ghost text-xs">← Retour</button>
+        <span className="text-sm font-bold text-white">Profil 360° — Code Tarifaire {code}</span>
+      </div>
+
+      <div className="card">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="text-lg font-bold text-white"><Code>{code}</Code></div>
+            <div className="text-sm text-sub mt-1">{info?.tariff_description || 'Description non disponible'}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-black" style={{ color: rate > 30 ? '#ef4444' : rate > 15 ? '#f59e0b' : '#10b981' }}>{rate}%</div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{
+              background: (info?.risk_level === 'HIGH' ? '#ef4444' : info?.risk_level === 'MEDIUM' ? '#f59e0b' : '#10b981') + '22',
+              color: info?.risk_level === 'HIGH' ? '#ef4444' : info?.risk_level === 'MEDIUM' ? '#f59e0b' : '#10b981',
+            }}>{info?.risk_level ?? '—'}</span>
+          </div>
+        </div>
+        <div className="h-1.5 rounded-full overflow-hidden mb-4" style={{ background:'rgba(255,255,255,0.06)' }}>
+          <div className="h-full rounded-full" style={{ width:`${Math.min(rate,100)}%`, background: rate > 30 ? '#ef4444' : rate > 15 ? '#f59e0b' : '#10b981' }} />
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { l:'Cas de fraude', v: fmt(codeCases.length), c:'#ef4444' },
+            { l:'Déclarations totales', v: fmt(info?.total_declarations ?? 0), c:'#3b82f6' },
+            { l:'Pertes nettes', v: fmtM(totalLoss) + ' FCFA', c:'#f59e0b' },
+            { l:'Évasion détectée', v: fmtM(totalEvasion) + ' FCFA', c:'#f87171' },
+            { l:'CIF moyen', v: fmtM(info?.avg_cif ?? 0) + ' FCFA', c:'#8b5cf6' },
+            { l:'Score IA moyen', v: avgRisk + '%', c: avgRisk >= 70 ? '#ef4444' : '#eab308' },
+            { l:'Déclarants uniques', v: fmt(new Set(codeCases.map(c => c.declarant_id)).size), c:'#06b6d4' },
+            { l:'Importateurs uniques', v: fmt(new Set(codeCases.map(c => c.importer_id)).size), c:'#10b981' },
+          ].map(k => (
+            <div key={k.l} className="rounded-lg py-2.5 px-3 text-center" style={{ background:'rgba(255,255,255,0.03)' }}>
+              <div className="text-base font-bold" style={{ color:k.c }}>{k.v}</div>
+              <div className="text-[9px] text-muted mt-0.5">{k.l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {topOffices.length > 0 && (
+        <div className="card">
+          <SectionTitle icon="🏛️">Répartition par Secteur</SectionTitle>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2">
+            {topOffices.map(([name, count]) => (
+              <div key={name} className="rounded-lg p-2.5 text-center" style={{ background:'rgba(255,255,255,0.03)' }}>
+                <div className="text-sm font-bold text-white">{count}</div>
+                <div className="text-[9px] text-muted mt-0.5 truncate">{name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <SectionTitle icon="🚨">Cas de Fraude Attribués à ce Code</SectionTitle>
+        {codeCases.length === 0
+          ? <div className="text-center text-muted py-4">Aucun cas pour les filtres sélectionnés</div>
+          : (
+          <PaginatedTable
+            pageSize={15}
+            headers={<tr><th>Cas</th><th>Importateur</th><th>Déclarant</th><th>Secteur</th><th>Type</th><th>Perte</th><th>Score IA</th><th>Statut</th></tr>}
+            rows={codeCases.map(c => (
+              <tr key={c.case_id}>
+                <td><Code>{c.case_id}</Code></td>
+                <td>
+                  <div className="text-xs font-semibold text-white">{c.importer_name ?? c.importer_id}</div>
+                  <div className="text-[10px] text-muted">{c.importer_id}</div>
+                </td>
+                <td><span className="text-xs text-sub">{c.declarant_name ?? c.declarant_id}</span></td>
+                <td><span className="text-xs text-muted">{c.office_name ?? c.office_id}</span></td>
+                <td><span className="text-xs text-sub">{c.fraud_type?.replace(/_/g,' ')}</span></td>
+                <td><span className="text-xs font-bold text-danger">{fmtM(c.tax_evasion_amount ?? c.loss_net)} FCFA</span></td>
+                <td><span className="text-xs font-bold" style={{ color: c.ai_risk_score >= 70 ? '#ef4444' : '#eab308' }}>{c.ai_risk_score}</span></td>
+                <td><StatusBadge status={c.status} /></td>
+              </tr>
+            ))}
+          />
+        )}
+      </div>
     </div>
   );
 }

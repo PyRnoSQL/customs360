@@ -156,6 +156,7 @@ export interface OfficeStats {
 
 export interface TariffRisk {
   tariff_code: string;
+  tariff_description: string;
   total_declarations: number;
   fraud_cases: number;
   fraud_rate: number;

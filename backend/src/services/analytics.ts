@@ -183,7 +183,7 @@ export function buildTariffRisk(sgd: SGDRow[], fraud: FraudRow[]): TariffRisk[] 
     const risk_level: TariffRisk['risk_level'] =
       fraud_rate > 0.25 || HIGH_RISK_TARIFFS.has(code) ? 'HIGH'
       : fraud_rate > 0.10 ? 'MEDIUM' : 'LOW';
-    return { tariff_code: code, total_declarations: rows.length, fraud_cases: fraudRows.length, fraud_rate, avg_cif, risk_level };
+    return { tariff_code: code, tariff_description: rows[0]?.tariff_description ?? '', total_declarations: rows.length, fraud_cases: fraudRows.length, fraud_rate, avg_cif, risk_level };
   }).sort((a, b) => b.fraud_rate - a.fraud_rate).slice(0, 12);
 }
 
