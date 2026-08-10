@@ -33,7 +33,10 @@ export const api = {
     return get<FraudResponse>(`/fraud${qs ? '?' + qs : ''}`);
   },
   offices:    ()    => get<OfficeStats[]>('/offices'),
-  delays:     ()    => get<DelayRecord[]>('/delays'),
+  delays:     (bureau?: string, period?: string) => {
+    const qs = [bureau && bureau !== 'ALL' && `bureau=${bureau}`, period && period !== 'ALL' && `period=${period}`].filter(Boolean).join('&');
+    return get<DelayRecord[]>(`/delays${qs ? '?' + qs : ''}`);
+  },
   revenue:    ()    => get<MonthlyRevenue[]>('/revenue'),
   graph:      ()    => get<{ nodes: object[]; links: object[] }>('/graph'),
   ai:         (query: string) => post<AIAnalysis>('/ai', { query }),

@@ -332,11 +332,13 @@ function TariffDetail({ code, info, cases, onBack }: { code: string; info?: Tari
 
 // ── Delays Page ───────────────────────────────────────────────────────────────
 export function Delays() {
-  const { data, loading, error, reload } = useApi(api.delays);
   const { filters } = useFilters();
+  const { data, loading, error, reload } = useApi(() => api.delays(filters.bureau, filters.period), [filters.bureau, filters.period]);
   if (loading) return <Loading />;
   if (error)   return <ErrorBox message={error} onRetry={reload} />;
   if (!data)   return null;
+  // Server already scopes `data` to bureau+period (see api.delays call above); re-applying is a
+  // harmless no-op safety net, consistent with the pattern used on Tableau de Bord / Détection Fraude.
   const filtered = applyBureauFilter(applyPeriodFilter(data, filters.period), filters.bureau);
 
   const avgOvershoot = filtered.length > 0 ? Math.round(filtered.reduce((s: number, d: { overshoot_hours: number }) => s + d.overshoot_hours, 0) / filtered.length) : 0;
