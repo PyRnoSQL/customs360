@@ -455,7 +455,7 @@ export default function Predictions() {
       {/* Info banner: moved sections */}
       <div className="p-3 rounded-xl text-xs text-muted" style={{ background:'rgba(59,130,246,0.05)', border:'1px solid rgba(59,130,246,0.1)' }}>
         💡 <b style={{color:'#60a5fa'}}>Contenu déplacé vers les pages dédiées:</b>&nbsp;
-        Scoring Anomalies → <b>Détection Fraude</b> · Délais + Trajectoires Secteurs → <b>Délais Suspects</b> · Dérive Risque + Prochaine Décl → <b>Importateurs</b> · Collusion → <b>Performance Agents</b>
+        Scoring Anomalies → <b>Détection Fraude</b> · Délais + Trajectoires Secteurs → <b>Délais Suspects</b> · Dérive Risque + Prochaine Décl → <b>Import-Export</b> · Collusion → <b>Performance Agents</b>
       </div>
     </div>
   );
