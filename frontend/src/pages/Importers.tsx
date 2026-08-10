@@ -209,16 +209,22 @@ export default function Importers() {
   if (!data)   return null;
 
   const flowFiltered = flowFilter === 'ALL' ? data : data.filter((i: ImporterProfile) => i.flow === flowFilter || (flowFilter === 'EXPORT' && i.flow === 'MIXED'));
+  // Global filters only (bureau + risk) — drives KPIs and the donut. `filtered` below adds the
+  // page-local flow toggle and search box on top, for the browsable table.
+  const globalFiltered = applyRiskFilter(
+    filters.bureau === 'ALL' ? data : data.filter((i: ImporterProfile) => i.offices && i.offices.includes(filters.bureau)),
+    filters.risk
+  );
   const filtered = applyRiskFilter(
     filters.bureau === 'ALL'
       ? flowFiltered
       : flowFiltered.filter((i: ImporterProfile) => i.offices && i.offices.includes(filters.bureau)),
     filters.risk
   ).filter((i: ImporterProfile) => i.importer_id.toLowerCase().includes(search.toLowerCase()) || (i.name ?? '').toLowerCase().includes(search.toLowerCase()));
-  const highRisk = data.filter((i: ImporterProfile) => i.risk_score >= 70).length;
-  const exporters = data.filter((i: ImporterProfile) => i.flow === 'EXPORT' || i.flow === 'MIXED');
+  const highRisk = globalFiltered.filter((i: ImporterProfile) => i.risk_score >= 70).length;
+  const exporters = globalFiltered.filter((i: ImporterProfile) => i.flow === 'EXPORT' || i.flow === 'MIXED');
   const exportRevenue = exporters.reduce((s: number, i: ImporterProfile) => s + i.total_revenue, 0);
-  const importRevenue = data.reduce((s: number, i: ImporterProfile) => s + i.total_revenue, 0) - exportRevenue;
+  const importRevenue = globalFiltered.reduce((s: number, i: ImporterProfile) => s + i.total_revenue, 0) - exportRevenue;
 
   const flowDonutOption = {
     backgroundColor: 'transparent',
@@ -240,12 +246,12 @@ export default function Importers() {
     <div className="space-y-5">
       <PageHeader />
       <div className="grid grid-cols-6 gap-2">
-        <KPICard compact label="Total Opérateurs" value={fmt(data.length)} color="accent" />
-        <KPICard compact label="Importateurs" value={fmt(data.length - exporters.length)} color="teal" />
+        <KPICard compact label="Total Opérateurs" value={fmt(globalFiltered.length)} color="accent" />
+        <KPICard compact label="Importateurs" value={fmt(globalFiltered.length - exporters.length)} color="teal" />
         <KPICard compact label="Exportateurs" value={fmt(exporters.length)} color="success" />
         <KPICard compact label="Recettes Export" value={fmtM(exportRevenue)} color="success" />
         <KPICard compact label="Haut Risque (≥70)" value={fmt(highRisk)} color="danger" />
-        <KPICard compact label="Total Fraudes" value={fmt(data.reduce((s: number, i: ImporterProfile) => s + i.fraud_cases, 0))} color="gold" />
+        <KPICard compact label="Total Fraudes" value={fmt(globalFiltered.reduce((s: number, i: ImporterProfile) => s + i.fraud_cases, 0))} color="gold" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
