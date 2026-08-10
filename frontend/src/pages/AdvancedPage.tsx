@@ -125,7 +125,9 @@ function FraudDetectionTab() {
 // TAB 4 — RECOMMENDATIONS
 // ═══════════════════════════════════════════════════════════════════
 function RecommendationsTab() {
-  const { data, loading, error } = useApi(() => fetch('/api/advanced/recommendations').then(r => r.json()));
+  const { filters } = useFilters();
+  const qs = [filters.bureau !== 'ALL' && `bureau=${filters.bureau}`, filters.period !== 'ALL' && `period=${filters.period}`].filter(Boolean).join('&');
+  const { data, loading, error } = useApi(() => fetch(`/api/advanced/recommendations${qs ? '?' + qs : ''}`).then(r => r.json()), [qs]);
   if (loading) return <Loading rows={4} />;
   if (error) return <ErrorBox message={error} />;
   const { recommendations = [], total = 0, generated_at = '' } = data ?? {};

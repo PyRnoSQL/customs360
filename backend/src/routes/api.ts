@@ -541,8 +541,21 @@ router.get('/advanced/revenue-forecast', wrap(async (_req, res) => {
 }));
 
 // ── 3. Recommendations Engine — ranked actionable list ──────────────────────
-router.get('/advanced/recommendations', wrap(async (_req, res) => {
-  const { sgd, fraud } = await getSheetData();
+router.get('/advanced/recommendations', wrap(async (req, res) => {
+  const { sgd: allSgd, fraud: allFraud } = await getSheetData();
+  const bureau = (req.query.bureau as string) || 'ALL';
+  const period = (req.query.period as string) || 'ALL';
+
+  const toMonth = (d: string) => {
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? '' : `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+  };
+
+  const sgdByBureau   = bureau === 'ALL' ? allSgd   : allSgd.filter(s => s.office_id === bureau);
+  const fraudByBureau = bureau === 'ALL' ? allFraud : allFraud.filter(f => f.office_id === bureau);
+  const sgd   = period === 'ALL' ? sgdByBureau   : sgdByBureau.filter(s => toMonth(s.date) === period);
+  const fraud = period === 'ALL' ? fraudByBureau : fraudByBureau.filter(f => toMonth(f.date_detection) === period);
+
   const recs: {priority:number;category:string;title:string;description:string;impact:string;action:string;entities:string[]}[] = [];
 
   // Importers with high fraud rate > 15%
