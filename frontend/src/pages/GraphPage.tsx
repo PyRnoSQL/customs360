@@ -8,6 +8,7 @@ import { useApi } from '../hooks/useApi';
 import { api, fmtM, fmt } from '../services/api';
 import { PageHeader } from '../App';
 import { KPICard, SectionTitle, Loading, ErrorBox, FadeIn, StaggerGrid, AnimatedNumber } from '../components/UI';
+import { useFilters } from '../context/FilterContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface GraphNode {
@@ -429,17 +430,13 @@ function FraudTimeline({ sgd, fraud }: { sgd: SGDRow[]; fraud: FraudCase[] }) {
 // MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
 export default function GraphPage() {
-  const { data: graphData, loading: gLoading } = useApi(api.graph);
-  const { data: overviewData } = useApi(api.overview);
-  const { data: fraudData } = useApi(api.fraud);
+  const { filters } = useFilters();
+  const { data: graphData, loading: gLoading } = useApi(() => api.graph(filters.bureau, filters.period), [filters.bureau, filters.period]);
+  const { data: fraudData } = useApi(() => api.fraud(filters.bureau, filters.period), [filters.bureau, filters.period]);
   const [sgdRows, setSgdRows] = useState<SGDRow[]>([]);
 
-  useEffect(()=>{ fetch('/api/overview').then(r=>r.json()).catch(()=>{}); },[]);
-
-  // Fetch raw SGD data for matrix/sankey/timeline
+  // Build SGD rows from fraud data for the matrix/sankey/timeline visualizations
   useEffect(()=>{
-    fetch('/api/importers').then(r=>r.json()).then(d=>{ /* use overview */ }).catch(()=>{});
-    // Build SGD rows from fraud data + graph data approximation
     if(fraudData?.cases){
       const synth: SGDRow[] = fraudData.cases.map((f: FraudCase)=>({
         sgd_id:f.sgd_id, date:f.date_detection, importer_id:f.importer_id, declarant_id:f.declarant_id,
@@ -451,18 +448,18 @@ export default function GraphPage() {
     }
   },[fraudData]);
 
-  // Also get real SGD data
+  // Also pull real SGD delay records (same bureau/period scope) to enrich the sample
   useEffect(()=>{
-    fetch('/api/delays').then(r=>r.json()).then((delays: SGDRow[])=>{
+    api.delays(filters.bureau, filters.period).then((delays: unknown) => {
       if(Array.isArray(delays) && delays.length){
         setSgdRows(prev=>{
           const existing=new Set(prev.map((s: SGDRow)=>s.sgd_id));
-          const newRows=delays.filter((d: SGDRow)=>!existing.has(d.sgd_id));
+          const newRows=(delays as SGDRow[]).filter((d: SGDRow)=>!existing.has(d.sgd_id));
           return [...prev, ...newRows];
         });
       }
     }).catch(()=>{});
-  },[]);
+  },[filters.bureau, filters.period]);
 
   if(gLoading) return <><PageHeader /><Loading rows={5}/></>;
 
@@ -472,7 +469,8 @@ export default function GraphPage() {
   const fraudCount = nodes.filter(n=>n.fraud).length;
   const highRisk = nodes.filter(n=>n.risk>=70).length;
 
-  // Build SGD rows from fraud cases for visualizations
+  // Build SGD rows from fraud cases for visualizations — already bureau/period-scoped
+  // since fraudCases comes from the filtered api.fraud() call above.
   const allSGD: SGDRow[] = fraudCases.map(f=>({
     sgd_id:f.sgd_id, date:f.date_detection||'2024-01-01', importer_id:f.importer_id,
     declarant_id:f.declarant_id, inspector_id:f.inspector_id, office_id:f.office_id, tariff_code:'85044000',

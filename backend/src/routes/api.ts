@@ -176,17 +176,31 @@ router.get('/revenue', wrap(async (_req, res) => {
 }));
 
 // ── GET /api/graph ────────────────────────────────────────────────────────────
-router.get('/graph', wrap(async (_req, res) => {
-  const { sgd, fraud } = await getSheetData();
+router.get('/graph', wrap(async (req, res) => {
+  const { sgd: allSgd, fraud: allFraud } = await getSheetData();
+  const bureau = (req.query.bureau as string) || 'ALL';
+  const period = (req.query.period as string) || 'ALL';
+
+  const toMonth = (d: string) => {
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? '' : `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+  };
+
+  const sgdByBureau   = bureau === 'ALL' ? allSgd   : allSgd.filter(s => s.office_id === bureau);
+  const fraudByBureau = bureau === 'ALL' ? allFraud : allFraud.filter(f => f.office_id === bureau);
+  const sgd   = period === 'ALL' ? sgdByBureau   : sgdByBureau.filter(s => toMonth(s.date) === period);
+  const fraud = period === 'ALL' ? fraudByBureau : fraudByBureau.filter(f => toMonth(f.date_detection) === period);
+
   const nodes: object[] = [];
   const links: object[] = [];
   const impIds = [...new Set(sgd.map(s => s.importer_id))].slice(0, 12);
   const offiderIds = new Set<string>(); // inspector/officer node ids seen so far
   const offIds = new Set<string>();
   const fraudSGDs = new Set(fraud.map(f => f.sgd_id));
+  const profiles = buildImporterProfiles(sgd, fraud);
 
   impIds.forEach(id => {
-    const profile = buildImporterProfiles(sgd, fraud).find(p => p.importer_id === id);
+    const profile = profiles.find(p => p.importer_id === id);
     nodes.push({ id, label: id, type: 'importer', risk: profile?.risk_score ?? 0 });
   });
 

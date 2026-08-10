@@ -79,7 +79,7 @@ const PAGE_FILTERS: Record<string, (keyof ReturnType<typeof useFilters>['filters
   '/advanced':    ['bureau', 'period', 'risk'],
   '/officers':    ['bureau', 'risk', 'period'],
   '/welcome':     [],
-  '/graph':       [],
+  '/graph':       ['bureau', 'period'],
 };
 
 // ── Dropdown component ─────────────────────────────────────────────────────────

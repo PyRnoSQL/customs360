@@ -38,7 +38,10 @@ export const api = {
     return get<DelayRecord[]>(`/delays${qs ? '?' + qs : ''}`);
   },
   revenue:    ()    => get<MonthlyRevenue[]>('/revenue'),
-  graph:      ()    => get<{ nodes: object[]; links: object[] }>('/graph'),
+  graph:      (bureau?: string, period?: string) => {
+    const qs = [bureau && bureau !== 'ALL' && `bureau=${bureau}`, period && period !== 'ALL' && `period=${period}`].filter(Boolean).join('&');
+    return get<{ nodes: object[]; links: object[] }>(`/graph${qs ? '?' + qs : ''}`);
+  },
   ai:         (query: string) => post<AIAnalysis>('/ai', { query }),
   invalidate: ()    => post<{ ok: boolean }>('/cache/invalidate', {}),
 };
