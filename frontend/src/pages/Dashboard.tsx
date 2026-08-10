@@ -6,6 +6,7 @@ import { api, fmtM, fmt } from '../services/api';
 import { KPICard, SectionTitle, Loading, ErrorBox, FadeIn, StaggerGrid, AnimatedNumber, StatusBadge } from '../components/UI';
 import { PageHeader } from '../App';
 import { useFilters, applyPeriodFilter, applyBureauFilter } from '../context/FilterContext';
+import { useLanguage } from '../context/LanguageContext';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const riskColor = (r: number) => r >= 70 ? '#ef4444' : r >= 40 ? '#f59e0b' : '#10b981';
@@ -16,6 +17,7 @@ const CHART_TT = { backgroundColor:'rgba(15,23,42,0.95)', borderColor:'rgba(59,1
 
 export default function Dashboard() {
   const { filters } = useFilters();
+  const { t } = useLanguage();
   const { data, loading, error, reload } = useApi(() => api.overview(filters.bureau, filters.period), [filters.bureau, filters.period]);
   const { data: fraud } = useApi(api.fraud);
 
@@ -54,14 +56,14 @@ export default function Dashboard() {
     tooltip: { trigger:'axis', ...CHART_TT, axisPointer:{type:'shadow'},
       formatter: (p: {seriesName:string;value:number;marker:string;axisValueLabel?:string}[]) =>
         `<span style="color:#f1f5f9"><b>${p[0]?.axisValueLabel??''}</b><br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${fmtM(s.value*1e6)} FCFA</b>`).join('<br/>')}</span>` },
-    legend: { data:['Taxes évaluées','Recettes collectées','Évasion détectée'], textStyle:{color:'#64748b',fontSize:10}, top:0, itemWidth:10, itemHeight:10 },
+    legend: { data:[t('dashboard.seriesExpected'),t('dashboard.seriesCollected'),t('dashboard.seriesEvasion')], textStyle:{color:'#64748b',fontSize:10}, top:0, itemWidth:10, itemHeight:10 },
     grid: { left:8, right:8, bottom:24, top:36, containLabel:true },
     xAxis: { type:'category', data:filteredRevenue.map((m:{label:string})=>m.label), axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisLabel:{color:'#475569',fontSize:10}, axisTick:{show:false} },
     yAxis: { type:'value', axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>fmtM(v*1e6)}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
     series: [
-      { name:'Taxes évaluées', type:'bar', data:filteredRevenue.map((m:{expected:number})=>Math.round(m.expected/1e6)), itemStyle:{color:'rgba(59,130,246,0.35)',borderRadius:[3,3,0,0]}, barGap:'5%' },
-      { name:'Recettes collectées', type:'bar', data:filteredRevenue.map((m:{collected:number})=>Math.round(m.collected/1e6)), itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(16,185,129,0.9)'},{offset:1,color:'rgba(16,185,129,0.4)'}]},borderRadius:[3,3,0,0]} },
-      { name:'Évasion détectée', type:'bar', data:filteredRevenue.map((m:{lost_fraud:number})=>Math.round(m.lost_fraud/1e6)), itemStyle:{color:'rgba(239,68,68,0.65)',borderRadius:[3,3,0,0]} },
+      { name:t('dashboard.seriesExpected'), type:'bar', data:filteredRevenue.map((m:{expected:number})=>Math.round(m.expected/1e6)), itemStyle:{color:'rgba(59,130,246,0.35)',borderRadius:[3,3,0,0]}, barGap:'5%' },
+      { name:t('dashboard.seriesCollected'), type:'bar', data:filteredRevenue.map((m:{collected:number})=>Math.round(m.collected/1e6)), itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(16,185,129,0.9)'},{offset:1,color:'rgba(16,185,129,0.4)'}]},borderRadius:[3,3,0,0]} },
+      { name:t('dashboard.seriesEvasion'), type:'bar', data:filteredRevenue.map((m:{lost_fraud:number})=>Math.round(m.lost_fraud/1e6)), itemStyle:{color:'rgba(239,68,68,0.65)',borderRadius:[3,3,0,0]} },
     ],
   };
 
@@ -71,7 +73,7 @@ export default function Dashboard() {
     tooltip: { trigger:'item', ...CHART_TT, formatter:(p:{name:string;value:number})=>`<span style="color:#f1f5f9"><b>${p.name}</b><br/>${fmtM(p.value)} FCFA</span>` },
     grid: { left:120, right:16, top:8, bottom:8, containLabel:false },
     xAxis: { type:'value', show:false },
-    yAxis: { type:'category', inverse:true, data:['Évasion fiscale','Pénalités levées','Montant récupéré','Perte nette'], axisLabel:{color:'#94a3b8',fontSize:11}, axisLine:{show:false}, axisTick:{show:false} },
+    yAxis: { type:'category', inverse:true, data:[t('dashboard.waterfallEvasion'),t('dashboard.waterfallPenalties'),t('dashboard.waterfallRecovered'),t('dashboard.waterfallNetLoss')], axisLabel:{color:'#94a3b8',fontSize:11}, axisLine:{show:false}, axisTick:{show:false} },
     series: [{
       type:'bar', barWidth:20,
       data:[
@@ -86,21 +88,23 @@ export default function Dashboard() {
 
   // 3. Fraud trend line + bars (dual axis)
   const trendData = filteredTrend.length > 0 ? filteredTrend : data.fraud_trend ?? [];
+  const seriesFraudCasesLabel = t('dashboard.seriesFraudCases');
+  const seriesFraudRateLabel = t('dashboard.seriesFraudRate');
   const fraudTrendOption = {
     backgroundColor: 'transparent',
     tooltip: { trigger:'axis', ...CHART_TT, axisPointer:{type:'shadow'},
-      formatter:(p:{seriesName:string;value:number;marker:string;axisValueLabel?:string}[])=>`<span style="color:#f1f5f9"><b>${p[0]?.axisValueLabel??''}</b><br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.value}${s.seriesName.includes('Taux')?'%':''}</b>`).join('<br/>')}</span>` },
+      formatter:(p:{seriesName:string;value:number;marker:string;axisValueLabel?:string}[])=>`<span style="color:#f1f5f9"><b>${p[0]?.axisValueLabel??''}</b><br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.value}${s.seriesName===seriesFraudRateLabel?'%':''}</b>`).join('<br/>')}</span>` },
     legend: { textStyle:{color:'#64748b',fontSize:10}, top:0, right:0, itemWidth:10, itemHeight:10 },
     grid: { left:8, right:50, bottom:24, top:36, containLabel:true },
     xAxis: { type:'category', data:trendData.map((m:{label:string})=>m.label), axisLabel:{color:'#475569',fontSize:10}, axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisTick:{show:false} },
     yAxis: [
-      { type:'value', name:'Cas', min:0, nameTextStyle:{color:'#475569',fontSize:9}, axisLabel:{color:'#475569',fontSize:9}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
+      { type:'value', name:seriesFraudCasesLabel, min:0, nameTextStyle:{color:'#475569',fontSize:9}, axisLabel:{color:'#475569',fontSize:9}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
       { type:'value', min:0, max:30, position:'right', axisLabel:{color:'#f59e0b',fontSize:9,formatter:(v:number)=>`${v}%`}, splitLine:{show:false}, axisLine:{show:false} },
     ],
     series: [
-      { name:'Cas fraude', type:'bar', yAxisIndex:0, data:trendData.map((m:{count:number})=>m.count ?? 0), itemStyle:{color:'rgba(239,68,68,0.6)',borderRadius:[2,2,0,0]}, barMaxWidth:18,
+      { name:seriesFraudCasesLabel, type:'bar', yAxisIndex:0, data:trendData.map((m:{count:number})=>m.count ?? 0), itemStyle:{color:'rgba(239,68,68,0.6)',borderRadius:[2,2,0,0]}, barMaxWidth:18,
         label:{show:true,position:'top',color:'#f87171',fontSize:9,formatter:(p:{value:number})=>p.value>0?String(p.value):''} },
-      { name:'Taux fraude', type:'line', yAxisIndex:1, data:trendData.map((m:{rate:number})=>m.rate ?? 0), smooth:true, lineStyle:{color:'#f59e0b',width:2}, itemStyle:{color:'#f59e0b'}, symbol:'circle', symbolSize:4 },
+      { name:seriesFraudRateLabel, type:'line', yAxisIndex:1, data:trendData.map((m:{rate:number})=>m.rate ?? 0), smooth:true, lineStyle:{color:'#f59e0b',width:2}, itemStyle:{color:'#f59e0b'}, symbol:'circle', symbolSize:4 },
     ],
   };
 
@@ -109,7 +113,7 @@ export default function Dashboard() {
   const STATUS_COLORS: Record<string,string> = { 'En cours':'#3b82f6','Clôturé amiable':'#10b981','Contentieux':'#f59e0b','Justice':'#ef4444','Abandonné':'#64748b' };
   const pipelineOption = {
     backgroundColor:'transparent',
-    tooltip:{trigger:'item',...CHART_TT,formatter:(p:{name:string;value:number;percent:string})=>`<span style="color:#f1f5f9"><b>${p.name}</b><br/>Dossiers: <b>${p.value}</b> (${p.percent}%)</span>`},
+    tooltip:{trigger:'item',...CHART_TT,formatter:(p:{name:string;value:number;percent:string})=>`<span style="color:#f1f5f9"><b>${p.name}</b><br/>${t('dashboard.pipelineFiles')}: <b>${p.value}</b> (${p.percent}%)</span>`},
     series:[{
       type:'pie', radius:['42%','65%'], center:['50%','45%'],
       label:{show:true,position:'outside',color:'#94a3b8',fontSize:10,formatter:(p:{name:string;value:number})=>`${p.name}\n${p.value}`},
@@ -140,12 +144,13 @@ export default function Dashboard() {
 
   // 6. Office league table bars
   const sortedOffices = [...(data.office_distribution??[])].sort((a:{revenue:number},b:{revenue:number})=>b.revenue-a.revenue);
+  const officeFraudRateLabel = t('dashboard.seriesFraudRateShort');
   const officeBarOption = {
     backgroundColor:'transparent',
     tooltip:{trigger:'axis',...CHART_TT,axisPointer:{type:'shadow'},
       formatter:(p:{seriesName:string;value:number;marker:string;dataIndex:number}[])=>{
         const fullName = sortedOffices[p[0]?.dataIndex]?.name ?? '';
-        return `<span style="color:#f1f5f9"><b>${fullName}</b><br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName.toLowerCase().includes('fraude')?s.value+'%':fmtM(s.value*1e6)+' FCFA'}</b>`).join('<br/>')}</span>`;
+        return `<span style="color:#f1f5f9"><b>${fullName}</b><br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName===officeFraudRateLabel?s.value+'%':fmtM(s.value*1e6)+' FCFA'}</b>`).join('<br/>')}</span>`;
       }},
     legend:{textStyle:{color:'#64748b',fontSize:9},top:0,right:0,itemWidth:8,itemHeight:8},
     grid:{left:8,right:50,bottom:20,top:28,containLabel:true},
@@ -155,8 +160,8 @@ export default function Dashboard() {
       {type:'value',position:'right',min:0,max:25,axisLabel:{color:'#f87171',fontSize:9,formatter:(v:number)=>`${v}%`},splitLine:{show:false},axisLine:{show:false}},
     ],
     series:[
-      {name:'Recettes',type:'bar',yAxisIndex:0,data:sortedOffices.map((o:{revenue:number})=>Math.round(o.revenue/1e6)),itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(59,130,246,0.8)'},{offset:1,color:'rgba(59,130,246,0.3)'}]},borderRadius:[3,3,0,0]},barMaxWidth:28},
-      {name:'Taux fraude',type:'line',yAxisIndex:1,data:sortedOffices.map((o:{fraud_rate:number})=>Math.round((o.fraud_rate??0)*1000)/10),lineStyle:{color:'#ef4444',width:2},itemStyle:{color:'#ef4444'},symbol:'circle',symbolSize:5},
+      {name:t('dashboard.seriesRevenueShort'),type:'bar',yAxisIndex:0,data:sortedOffices.map((o:{revenue:number})=>Math.round(o.revenue/1e6)),itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(59,130,246,0.8)'},{offset:1,color:'rgba(59,130,246,0.3)'}]},borderRadius:[3,3,0,0]},barMaxWidth:28},
+      {name:officeFraudRateLabel,type:'line',yAxisIndex:1,data:sortedOffices.map((o:{fraud_rate:number})=>Math.round((o.fraud_rate??0)*1000)/10),lineStyle:{color:'#ef4444',width:2},itemStyle:{color:'#ef4444'},symbol:'circle',symbolSize:5},
     ],
   };
 
@@ -170,30 +175,33 @@ export default function Dashboard() {
 
   // 7. Pareto chart — top HS codes by revenue, with cumulative % line
   const topTariffs = data.top_tariffs_by_revenue ?? [];
-  const tariffTotal = topTariffs.reduce((s: number, t: {revenue:number}) => s + t.revenue, 0);
+  const tariffTotal = topTariffs.reduce((s: number, row: {revenue:number}) => s + row.revenue, 0);
   let cumSum = 0;
-  const paretoData = topTariffs.map((t: {tariff_code:string;tariff_description:string;revenue:number;declarations:number}) => {
-    cumSum += t.revenue;
-    return { ...t, cumPct: tariffTotal > 0 ? Math.round((cumSum / tariffTotal) * 1000) / 10 : 0 };
+  const paretoData = topTariffs.map((row: {tariff_code:string;tariff_description:string;revenue:number;declarations:number}) => {
+    cumSum += row.revenue;
+    return { ...row, cumPct: tariffTotal > 0 ? Math.round((cumSum / tariffTotal) * 1000) / 10 : 0 };
   });
+  const seriesRevenueLabel = t('dashboard.seriesRevenueShort');
+  const seriesCumulativeLabel = t('dashboard.seriesCumulative');
+  const declarationsLabel = t('dashboard.declarationsLabel');
   const paretoOption = {
     backgroundColor: 'transparent',
     tooltip: { trigger:'axis', ...CHART_TT, axisPointer:{type:'shadow'},
       formatter: (p: {seriesName:string;value:number;marker:string;dataIndex:number}[]) => {
-        const t = paretoData[p[0]?.dataIndex];
-        if (!t) return '';
-        return `<span style="color:#f1f5f9"><b>${t.tariff_code}</b> — ${t.tariff_description || 'N/A'}<br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName.includes('Cumul')?s.value+'%':fmtM(s.value)+' FCFA'}</b>`).join('<br/>')}<br/>Déclarations: <b>${fmt(t.declarations)}</b></span>`;
+        const row = paretoData[p[0]?.dataIndex];
+        if (!row) return '';
+        return `<span style="color:#f1f5f9"><b>${row.tariff_code}</b> — ${row.tariff_description || 'N/A'}<br/>${p.map(s=>`${s.marker} ${s.seriesName}: <b>${s.seriesName===seriesCumulativeLabel?s.value+'%':fmtM(s.value)+' FCFA'}</b>`).join('<br/>')}<br/>${declarationsLabel}: <b>${fmt(row.declarations)}</b></span>`;
       }},
-    legend: { data:['Recettes','% Cumulé'], textStyle:{color:'#64748b',fontSize:10}, top:0, left:'center', itemWidth:10, itemHeight:10 },
+    legend: { data:[seriesRevenueLabel,seriesCumulativeLabel], textStyle:{color:'#64748b',fontSize:10}, top:0, left:'center', itemWidth:10, itemHeight:10 },
     grid: { left:8, right:50, bottom:40, top:52, containLabel:true },
-    xAxis: { type:'category', data:paretoData.map((t:{tariff_code:string})=>t.tariff_code), axisLabel:{color:'#475569',fontSize:9,rotate:0,interval:0}, axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisTick:{show:false} },
+    xAxis: { type:'category', data:paretoData.map((row:{tariff_code:string})=>row.tariff_code), axisLabel:{color:'#475569',fontSize:9,rotate:0,interval:0}, axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisTick:{show:false} },
     yAxis: [
-      { type:'value', name:'Recettes', nameTextStyle:{color:'#475569',fontSize:9}, axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>fmtM(v)}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
-      { type:'value', name:'% Cumulé', min:0, max:100, nameTextStyle:{color:'#a78bfa',fontSize:9}, position:'right', axisLabel:{color:'#a78bfa',fontSize:9,formatter:(v:number)=>`${v}%`}, splitLine:{show:false}, axisLine:{show:false} },
+      { type:'value', name:seriesRevenueLabel, nameTextStyle:{color:'#475569',fontSize:9}, axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>fmtM(v)}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
+      { type:'value', name:seriesCumulativeLabel, min:0, max:100, nameTextStyle:{color:'#a78bfa',fontSize:9}, position:'right', axisLabel:{color:'#a78bfa',fontSize:9,formatter:(v:number)=>`${v}%`}, splitLine:{show:false}, axisLine:{show:false} },
     ],
     series: [
-      { name:'Recettes', type:'bar', yAxisIndex:0, data:paretoData.map((t:{revenue:number})=>t.revenue), itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(59,130,246,0.85)'},{offset:1,color:'rgba(59,130,246,0.3)'}]},borderRadius:[3,3,0,0]}, barMaxWidth:28 },
-      { name:'% Cumulé', type:'line', yAxisIndex:1, data:paretoData.map((t:{cumPct:number})=>t.cumPct), smooth:true, lineStyle:{color:'#a78bfa',width:2}, itemStyle:{color:'#a78bfa'}, symbol:'circle', symbolSize:5,
+      { name:seriesRevenueLabel, type:'bar', yAxisIndex:0, data:paretoData.map((row:{revenue:number})=>row.revenue), itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(59,130,246,0.85)'},{offset:1,color:'rgba(59,130,246,0.3)'}]},borderRadius:[3,3,0,0]}, barMaxWidth:28 },
+      { name:seriesCumulativeLabel, type:'line', yAxisIndex:1, data:paretoData.map((row:{cumPct:number})=>row.cumPct), smooth:true, lineStyle:{color:'#a78bfa',width:2}, itemStyle:{color:'#a78bfa'}, symbol:'circle', symbolSize:5,
         markLine: { silent:true, symbol:'none', lineStyle:{color:'rgba(245,158,11,0.5)',type:'dashed',width:1.5}, label:{color:'#f59e0b',fontSize:9,formatter:'80%'}, data:[{yAxis:80}] } },
     ],
   };
@@ -204,35 +212,35 @@ export default function Dashboard() {
 
       {/* ── ROW 0: 8 Headline KPIs ── */}
       <StaggerGrid className="grid grid-cols-4 grid-rows-2 gap-2 auto-rows-fr">
-        <KPICard compact label="SGDs traités" value={fmt(filters.bureau==='ALL'?data.total_sgd:(filteredOffices[0]?.count??0))} icon="📋" color="accent"/>
-        <KPICard compact label="Recettes" value={`${Math.round(filteredRevTotal/1e9*10)/10} Mrd`} icon="💰" color="success"/>
-        <KPICard compact label="Évasion détectée" value={fmtM(filteredEvasion||data.tax_evasion_total)} icon="🚨" color="danger"/>
-        <KPICard compact label="Pénalités levées" value={fmtM(filteredPenalties||data.penalties_raised)} icon="⚖️" color="gold"/>
-        <KPICard compact label="Montant récupéré" value={fmtM(filteredRecovered||data.amount_recovered)} icon="💚" color="success"/>
-        <KPICard compact label="Perte nette" value={fmtM(filteredLoss||data.net_loss)} icon="📉" color="danger"/>
-        <KPICard compact label="Taux recouvrement" value={`${filteredRecoveryRate||Math.round((data.recovery_rate??0)*100)}%`} icon="🔄" color={filteredRecoveryRate>60?'success':filteredRecoveryRate>40?'gold':'danger'}/>
-        <KPICard compact label="Fraudes confirmées" value={filteredFraudConf||data.fraud_confirmed} icon="🎯" color="teal"/>
+        <KPICard compact label={t('dashboard.kpiSgd')} value={fmt(filters.bureau==='ALL'?data.total_sgd:(filteredOffices[0]?.count??0))} icon="📋" color="accent"/>
+        <KPICard compact label={t('dashboard.kpiRevenue')} value={`${Math.round(filteredRevTotal/1e9*10)/10} Mrd`} icon="💰" color="success"/>
+        <KPICard compact label={t('dashboard.kpiEvasion')} value={fmtM(filteredEvasion||data.tax_evasion_total)} icon="🚨" color="danger"/>
+        <KPICard compact label={t('dashboard.kpiPenalties')} value={fmtM(filteredPenalties||data.penalties_raised)} icon="⚖️" color="gold"/>
+        <KPICard compact label={t('dashboard.kpiRecovered')} value={fmtM(filteredRecovered||data.amount_recovered)} icon="💚" color="success"/>
+        <KPICard compact label={t('dashboard.kpiNetLoss')} value={fmtM(filteredLoss||data.net_loss)} icon="📉" color="danger"/>
+        <KPICard compact label={t('dashboard.kpiRecoveryRate')} value={`${filteredRecoveryRate||Math.round((data.recovery_rate??0)*100)}%`} icon="🔄" color={filteredRecoveryRate>60?'success':filteredRecoveryRate>40?'gold':'danger'}/>
+        <KPICard compact label={t('dashboard.kpiFraudConfirmed')} value={filteredFraudConf||data.fraud_confirmed} icon="🎯" color="teal"/>
       </StaggerGrid>
 
       {/* ── ROW 1: Revenue trend + Recovery waterfall ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <FadeIn delay={0.05} className="xl:col-span-2">
           <div className="card">
-            <SectionTitle icon="📈">Recettes Mensuelles — Taxes Évaluées vs Collectées vs Évasion</SectionTitle>
+            <SectionTitle icon="📈">{t('dashboard.revenueChartTitle')}</SectionTitle>
             {filteredRevenue.length > 0
               ? <ReactECharts option={revenueOption} style={{height:240}}/>
-              : <div className="h-60 flex items-center justify-center text-muted text-sm">Aucune donnée pour cette période</div>}
+              : <div className="h-60 flex items-center justify-center text-muted text-sm">{t('common.noDataPeriod')}</div>}
           </div>
         </FadeIn>
         <FadeIn delay={0.1}>
           <div className="card h-full">
-            <SectionTitle icon="💧">Cycle de Recouvrement Fraude</SectionTitle>
+            <SectionTitle icon="💧">{t('dashboard.recoveryChartTitle')}</SectionTitle>
             <div className="flex items-center justify-between mb-3">
               <div className="text-center">
                 <div className="text-2xl font-black" style={{color: filteredRecoveryRate>60?'#10b981':filteredRecoveryRate>40?'#f59e0b':'#ef4444'}}>
                   {filteredRecoveryRate||Math.round((data.recovery_rate??0)*100)}%
                 </div>
-                <div className="text-[10px] text-muted">Taux de recouvrement</div>
+                <div className="text-[10px] text-muted">{t('dashboard.recoveryRateLabel')}</div>
               </div>
               <div className="h-1.5 flex-1 mx-4 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}>
                 <div className="h-full rounded-full" style={{width:`${filteredRecoveryRate||Math.round((data.recovery_rate??0)*100)}%`,background:filteredRecoveryRate>60?'#10b981':'#f59e0b'}}/>
@@ -247,18 +255,18 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <FadeIn delay={0.05} className="xl:col-span-2">
           <div className="card h-full">
-            <SectionTitle icon="📡">Tendance Fraude Mensuelle</SectionTitle>
+            <SectionTitle icon="📡">{t('dashboard.fraudTrendTitle')}</SectionTitle>
             {trendData.length > 0
               ? <ReactECharts option={fraudTrendOption} style={{height:320}}/>
-              : <div className="h-80 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
+              : <div className="h-80 flex items-center justify-center text-muted text-sm">{t('common.noData')}</div>}
           </div>
         </FadeIn>
         <FadeIn delay={0.1}>
           <div className="card h-full">
-            <SectionTitle icon="⚖️">Pipeline des Dossiers Fraude</SectionTitle>
+            <SectionTitle icon="⚖️">{t('dashboard.pipelineTitle')}</SectionTitle>
             {statusDist.length > 0
               ? <ReactECharts option={pipelineOption} style={{height:280}}/>
-              : <div className="h-72 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
+              : <div className="h-72 flex items-center justify-center text-muted text-sm">{t('common.noData')}</div>}
           </div>
         </FadeIn>
       </div>
@@ -266,7 +274,7 @@ export default function Dashboard() {
       {/* ── ROW 3: Office league table ── */}
       <FadeIn delay={0.1}>
         <div className="card">
-          <SectionTitle icon="🏛️">Classement des Secteurs Douaniers — Recettes & Taux de Fraude</SectionTitle>
+          <SectionTitle icon="🏛️">{t('dashboard.officeChartTitle')}</SectionTitle>
           <ReactECharts option={officeBarOption} style={{height:320}}/>
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 mt-4">
             {sortedOffices.map((o:{office_id:string;name:string;count:number;revenue:number;fraud_count:number;fraud_rate:number;efficiency:number}, i:number) => (
@@ -289,12 +297,12 @@ export default function Dashboard() {
       <FadeIn delay={0.1}>
         <div className="card">
           <div className="flex items-center justify-between mb-1">
-            <SectionTitle icon="📦">Pareto — Top Codes Tarifaires par Recettes</SectionTitle>
-            <span className="text-[10px] text-muted">Ligne pointillée = seuil 80% (principe de Pareto)</span>
+            <SectionTitle icon="📦">{t('dashboard.paretoTitle')}</SectionTitle>
+            <span className="text-[10px] text-muted">{t('dashboard.paretoThreshold')}</span>
           </div>
           {paretoData.length > 0
             ? <ReactECharts option={paretoOption} style={{ height: 420 }} />
-            : <div className="h-80 flex items-center justify-center text-muted text-sm">Aucune donnée</div>}
+            : <div className="h-80 flex items-center justify-center text-muted text-sm">{t('common.noData')}</div>}
         </div>
       </FadeIn>
 
@@ -302,7 +310,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         <FadeIn delay={0.05}>
           <div className="card h-full">
-            <SectionTitle icon="🏆">Top 5 Agents — Détection Fraude</SectionTitle>
+            <SectionTitle icon="🏆">{t('dashboard.topAgentsTitle')}</SectionTitle>
             <div className="space-y-3 mt-2">
               {topInspectors.map((ins:{id:string;name:string;bureau:string;fraud_detected:number;total:number;detection_rate:number}, i:number) => {
                 const rate = Math.round(ins.detection_rate * 100);
@@ -316,8 +324,8 @@ export default function Dashboard() {
                       <div className="text-[10px] text-muted">{ins.bureau}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-black text-white">{ins.fraud_detected} <span className="text-[10px] text-muted font-normal">fraudes</span></div>
-                      <div className="text-[10px]" style={{color:rate>14?'#10b981':rate>12?'#f59e0b':'#94a3b8'}}>{rate}% taux détection</div>
+                      <div className="text-sm font-black text-white">{ins.fraud_detected} <span className="text-[10px] text-muted font-normal">{t('dashboard.fraudsWord')}</span></div>
+                      <div className="text-[10px]" style={{color:rate>14?'#10b981':rate>12?'#f59e0b':'#94a3b8'}}>{rate}% {t('dashboard.detectionRateWord')}</div>
                     </div>
                     <div className="w-16">
                       <div className="h-1.5 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}>
@@ -332,14 +340,14 @@ export default function Dashboard() {
         </FadeIn>
         <FadeIn delay={0.1}>
           <div className="card h-full">
-            <SectionTitle icon="🔔">Alertes — Actions Prioritaires</SectionTitle>
+            <SectionTitle icon="🔔">{t('dashboard.alertsTitle')}</SectionTitle>
             <div className="grid grid-cols-2 gap-3 mt-2">
               {alertFeed.map((a, i) => (
                 <motion.div key={a.label} initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}} transition={{delay:i*0.08}}
                   className="rounded-xl p-4 flex flex-col" style={{background:`${a.color}0d`,border:`1px solid ${a.color}${a.urgent?'55':'22'}`}}>
                   <div className="flex items-start justify-between mb-1">
                     <span className="text-xl">{a.icon}</span>
-                    {a.urgent && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{background:`${a.color}22`,color:a.color}}>URGENT</span>}
+                    {a.urgent && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{background:`${a.color}22`,color:a.color}}>{t('dashboard.urgentBadge')}</span>}
                   </div>
                   <div className="text-2xl font-black mt-1" style={{color:a.color}}>
                     <AnimatedNumber value={a.value ?? 0}/>
@@ -351,21 +359,21 @@ export default function Dashboard() {
             {/* Clearance overdue mini-bar */}
             <div className="mt-4 p-3 rounded-xl" style={{background:'rgba(245,158,11,0.06)',border:'1px solid rgba(245,158,11,0.15)'}}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold" style={{color:'#f59e0b'}}>Taux déclarations en retard</span>
+                <span className="text-xs font-semibold" style={{color:'#f59e0b'}}>{t('dashboard.overdueRateLabel')}</span>
                 <span className="text-xs font-black" style={{color:'#f59e0b'}}>{data.clearance_overdue_pct ?? 0}%</span>
               </div>
               <div className="h-2 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}>
                 <div className="h-full rounded-full transition-all" style={{width:`${Math.min(100,data.clearance_overdue_pct??0)*4}%`,background:'#f59e0b'}}/>
               </div>
-              <div className="text-[10px] text-muted mt-1">{fmt(data.clearance_overdue_count??0)} déclarations dépassant 1.5× le délai standard du secteur</div>
+              <div className="text-[10px] text-muted mt-1">{fmt(data.clearance_overdue_count??0)} {t('dashboard.overdueDetail')}</div>
             </div>
             {/* Cases awaiting recovery */}
             <div className="mt-3 p-3 rounded-xl" style={{background:'rgba(239,68,68,0.06)',border:'1px solid rgba(239,68,68,0.15)'}}>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-red-400">Perte potentielle — dossiers EN_COURS</span>
+                <span className="text-xs font-semibold text-red-400">{t('dashboard.potentialLossLabel')}</span>
                 <span className="text-xs font-black text-red-400">{fmtM(filteredCases.filter((f:{status:string})=>f.status==='EN_COURS').reduce((s:number,f:{loss_net:number})=>s+(f.loss_net??0),0)||0)} FCFA</span>
               </div>
-              <div className="text-[10px] text-muted mt-0.5">{data.cases_open} dossiers encore ouverts · recouvrement en cours</div>
+              <div className="text-[10px] text-muted mt-0.5">{data.cases_open} {t('dashboard.openCasesDetail')}</div>
             </div>
           </div>
         </FadeIn>
@@ -375,11 +383,11 @@ export default function Dashboard() {
       {fraud && filteredCases.length > 0 && (
         <FadeIn delay={0.15}>
           <div className="card">
-            <SectionTitle icon="🚨">Derniers Cas de Fraude</SectionTitle>
+            <SectionTitle icon="🚨">{t('dashboard.recentCasesTitle')}</SectionTitle>
             <div style={{overflowX:'auto'}}>
               <table className="tbl">
                 <thead>
-                  <tr><th>Cas</th><th>Importateur</th><th>Type</th><th>Évasion</th><th>Score IA</th><th>Secteur</th><th>Statut</th></tr>
+                  <tr><th>{t('dashboard.thCase')}</th><th>{t('dashboard.thImporter')}</th><th>{t('dashboard.thType')}</th><th>{t('dashboard.thEvasion')}</th><th>{t('dashboard.thAiScore')}</th><th>{t('dashboard.thSector')}</th><th>{t('dashboard.thStatus')}</th></tr>
                 </thead>
                 <tbody>
                   {filteredCases.slice(0,10).map((f:{case_id:string;importer_id:string;importer_name?:string;fraud_type:string;tax_evasion_amount?:number;loss_net:number;ai_risk_score:number;office_name?:string;office_id:string;status:string}) => (
