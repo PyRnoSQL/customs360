@@ -5,8 +5,9 @@ import { useApi } from '../hooks/useApi';
 import { api, fmtM, fmt } from '../services/api';
 import { KPICard, SectionTitle, Loading, ErrorBox, FadeIn, StaggerGrid, AnimatedNumber, StatusBadge } from '../components/UI';
 import { PageHeader } from '../App';
-import { useFilters, applyPeriodFilter, applyBureauFilter } from '../context/FilterContext';
+import { useFilters, applyPeriodFilter, applyBureauFilter, BureauFilter } from '../context/FilterContext';
 import { useLanguage } from '../context/LanguageContext';
+import type { OfficeStats } from '../types';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const riskColor = (r: number) => r >= 70 ? '#ef4444' : r >= 40 ? '#f59e0b' : '#10b981';
@@ -16,7 +17,8 @@ const OFF_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#14b8a6','#a855f7',
 const CHART_TT = { backgroundColor:'rgba(15,23,42,0.95)', borderColor:'rgba(59,130,246,0.3)', borderWidth:1, textStyle:{color:'#f1f5f9',fontSize:12} };
 
 export default function Dashboard() {
-  const { filters } = useFilters();
+  const { filters, setFilter } = useFilters();
+  const { data: officesAll } = useApi(api.offices);
   const { t } = useLanguage();
   const { data, loading, error, reload } = useApi(() => api.overview(filters.bureau, filters.period), [filters.bureau, filters.period]);
   const { data: fraud } = useApi(api.fraud);
@@ -276,17 +278,20 @@ export default function Dashboard() {
         <div className="card">
           <SectionTitle icon="🏛️">{t('dashboard.officeChartTitle')}</SectionTitle>
           <ReactECharts option={officeBarOption} style={{height:320}}/>
-          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 mt-4">
-            {sortedOffices.map((o:{office_id:string;name:string;count:number;revenue:number;fraud_count:number;fraud_rate:number;efficiency:number}, i:number) => (
-              <div key={o.office_id} className="rounded-xl p-3 text-center" style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}>
+          <div className="grid grid-cols-6 gap-2 mt-4">
+            {[...(officesAll ?? [])].sort((a: OfficeStats, b: OfficeStats) => b.total_revenue - a.total_revenue).map((o: OfficeStats, i:number) => (
+              <div key={o.office_id}
+                onClick={() => setFilter('bureau', filters.bureau === o.office_id ? 'ALL' : o.office_id as BureauFilter)}
+                className="rounded-xl p-3 text-center cursor-pointer transition-all duration-200 hover:scale-[1.02]"
+                style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${filters.bureau===o.office_id?'rgba(59,130,246,0.5)':'rgba(255,255,255,0.06)'}`}}>
                 <div className="text-[10px] font-bold mb-1" style={{color:OFF_COLORS[i]}}>{o.name.split(' ').slice(0,2).join(' ')}</div>
-                <div className="text-sm font-black text-white">{fmtM(o.revenue)}</div>
-                <div className="text-[10px] text-muted">{fmt(o.count)} SGDs</div>
+                <div className="text-sm font-black text-white">{fmtM(o.total_revenue)} FCFA</div>
+                <div className="text-[10px] text-muted">{fmt(o.total_sgds)} SGDs</div>
                 <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}>
                   <div className="h-full rounded-full" style={{width:`${o.fraud_rate*100*5}%`,background:riskColor(o.fraud_rate*100*5)}}/>
                 </div>
                 <div className="text-[9px] mt-0.5" style={{color:riskColor(o.fraud_rate*100*5)}}>{Math.round(o.fraud_rate*100)}% fraude</div>
-                <div className="text-[9px] mt-0.5" style={{color:eff_color(o.efficiency)}}>Eff. {o.efficiency}%</div>
+                <div className="text-[9px] mt-0.5" style={{color:eff_color(o.efficiency_score)}}>Eff. {o.efficiency_score}%</div>
               </div>
             ))}
           </div>
