@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -31,7 +31,6 @@ const COLORS = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4'];
 export default function Offices() {
   const { data, loading, error, reload } = useApi(api.offices);
   const { filters, setFilter } = useFilters();
-  const [selected, setSelected] = useState<string | null>(null);
 
   if (loading) return <><PageHeader /><Loading /></>;
   if (error)   return <><PageHeader /><ErrorBox message={error} onRetry={reload} /></>;
@@ -41,6 +40,10 @@ export default function Offices() {
     ? data
     : data.filter((o: Office) => o.office_id === filters.bureau);
 
+  // Cards always render every sector (2 full, equal rows) regardless of the active filter —
+  // only KPIs/radar/pareto/scatter narrow down to the filtered selection. The clicked/filtered
+  // card is highlighted via `filters.bureau` below.
+  const allSorted = [...(data as Office[])].sort((a: Office, b: Office) => b.efficiency_score - a.efficiency_score);
   const sorted = [...offices].sort((a: Office, b: Office) => b.efficiency_score - a.efficiency_score);
   const best = sorted[0];
 
@@ -50,8 +53,8 @@ export default function Offices() {
     efficiency_score: o.efficiency_score, total_revenue: o.total_revenue,
   }]));
 
-  // Radar data for selected office
-  const radarOffice = selected ? offices.find((o: Office) => o.office_id === selected) ?? best : best;
+  // Radar data for the filtered office (falls back to the best-performing office when unfiltered)
+  const radarOffice = filters.bureau !== 'ALL' ? (offices[0] ?? best) : best;
   // Compute avg across all offices for benchmark layer
   const avgEfficiency = Math.round(offices.reduce((s: number, o: Office) => s + o.efficiency_score, 0) / Math.max(offices.length, 1));
   const avgPctTotal   = Math.round(offices.reduce((s: number, o: Office) => s + Math.min(100, o.pct_of_total * 1.5), 0) / Math.max(offices.length, 1));
@@ -94,7 +97,7 @@ export default function Offices() {
 
       <StaggerGrid className="grid grid-cols-4 gap-2">
         <KPICard compact label="Secteurs actifs" value={offices.length} icon="🏛️" color="accent" />
-        <KPICard compact label="Total recettes" value={Math.round(offices.reduce((s: number, o: Office) => s + o.total_revenue, 0) / 1e9 * 10) / 10} suffix=" Mrd" icon="💰" color="success" />
+        <KPICard compact label="Total recettes" value={Math.round(offices.reduce((s: number, o: Office) => s + o.total_revenue, 0) / 1e9 * 10) / 10} suffix=" Mrd FCFA" icon="💰" color="success" />
         <KPICard compact label="Meilleure efficacité" value={best?.efficiency_score ?? 0} suffix="%" icon="🏆" color="teal" />
         <KPICard compact label="Total fraudes" value={offices.reduce((s: number, o: Office) => s + o.fraud_cases, 0)} icon="🚨" color="danger" />
       </StaggerGrid>
@@ -112,13 +115,13 @@ export default function Offices() {
       </FadeIn>
 
       {/* Office cards */}
-      <StaggerGrid className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        {sorted.map((o: Office, i: number) => (
+      <StaggerGrid className="grid grid-cols-6 gap-3">
+        {allSorted.map((o: Office, i: number) => (
           <motion.div key={o.office_id}
-            onClick={() => setSelected(o.office_id === selected ? null : o.office_id)}
+            onClick={() => setFilter('bureau', filters.bureau === o.office_id ? 'ALL' : o.office_id as BureauFilter)}
             className="card-sm cursor-pointer transition-all duration-200"
             whileHover={{ scale: 1.02, boxShadow: '0 8px 32px rgba(59,130,246,0.2)' }}
-            style={{ borderColor: selected === o.office_id ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.07)' }}>
+            style={{ borderColor: filters.bureau === o.office_id ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.07)' }}>
             <div className="flex items-start justify-between mb-3">
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
@@ -222,7 +225,7 @@ export default function Offices() {
                   <YAxis yAxisId="right" orientation="right" tick={{ fill: '#64748b', fontSize: 10 }} />
                   <Tooltip {...CHART_STYLE.tooltip} />
                   <Legend wrapperStyle={{ color: '#64748b', fontSize: 11 }} />
-                  <Bar yAxisId="left" dataKey="revenue" name="Recettes (Mrd)" fill="#3b82f6" fillOpacity={0.7} radius={[4,4,0,0]}>
+                  <Bar yAxisId="left" dataKey="revenue" name="Recettes (Mrd FCFA)" fill="#3b82f6" fillOpacity={0.7} radius={[4,4,0,0]}>
                     {paretoData.map((_: unknown, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} fillOpacity={0.7} />)}
                   </Bar>
                   <Bar yAxisId="right" dataKey="fraud" name="Fraudes" fill="#ef4444" fillOpacity={0.6} radius={[4,4,0,0]} />
