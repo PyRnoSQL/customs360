@@ -154,7 +154,7 @@ export default function Dashboard() {
       }},
     legend:{textStyle:{color:'#64748b',fontSize:9},top:0,right:0,itemWidth:8,itemHeight:8},
     grid:{left:8,right:50,bottom:20,top:28,containLabel:true},
-    xAxis:{type:'category',data:sortedOffices.map((o:{name:string})=>o.name.split('(')[0].trim()),axisLabel:{color:'#475569',fontSize:9,interval:0,rotate:20},axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}},axisTick:{show:false}},
+    xAxis:{type:'category',data:sortedOffices.map((o:{name:string})=>o.name.split('(')[0].trim()),axisLabel:{color:'#475569',fontSize:9,interval:0,rotate:0},axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}},axisTick:{show:false}},
     yAxis:[
       {type:'value',axisLabel:{color:'#475569',fontSize:9,formatter:(v:number)=>fmtM(v*1e6)},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}},axisLine:{show:false}},
       {type:'value',position:'right',min:0,max:25,axisLabel:{color:'#f87171',fontSize:9,formatter:(v:number)=>`${v}%`},splitLine:{show:false},axisLine:{show:false}},
@@ -280,7 +280,7 @@ export default function Dashboard() {
             {sortedOffices.map((o:{office_id:string;name:string;count:number;revenue:number;fraud_count:number;fraud_rate:number;efficiency:number}, i:number) => (
               <div key={o.office_id} className="rounded-xl p-3 text-center" style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}>
                 <div className="text-[10px] font-bold mb-1" style={{color:OFF_COLORS[i]}}>{o.name.split(' ').slice(0,2).join(' ')}</div>
-                <div className="text-sm font-black text-white">{fmtM(o.revenue)}M</div>
+                <div className="text-sm font-black text-white">{fmtM(o.revenue)}</div>
                 <div className="text-[10px] text-muted">{fmt(o.count)} SGDs</div>
                 <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{background:'rgba(255,255,255,0.06)'}}>
                   <div className="h-full rounded-full" style={{width:`${o.fraud_rate*100*5}%`,background:riskColor(o.fraud_rate*100*5)}}/>
