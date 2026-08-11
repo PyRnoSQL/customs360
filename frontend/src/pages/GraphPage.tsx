@@ -12,7 +12,7 @@ import { useFilters } from '../context/FilterContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface GraphNode {
-  id: string; label: string; type: string; risk: number; fraud?: boolean;
+  id: string; label: string; type: string; risk: number; fraud?: boolean; flow?: 'IMPORT' | 'EXPORT' | 'MIXED';
   x?: number; y?: number; vx?: number; vy?: number; fx?: number | null; fy?: number | null;
 }
 interface GraphLink { source: string | GraphNode; target: string | GraphNode; fraud: boolean; }
@@ -26,8 +26,15 @@ interface FraudCase { case_id: string; sgd_id: string; importer_id: string; decl
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
 const TYPE_COLOR: Record<string, string> = { importer: '#3b82f6', officer: '#a78bfa', sgd: '#8b5cf6', office: '#f59e0b' };
-const TYPE_LABEL: Record<string, string> = { importer: 'Importateur', officer: 'Agent Douanier', sgd: 'SGD', office: 'Secteur' };
+const TYPE_LABEL: Record<string, string> = { importer: 'Opérateur', officer: 'Agent Douanier', sgd: 'SGD', office: 'Secteur' };
 const TYPE_RADIUS: Record<string, number> = { importer: 18, officer: 14, sgd: 9, office: 20 };
+// Import/Export operators are colored distinctly (matches the convention on the Import-Export
+// page) instead of one flat blue, now that the operator population includes exporters too.
+const FLOW_COLOR: Record<string, string> = { IMPORT: '#3b82f6', EXPORT: '#10b981', MIXED: '#f59e0b' };
+const nodeColor = (n: GraphNode) => n.type === 'importer' ? (FLOW_COLOR[n.flow ?? 'IMPORT'] ?? TYPE_COLOR.importer) : TYPE_COLOR[n.type];
+const nodeTypeLabel = (n: GraphNode) => n.type === 'importer'
+  ? (n.flow === 'EXPORT' ? 'Exportateur' : n.flow === 'MIXED' ? 'Import-Export' : 'Importateur')
+  : TYPE_LABEL[n.type];
 const riskColor = (r: number) => r >= 80 ? '#ef4444' : r >= 60 ? '#f97316' : r >= 40 ? '#eab308' : '#10b981';
 const OFFICE_NAMES: Record<string,string> = {
   LT1:'Littoral 1 (Douala Port)', LT2:'Littoral 2 (Douala Aéroport)', SD2:'Sud 2 (Kribi Port)',
@@ -114,7 +121,7 @@ function ForceGraph({ nodes: initNodes, links: initLinks }: { nodes: GraphNode[]
       <div className="flex items-center gap-3 px-5 py-3 flex-wrap" style={{ background:'rgba(0,0,0,0.2)', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
         <span className="text-sm font-bold text-white">🕸️ Graphe DATE — Réseau Entités</span>
         <div className="flex gap-2 ml-3">
-          {([['ALL','Tout','#3b82f6'],['FRAUD','Fraudes','#ef4444'],['IMPORTERS','Importateurs','#3b82f6'],['OFFICERS','Agents','#a78bfa']] as [string,string,string][]).map(([v,l,c])=>(
+          {([['ALL','Tout','#3b82f6'],['FRAUD','Fraudes','#ef4444'],['IMPORTERS','Opérateurs','#3b82f6'],['OFFICERS','Agents','#a78bfa']] as [string,string,string][]).map(([v,l,c])=>(
             <button key={v} onClick={()=>setFilterMode(v as typeof filterMode)} className="text-xs px-3 py-1 rounded-full font-semibold transition-all"
               style={{ background:filterMode===v?c+'22':'transparent', border:`1px solid ${filterMode===v?c:'rgba(255,255,255,0.08)'}`, color:filterMode===v?c:'#64748b' }}>{l}</button>
           ))}
@@ -136,7 +143,7 @@ function ForceGraph({ nodes: initNodes, links: initLinks }: { nodes: GraphNode[]
           <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
             {links.map((l,i)=>{const a=nodeMap.get(typeof l.source==='string'?l.source:(l.source as GraphNode).id); const b=nodeMap.get(typeof l.target==='string'?l.target:(l.target as GraphNode).id); if(!a||!b||!a.x||!b.x) return null; const av=isVis(a); const bv=isVis(b); return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={l.fraud?'#ef4444':'rgba(148,163,184,1)'} strokeWidth={l.fraud?1.5:0.8} strokeOpacity={filterMode!=='ALL'?(av&&bv?0.6:0.04):(l.fraud?0.6:0.1)} strokeDasharray={l.fraud?'4 2':undefined}/>;
             })}
-            {nodes.map(node=>{if(!node.x||!node.y) return null; const color=node.fraud?'#ef4444':TYPE_COLOR[node.type]??'#64748b'; const r=TYPE_RADIUS[node.type]??12; const isSel=selected?.id===node.id; const isHov=hoveredId===node.id; const vis=isVis(node);
+            {nodes.map(node=>{if(!node.x||!node.y) return null; const color=node.fraud?'#ef4444':nodeColor(node)??'#64748b'; const r=TYPE_RADIUS[node.type]??12; const isSel=selected?.id===node.id; const isHov=hoveredId===node.id; const vis=isVis(node);
               return <g key={node.id} className="ng" style={{opacity:filterMode!=='ALL'&&!vis?0.06:1,cursor:'pointer'}} onMouseDown={e=>{e.stopPropagation();draggingRef.current=node;}} onClick={e=>{e.stopPropagation();setSelected(s=>s?.id===node.id?null:node);}} onMouseEnter={()=>setHoveredId(node.id)} onMouseLeave={()=>setHoveredId(null)}>
                 {(node.fraud||node.risk>=70)&&<circle cx={node.x} cy={node.y} r={r+8} fill="none" stroke={color} strokeWidth={1} strokeOpacity={0.25}/>}
                 {isSel&&<circle cx={node.x} cy={node.y} r={r+6} fill="none" stroke="#fff" strokeWidth={2} strokeOpacity={0.6} strokeDasharray="4 2"/>}
@@ -153,8 +160,8 @@ function ForceGraph({ nodes: initNodes, links: initLinks }: { nodes: GraphNode[]
             <div className="p-4" style={{width:220}}>
               <div className="flex justify-between mb-3"><span className="text-xs font-bold uppercase tracking-widest text-muted">Détail</span><button onClick={()=>setSelected(null)} className="text-muted hover:text-white">✕</button></div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black" style={{background:(selected.fraud?'#ef4444':TYPE_COLOR[selected.type])+'22',border:`2px solid ${selected.fraud?'#ef4444':TYPE_COLOR[selected.type]}`,color:selected.fraud?'#ef4444':TYPE_COLOR[selected.type]}}>{selected.type[0].toUpperCase()}</div>
-                <div><div className="text-sm font-bold text-white truncate" style={{maxWidth:140}}>{selected.label??selected.id}</div><div className="text-xs text-muted">{TYPE_LABEL[selected.type]??selected.type}</div></div>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black" style={{background:(selected.fraud?'#ef4444':nodeColor(selected))+'22',border:`2px solid ${selected.fraud?'#ef4444':nodeColor(selected)}`,color:selected.fraud?'#ef4444':nodeColor(selected)}}>{selected.type[0].toUpperCase()}</div>
+                <div><div className="text-sm font-bold text-white truncate" style={{maxWidth:140}}>{selected.label??selected.id}</div><div className="text-xs text-muted">{nodeTypeLabel(selected)}</div></div>
               </div>
               {[['ID',selected.id],['Score risque',selected.risk+'%'],['Fraude',selected.fraud?'🔴 Oui':'✅ Non'],['Connexions',links.filter(l=>{const s=typeof l.source==='string'?l.source:(l.source as GraphNode).id;const t=typeof l.target==='string'?l.target:(l.target as GraphNode).id;return s===selected.id||t===selected.id;}).length.toString()]].map(([k,v])=>(
                 <div key={k} className="flex justify-between py-1.5" style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}><span className="text-xs text-muted">{k}</span><span className="text-xs font-semibold text-white">{v}</span></div>
@@ -168,7 +175,9 @@ function ForceGraph({ nodes: initNodes, links: initLinks }: { nodes: GraphNode[]
       </div>
       {/* Legend */}
       <div className="flex items-center gap-5 px-5 py-2.5 flex-wrap" style={{borderTop:'1px solid rgba(255,255,255,0.06)',background:'rgba(0,0,0,0.2)'}}>
-        {Object.entries(TYPE_COLOR).map(([t,c])=><span key={t} className="flex items-center gap-1.5 text-xs text-slate-400"><span className="w-3 h-3 rounded-full border-2" style={{background:c+'33',borderColor:c}}/>{TYPE_LABEL[t]}</span>)}
+        <span className="flex items-center gap-1.5 text-xs text-slate-400"><span className="w-3 h-3 rounded-full border-2" style={{background:FLOW_COLOR.IMPORT+'33',borderColor:FLOW_COLOR.IMPORT}}/>Importateur</span>
+        <span className="flex items-center gap-1.5 text-xs text-slate-400"><span className="w-3 h-3 rounded-full border-2" style={{background:FLOW_COLOR.EXPORT+'33',borderColor:FLOW_COLOR.EXPORT}}/>Exportateur</span>
+        {Object.entries(TYPE_COLOR).filter(([t])=>t!=='importer').map(([t,c])=><span key={t} className="flex items-center gap-1.5 text-xs text-slate-400"><span className="w-3 h-3 rounded-full border-2" style={{background:c+'33',borderColor:c}}/>{TYPE_LABEL[t]}</span>)}
         <span className="flex items-center gap-1.5 text-xs text-slate-400"><span className="w-3 h-3 rounded-full border-2" style={{background:'rgba(239,68,68,0.2)',borderColor:'#ef4444'}}/>Fraude</span>
         <span className="ml-auto text-xs text-muted">{nodes.filter(n=>isVis(n)).length} visibles · {links.length} liens</span>
       </div>
@@ -203,7 +212,7 @@ function CollusionMatrix({ sgd }: { sgd: SGDRow[] }) {
 
   return (
     <div className="card">
-      <SectionTitle icon="🔥">Matrice de Collusion — Importateurs × Agents Douaniers</SectionTitle>
+      <SectionTitle icon="🔥">Matrice de Collusion — Opérateurs × Agents Douaniers</SectionTitle>
       <p className="text-xs text-muted mb-4">Intensité = volume de SGDs traités ensemble · <span style={{color:'#ef4444'}}>Rouge = fraude détectée</span> · <span style={{color:'#3b82f6'}}>Bleu = normal</span> · Concentration sur une cellule = signal collusion</p>
       <div className="overflow-x-auto">
         <table style={{borderCollapse:'collapse',width:'100%'}}>
@@ -257,7 +266,7 @@ function SankeyFlow({ sgd }: { sgd: SGDRow[] }) {
   const [hovPath, setHovPath] = useState<string|null>(null);
   const W=780; const H=320; const PAD=20;
   const COL_X = [PAD+40, PAD+220, PAD+420, PAD+600];
-  const COL_LABELS = ['Importateurs','Agents Douaniers','Secteurs','Codes Tarif'];
+  const COL_LABELS = ['Opérateurs','Agents Douaniers','Secteurs','Codes Tarif'];
   const COL_COLORS = ['#3b82f6','#a78bfa','#f59e0b','#8b5cf6'];
 
   // Build aggregations
@@ -306,7 +315,7 @@ function SankeyFlow({ sgd }: { sgd: SGDRow[] }) {
 
   return (
     <div className="card">
-      <SectionTitle icon="🌊">Flux Sankey — Importateurs → Agents Douaniers → Secteurs → Tarifs</SectionTitle>
+      <SectionTitle icon="🌊">Flux Sankey — Opérateurs → Agents Douaniers → Secteurs → Tarifs</SectionTitle>
       <p className="text-xs text-muted mb-4">Épaisseur des rubans = volume de déclarations traitées par agent · <span style={{color:'#ef4444'}}>Rouge = flux frauduleux dominants</span></p>
       <div className="overflow-x-auto">
         <svg width={W} height={H} style={{fontFamily:'Inter,sans-serif'}}>
@@ -406,7 +415,7 @@ function FraudTimeline({ sgd, fraud }: { sgd: SGDRow[]; fraud: FraudCase[] }) {
                   <div>Prob. fraude: <b style={{color:d.prob>=70?'#f87171':'#fbbf24'}}>{d.prob}%</b></div>
                   <div>Bureau: <b style={{color:OFF_COLORS[d.office]??'#94a3b8'}}>{OFFICE_NAMES[d.office]??d.office}</b></div>
                   <div>Perte: <b style={{color:'#f87171'}}>{fmtM(d.loss)} FCFA</b></div>
-                  <div>Importateur: <b>{d.importer}</b></div>
+                  <div>Opérateur: <b>{d.importer}</b></div>
                 </div>;
               }}/>
               {OFFICES.map(off=>(
@@ -504,7 +513,7 @@ export default function GraphPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           {title:'Cluster Fraude',entities:nodes.filter(n=>n.fraud).map(n=>n.label??n.id).slice(0,3).join(', '),color:'#ef4444',icon:'🔴',count:fraudCount},
-          {title:'Importateurs Haut Risque',entities:nodes.filter(n=>n.type==='importer'&&n.risk>=70).map(n=>n.id).slice(0,3).join(', '),color:'#f97316',icon:'⚠️',count:highRisk},
+          {title:'Opérateurs Haut Risque',entities:nodes.filter(n=>n.type==='importer'&&n.risk>=70).map(n=>n.id).slice(0,3).join(', '),color:'#f97316',icon:'⚠️',count:highRisk},
           {title:'Réseau Normal',entities:nodes.filter(n=>!n.fraud&&n.risk<40).map(n=>n.label??n.id).slice(0,3).join(', '),color:'#10b981',icon:'✅',count:nodes.filter(n=>!n.fraud&&n.risk<40).length},
         ].map(c=>(
           <motion.div key={c.title} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} className="card" style={{borderColor:c.color+'33'}}>

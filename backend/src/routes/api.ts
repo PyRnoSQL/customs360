@@ -193,15 +193,25 @@ router.get('/graph', wrap(async (req, res) => {
 
   const nodes: object[] = [];
   const links: object[] = [];
-  const impIds = [...new Set(sgd.map(s => s.importer_id))].slice(0, 12);
+  const profiles = buildImporterProfiles(sgd, fraud);
+  // Select the 12 most relevant operators. Reserve up to 3 slots for the highest-risk
+  // exporters explicitly — sorting purely by fraud case count favors high-volume importers
+  // (more declarations naturally means more absolute fraud cases even at a lower rate), so
+  // without this, exporters could be systematically excluded from the graph entirely.
+  const byRelevance = (a: typeof profiles[number], b: typeof profiles[number]) =>
+    (b.fraud_cases - a.fraud_cases) || (b.risk_score - a.risk_score);
+  const topExporters = profiles.filter(p => p.flow === 'EXPORT' || p.flow === 'MIXED').sort(byRelevance).slice(0, 3);
+  const reservedIds = new Set(topExporters.map(p => p.importer_id));
+  const remainingSlots = 12 - topExporters.length;
+  const topOthers = profiles.filter(p => !reservedIds.has(p.importer_id)).sort(byRelevance).slice(0, remainingSlots);
+  const impIds = [...topExporters, ...topOthers].map(p => p.importer_id);
   const offiderIds = new Set<string>(); // inspector/officer node ids seen so far
   const offIds = new Set<string>();
   const fraudSGDs = new Set(fraud.map(f => f.sgd_id));
-  const profiles = buildImporterProfiles(sgd, fraud);
 
   impIds.forEach(id => {
     const profile = profiles.find(p => p.importer_id === id);
-    nodes.push({ id, label: id, type: 'importer', risk: profile?.risk_score ?? 0 });
+    nodes.push({ id, label: id, type: 'importer', risk: profile?.risk_score ?? 0, flow: profile?.flow ?? 'IMPORT' });
   });
 
   sgd.filter(s => impIds.includes(s.importer_id)).slice(0, 80).forEach(s => {
