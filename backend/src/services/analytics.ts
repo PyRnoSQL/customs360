@@ -950,8 +950,15 @@ export function buildPredictions(sgd: SGDRow[], fraud: FraudRow[]): PredictionSu
 
   const lastActual = forecast.filter(f => f.actual !== null).slice(-1)[0];
   const firstForecast = forecast.find(f => f.actual === null);
-  const shortfall = lastActual && firstForecast && firstForecast.forecast < lastActual.actual!
+  // "Déficit prévu" should reflect genuine projected risk, not only a month-over-month
+  // forecast dip: with many high-risk anomalies flagged (revenue at risk = totalRisk),
+  // that exposure IS a projected deficit if left unaddressed, even when the raw revenue
+  // trend itself is flat or improving. Previously this used only the trend-dip check
+  // below, which evaluates to 0 whenever the forecast doesn't dip under last month's
+  // actual — completely disconnected from the anomaly/at-risk figures shown alongside it.
+  const trendShortfall = lastActual && firstForecast && firstForecast.forecast < lastActual.actual!
     ? lastActual.actual! - firstForecast.forecast : 0;
+  const shortfall = Math.max(trendShortfall, totalRisk);
 
   return {
     declaration_anomalies: anomalies.slice(0, 30),

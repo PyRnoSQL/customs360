@@ -559,8 +559,8 @@ function PredictionsTab() {
     <div className="space-y-5">
       <StaggerGrid className="grid grid-cols-5 gap-2">
         <KPICard compact label="Anomalies" value={highCount} icon="🎯" color="danger"/>
-        <KPICard compact label="Revenus à risque" value={Math.round(atRisk/1e6)} suffix=" M" icon="⚠️" color="gold"/>
-        <KPICard compact label="Déficit prévu" value={shortfall>0?Math.round(shortfall/1e6):0} suffix={shortfall>0?" M":" FCFA"} icon="📉" color={shortfall>0?'danger':'success'}/>
+        <KPICard compact label="Revenus à risque" value={`${fmtM(atRisk)} FCFA`} icon="⚠️" color="gold" animate={false}/>
+        <KPICard compact label="Déficit prévu" value={`${fmtM(shortfall)} FCFA`} icon="📉" color={shortfall>0?'danger':'success'} animate={false}/>
         <KPICard compact label="Déclarations analysées" value={anomalies?.length ?? 0} icon="📋" color="teal"/>
         {fraud_velocity&&<KPICard compact label="Vélocité fraude" value={fraud_velocity.velocity_index} icon="⚡" color={fraud_velocity.status==='CRITICAL'?'danger':fraud_velocity.status==='WARNING'?'gold':'accent'}/>}
       </StaggerGrid>
