@@ -75,7 +75,6 @@ const PAGE_FILTERS: Record<string, (keyof ReturnType<typeof useFilters>['filters
   '/fraud':       ['bureau', 'period', 'status'],
   '/delays':      ['bureau', 'period'],
   '/offices':     ['bureau'],
-  '/predictions': ['bureau', 'period', 'risk'],
   '/advanced':    ['bureau', 'period', 'risk'],
   '/officers':    ['bureau', 'risk', 'period'],
   '/welcome':     [],

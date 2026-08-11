@@ -11,12 +11,13 @@ const riskColor = (s: number) => s >= 70 ? '#ef4444' : s >= 40 ? '#f59e0b' : '#1
 const riskLabel = (s: number) => s >= 70 ? 'CRITIQUE' : s >= 40 ? 'MODÉRÉ' : 'FAIBLE';
 
 // ── Tab types ─────────────────────────────────────────────────────────────────
-type Tab = 'fraud' | 'recommend' | 'analytique';
+type Tab = 'fraud' | 'recommend' | 'analytique' | 'predictions';
 
 const TABS: { id: Tab; icon: string; label: string }[] = [
-  { id: 'fraud',      icon: '🎯', label: 'Moteur de Scoring Fraude' },
-  { id: 'recommend',  icon: '💡', label: 'Recommandations IA'       },
-  { id: 'analytique', icon: '📐', label: 'Patterns & Cohortes'      },
+  { id: 'fraud',       icon: '🎯', label: 'Moteur de Scoring Fraude' },
+  { id: 'recommend',   icon: '💡', label: 'Recommandations IA'       },
+  { id: 'analytique',  icon: '📐', label: 'Patterns & Cohortes'      },
+  { id: 'predictions', icon: '🔮', label: 'Prédiction ML'            },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -450,6 +451,141 @@ function AnalytiqueTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// TAB 4 — PRÉDICTION ML (moved here from the standalone /predictions page)
+// ═══════════════════════════════════════════════════════════════════
+type Forecast = { month:string; label:string; actual:number|null; forecast:number; lower_bound:number; upper_bound:number };
+type FraudVelocity = { current_month:string; velocity_index:number; acceleration:number; status:string; fraud_rate_current:number; fraud_rate_previous:number; projected_eom_loss:number; alert:string|null; monthly_series:{month:string;label:string;rate:number;velocity:number}[] };
+const PRED_STATUS_COLOR: Record<string,string> = { CRITICAL:'#ef4444', WARNING:'#f97316', NORMAL:'#3b82f6', IMPROVING:'#10b981' };
+
+function VelocityGauge({ velocity }: { velocity: FraudVelocity }) {
+  const color = PRED_STATUS_COLOR[velocity.status] ?? '#3b82f6';
+  const option = {
+    backgroundColor:'transparent',
+    series:[{
+      type:'gauge', startAngle:200, endAngle:-20, min:0, max:200, radius:'90%',
+      progress:{ show:true, width:16, itemStyle:{ color:{ type:'linear',x:0,y:0,x2:1,y2:0, colorStops:[{offset:0,color:'#10b981'},{offset:0.5,color:'#f59e0b'},{offset:1,color:'#ef4444'}] } } },
+      axisLine:{ lineStyle:{ width:16, color:[[1,'rgba(255,255,255,0.06)']] } },
+      pointer:{ length:'55%', width:5, itemStyle:{ color } },
+      axisTick:{ show:false }, splitLine:{ show:false }, axisLabel:{ show:false },
+      detail:{ valueAnimation:true, formatter:(v:number)=>`${Math.round(v)}`, color:'#f1f5f9', fontSize:26, fontFamily:'JetBrains Mono', offsetCenter:[0,'30%'] },
+      title:{ offsetCenter:[0,'58%'], color:'#64748b', fontSize:10 },
+      data:[{ value:velocity.velocity_index, name:'Indice Vélocité' }],
+    }],
+  };
+  return (
+    <div className="card text-center">
+      <SectionTitle icon="⚡">Indice de Vélocité Fraude</SectionTitle>
+      <ReactECharts option={option} style={{ height:200 }}/>
+      <div className="mt-2 space-y-2">
+        <div className="flex justify-between text-xs">
+          <span className="text-muted">Accélération</span>
+          <span className="font-bold" style={{ color }}>{velocity.acceleration > 0 ? '+' : ''}{velocity.acceleration}% vs mois préc.</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-muted">Taux fraude actuel</span>
+          <span className="font-bold text-white">{(velocity.fraud_rate_current * 100).toFixed(1)}%</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-muted">Perte projetée fin mois</span>
+          <span className="font-bold" style={{ color:'#ef4444' }}>{fmtM(velocity.projected_eom_loss)} FCFA</span>
+        </div>
+        {velocity.alert && (
+          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }}
+            className="mt-2 p-2.5 rounded-xl text-xs text-left" style={{ background:`${color}12`, border:`1px solid ${color}33`, color }}>
+            ⚠️ {velocity.alert}
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PredictionsTab() {
+  const { filters } = useFilters();
+  const params = new URLSearchParams();
+  if (filters.bureau !== 'ALL') params.set('bureau', filters.bureau);
+  if (filters.period !== 'ALL') params.set('period', filters.period);
+  const qs = params.toString();
+
+  const { data: baseData, loading: bLoading, error: bError, reload } = useApi(
+    () => fetch(`/api/predictions${qs ? '?' + qs : ''}`).then(r => r.json()),
+    [filters.bureau, filters.period]
+  );
+  const advQs = [
+    filters.bureau && filters.bureau !== 'ALL' ? `bureau=${filters.bureau}` : '',
+    filters.period && filters.period !== 'ALL' ? `period=${filters.period}` : '',
+  ].filter(Boolean).join('&');
+  const { data: advData } = useApi(() =>
+    Promise.race([
+      fetch(`/api/predictions/advanced${advQs ? '?' + advQs : ''}`).then(r => r.json()),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 8000))
+    ])
+  , [advQs]);
+
+  if (bLoading) return <Loading rows={6}/>;
+  if (bError) return <ErrorBox message={bError} onRetry={reload}/>;
+  if (!baseData) return null;
+
+  const { declaration_anomalies:anomalies, revenue_forecast:forecast, total_revenue_at_risk:atRisk, high_anomaly_count:highCount, forecast_shortfall:shortfall } = baseData;
+  const { fraud_velocity } = advData ?? {};
+
+  const forecastOption = {
+    backgroundColor:'transparent',
+    tooltip:{ trigger:'axis', backgroundColor:'rgba(15,23,42,0.95)', borderColor:'rgba(59,130,246,0.3)', textStyle:{color:'#f1f5f9'} },
+    legend:{ data:['Réalisé','Prévision'], textStyle:{color:'#64748b'}, top:0 },
+    grid:{ left:12, right:12, bottom:24, top:36, containLabel:true },
+    xAxis:{ type:'category', data:forecast.map((f:Forecast)=>f.label), axisLabel:{color:'#475569',fontSize:11}, axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}}, axisTick:{show:false} },
+    yAxis:{ type:'value', axisLabel:{color:'#475569',fontSize:10,formatter:(v:number)=>v+'M'}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}, axisLine:{show:false} },
+    series:[
+      { name:'Réalisé', type:'line', data:forecast.map((f:Forecast)=>f.actual!==null?Math.round(f.actual/1e6):null), smooth:true, symbol:'circle', symbolSize:8, lineStyle:{color:'#10b981',width:2.5}, itemStyle:{color:'#10b981'}, areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(16,185,129,0.2)'},{offset:1,color:'rgba(16,185,129,0)'}]}} },
+      { name:'Prévision', type:'line', data:forecast.map((f:Forecast)=>f.actual===null?Math.round(f.forecast/1e6):null), smooth:true, symbol:'diamond', symbolSize:8, lineStyle:{color:'#3b82f6',width:2,type:'dashed'}, itemStyle:{color:'#3b82f6'} },
+    ],
+  };
+
+  const gaugeOption = fraud_velocity ? {
+    backgroundColor:'transparent',
+    series:[{ type:'gauge', startAngle:200, endAngle:-20, min:0, max:100, radius:'85%',
+      progress:{ show:true, width:14, itemStyle:{color:{type:'linear',x:0,y:0,x2:1,y2:0,colorStops:[{offset:0,color:'#10b981'},{offset:0.5,color:'#f59e0b'},{offset:1,color:'#ef4444'}]}} },
+      axisLine:{lineStyle:{width:14,color:[[1,'rgba(255,255,255,0.06)']]}},
+      pointer:{length:'60%',width:5,itemStyle:{color:'#3b82f6'}},
+      axisTick:{show:false}, splitLine:{show:false}, axisLabel:{show:false},
+      detail:{valueAnimation:true,formatter:(v:number)=>`${Math.round(v)}%`,color:'#f1f5f9',fontSize:26,fontFamily:'JetBrains Mono',offsetCenter:[0,'30%']},
+      title:{offsetCenter:[0,'58%'],color:'#64748b',fontSize:10},
+      data:[{value:Math.round((highCount/Math.max(anomalies.length,1))*100),name:'% Décl. à risque'}],
+    }],
+  } : null;
+
+  return (
+    <div className="space-y-5">
+      <StaggerGrid className="grid grid-cols-5 gap-2">
+        <KPICard compact label="Anomalies" value={highCount} icon="🎯" color="danger"/>
+        <KPICard compact label="Revenus à risque" value={Math.round(atRisk/1e6)} suffix=" M" icon="⚠️" color="gold"/>
+        <KPICard compact label="Déficit prévu" value={shortfall>0?Math.round(shortfall/1e6):0} suffix={shortfall>0?" M":" FCFA"} icon="📉" color={shortfall>0?'danger':'success'}/>
+        <KPICard compact label="Déclarations analysées" value={anomalies?.length ?? 0} icon="📋" color="teal"/>
+        {fraud_velocity&&<KPICard compact label="Vélocité fraude" value={fraud_velocity.velocity_index} icon="⚡" color={fraud_velocity.status==='CRITICAL'?'danger':fraud_velocity.status==='WARNING'?'gold':'accent'}/>}
+      </StaggerGrid>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <FadeIn delay={0.05} className="xl:col-span-2 w-full h-full">
+          <div className="card w-full h-full">
+            <SectionTitle icon="📈">Prévision Recettes — Horizon 3 Mois</SectionTitle>
+            <ReactECharts option={forecastOption} style={{ height:240 }}/>
+          </div>
+        </FadeIn>
+        <FadeIn delay={0.1} className="w-full">
+          {fraud_velocity ? <VelocityGauge velocity={fraud_velocity}/> : (
+            <div className="card">
+              <SectionTitle icon="🎯">Indice de Risque Global</SectionTitle>
+              {gaugeOption&&<ReactECharts option={gaugeOption} style={{ height:220,width:'100%' }}/>}
+            </div>
+          )}
+        </FadeIn>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════
 export default function AdvancedPage() {
@@ -467,9 +603,10 @@ export default function AdvancedPage() {
       </div>
       {/* Tab content */}
       <FadeIn key={activeTab}>
-        {activeTab === 'fraud'      && <FraudDetectionTab />}
-        {activeTab === 'recommend'  && <RecommendationsTab />}
-        {activeTab === 'analytique' && <AnalytiqueTab />}
+        {activeTab === 'fraud'       && <FraudDetectionTab />}
+        {activeTab === 'recommend'   && <RecommendationsTab />}
+        {activeTab === 'analytique'  && <AnalytiqueTab />}
+        {activeTab === 'predictions' && <PredictionsTab />}
       </FadeIn>
     </div>
   );

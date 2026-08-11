@@ -12,7 +12,6 @@ const MODULES = [
   { icon: '🚨', label: 'Détection Fraude',      key: 'fraud',       color: '#ef4444', path: '/fraud'       },
   { icon: '⏱',  label: 'Délais Suspects',       key: 'delays',      color: '#f59e0b', path: '/delays'      },
   { icon: '🏛️', label: 'Secteurs Douaniers',    key: 'offices',     color: '#10b981', path: '/offices'     },
-  { icon: '🔮', label: 'Prédiction ML',         key: 'predictions', color: '#a78bfa', path: '/predictions' },
   { icon: '🕸️', label: 'Graphe DATE',           key: 'graph',       color: '#06b6d4', path: '/graph'       },
   { icon: '🔬', label: 'Analytique Avancée',    key: 'advanced',    color: '#ec4899', path: '/advanced'    },
   { icon: '👤', label: 'Performance Agents',    key: 'officers',    color: '#14b8a6', path: '/officers'    },
@@ -75,17 +74,6 @@ const MODULE_SLIDES: Record<string, [Slide, Slide, Slide]> = {
     { tag: 'VISION DOUANES', tagColor: '#60a5fa', borderColor: '#60a5fa', icon: '🎯',
       title: 'Le cockpit de la direction générale',
       body: 'Recettes, évasion fiscale, pipeline des dossiers, alertes prioritaires — tout converge en un seul écran actualisé en continu. La direction pilote l\'administration avec la même précision qu\'un tableau de bord d\'aéronef.' },
-  ],
-  predictions: [
-    { tag: 'DÉFI', tagColor: '#f59e0b', borderColor: '#f59e0b', icon: '⚠️',
-      title: 'La fraude de demain, invisible aujourd\'hui',
-      body: 'Les contrôles classiques réagissent après coup. Les tendances émergentes de fraude, les dérives de recettes et les déclarations à haut risque ne sont détectées qu\'une fois le préjudice consommé.' },
-    { tag: 'IMPACT NÉGATIF', tagColor: '#ef4444', borderColor: '#f43f5e', icon: '📉',
-      title: 'Sans modèle prédictif',
-      body: 'Chaque mois qui passe sans anticipation est une opportunité de fraude non anticipée. Les ressources d\'inspection sont déployées au hasard plutôt que là où le risque statistique est le plus élevé.' },
-    { tag: 'VISION DOUANES', tagColor: '#a78bfa', borderColor: '#a78bfa', icon: '🎯',
-      title: 'L\'apprentissage automatique au service de l\'anticipation',
-      body: 'Des modèles de machine learning scorent chaque déclaration avant même son traitement, projettent les recettes à venir et signalent les dérives avant qu\'elles ne deviennent critiques. La douane cesse de réagir : elle anticipe.' },
   ],
   advanced: [
     { tag: 'DÉFI', tagColor: '#f59e0b', borderColor: '#f59e0b', icon: '⚠️',
@@ -159,11 +147,6 @@ const MODULE_METRICS: Record<string, [ModStat, ModStat, ModStat]> = {
     { value: '—OF—',   label: 'Secteurs douaniers actifs' },
     { value: '0',      label: 'Benchmarking inter-secteurs' },
     { value: '92%',    label: 'Efficacité maximale mesurée' },
-  ],
-  predictions: [
-    { value: 'ML',     label: 'Modèles de scoring en production' },
-    { value: 'J-30',   label: 'Détection tardive sans prédiction' },
-    { value: 'J+3',    label: 'Horizon de prévision des recettes' },
   ],
   graph: [
     { value: '3',      label: 'Clusters suspects identifiés' },
@@ -464,7 +447,7 @@ export default function Welcome() {
           {[
             { v:'12', l:t('welcome.statSectors'),   icon:'🗺️', c:'#3b82f6' },
             { v: data ? fmt(data.total_sgd) : '500+', l:t('welcome.statDeclarations'), icon:'📋', c:'#10b981' },
-            { v:'9',  l:t('welcome.statModules'),icon:'⚙️', c:'#8b5cf6' },
+            { v:'8',  l:t('welcome.statModules'),icon:'⚙️', c:'#8b5cf6' },
             { v: data ? `${Math.round((data.fraud_confirmed / Math.max(data.total_sgd,1))*100)}%` : '—', l:t('welcome.statFraudRate'), icon:'🎯', c:'#ef4444' },
             { v:t('welcome.statRealTimeValue'), l:t('welcome.statRealTime'), icon:'⚡', c:'#f59e0b' },
             { v:'IA',   l:t('welcome.statAI'), icon:'🤖', c:'#06b6d4' },
