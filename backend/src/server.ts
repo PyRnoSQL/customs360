@@ -14,9 +14,24 @@ app.use('/api', apiRouter);
 
 // ── Serve React PWA (built by Vite) ──────────────────────────────────────────
 const frontendDist = path.join(__dirname, '../../frontend/dist');
-app.use(express.static(frontendDist));
+app.use(express.static(frontendDist, {
+  maxAge: '1y',
+  immutable: true,
+  setHeaders: (res, filePath) => {
+    // Hashed assets (index-BnyescDm.js) can be cached forever
+    // But index.html must NEVER be cached — it references the bundle filenames
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 app.get('*', (_req, res) => {
-  res.sendFile(path.join(frontendDist, 'index.html'));
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
 const PORT = Number(process.env.PORT ?? 3001);
