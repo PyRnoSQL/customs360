@@ -10,11 +10,11 @@ export interface User {
 }
 
 const USERS: Record<string, { pin: string; displayName: string; roleLabel: string; role: Role }> = {
-  admin:       { pin: '1234', role: 'admin',       displayName: 'Super Administrateur', roleLabel: 'SUPER ADMINISTRATEUR' },
-  dg:          { pin: '1234', role: 'dg',          displayName: 'Directeur Général',    roleLabel: 'DIRECTEUR GÉNÉRAL' },
-  dir_info:    { pin: '1234', role: 'dir_info',    displayName: 'Dir. Informatique',    roleLabel: 'DIRECTEUR INFORMATIQUE' },
-  dir_secteur: { pin: '1234', role: 'dir_secteur', displayName: 'Chef Secteur',         roleLabel: 'CHEF SECTEUR' },
-  ip:          { pin: '1234', role: 'ip',          displayName: 'Inspecteur Principal', roleLabel: 'INSPECTEUR PRINCIPAL' },
+  admin:       { pin: '9333', role: 'admin',       displayName: 'Super Administrateur', roleLabel: 'SUPER ADMINISTRATEUR' },
+  dg:          { pin: '9333', role: 'dg',          displayName: 'Directeur Général',    roleLabel: 'DIRECTEUR GÉNÉRAL' },
+  dir_info:    { pin: '9333', role: 'dir_info',    displayName: 'Dir. Informatique',    roleLabel: 'DIRECTEUR INFORMATIQUE' },
+  dir_secteur: { pin: '9333', role: 'dir_secteur', displayName: 'Chef Secteur',         roleLabel: 'CHEF SECTEUR' },
+  ip:          { pin: '9333', role: 'ip',          displayName: 'Inspecteur Principal', roleLabel: 'INSPECTEUR PRINCIPAL' },
 };
 
 // Pages each role can access (by path)
