@@ -5,6 +5,7 @@ import {
   buildTariffRisk, buildDelays, buildMonthlyRevenue,
   OFFICE_NAMES, OFFICE_BASELINES
 } from '../services/analytics';
+import { isPostgresConfigured, getOverviewFromDB } from '../services/postgres';
 
 const router = Router();
 
@@ -80,9 +81,15 @@ router.get('/debug/fraud-trend', wrap(async (_req, res) => {
 }));
 
 router.get('/overview', wrap(async (req, res) => {
-  const { sgd: allSgd, fraud: allFraud } = await getSheetData();
   const bureau = (req.query.bureau as string) || 'ALL';
   const period = (req.query.period as string) || 'ALL';
+
+  if (isPostgresConfigured()) {
+    res.json(await getOverviewFromDB(bureau, period));
+    return;
+  }
+
+  const { sgd: allSgd, fraud: allFraud } = await getSheetData();
 
   const toMonth = (d: string) => {
     const dt = new Date(d);
