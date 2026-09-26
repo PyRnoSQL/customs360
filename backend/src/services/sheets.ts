@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import type { SGDRow, FraudRow } from '../types/index';
+import { isPostgresConfigured, getPostgresData } from './postgres';
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID!;
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
@@ -64,18 +65,28 @@ async function fetchSheet<T>(tabName: string): Promise<T[]> {
     .map(r => parseRow<T>(headers, r));
 }
 
-export async function getSheetData(): Promise<{ sgd: SGDRow[]; fraud: FraudRow[] }> {
-  const now = Date.now();
-  if (now - cache.lastFetched < CACHE_TTL_MS && cache.sgd.length > 0) {
-    return { sgd: cache.sgd, fraud: cache.fraud };
-  }
+async function fetchFromGoogleSheets(): Promise<{ sgd: SGDRow[]; fraud: FraudRow[] }> {
   console.log('🔄 Fetching fresh data from Google Sheets...');
   const [sgd, fraud] = await Promise.all([
     fetchSheet<SGDRow>('SGD_DECLARATIONS'),
     fetchSheet<FraudRow>('FRAUD_CASES'),
   ]);
+  console.log(`✅ Loaded ${sgd.length} SGDs, ${fraud.length} fraud cases (Google Sheets)`);
+  return { sgd, fraud };
+}
+
+export async function getSheetData(): Promise<{ sgd: SGDRow[]; fraud: FraudRow[] }> {
+  const now = Date.now();
+  if (now - cache.lastFetched < CACHE_TTL_MS && cache.sgd.length > 0) {
+    return { sgd: cache.sgd, fraud: cache.fraud };
+  }
+  const { sgd, fraud } = isPostgresConfigured()
+    ? await getPostgresData()
+    : await fetchFromGoogleSheets();
+  if (isPostgresConfigured()) {
+    console.log(`✅ Loaded ${sgd.length} SGDs, ${fraud.length} fraud cases (PostgreSQL)`);
+  }
   cache = { sgd, fraud, lastFetched: now };
-  console.log(`✅ Loaded ${sgd.length} SGDs, ${fraud.length} fraud cases`);
   return { sgd, fraud };
 }
 
@@ -91,5 +102,6 @@ export function cacheStatus() {
     sgd_count: cache.sgd.length,
     fraud_count: cache.fraud.length,
     demo_mode: process.env.DEMO_MODE === 'true',
+    data_source: isPostgresConfigured() ? 'postgresql' : 'google_sheets',
   };
 }
