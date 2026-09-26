@@ -308,11 +308,13 @@ const OVERVIEW_STATUS_LABELS: Record<string, string> = {
   ABANDONNE: 'Abandonné',
 };
 
-// Matches OFFICE_BASELINES in analytics.ts exactly.
+// Matches OFFICE_BASELINES in analytics.ts exactly. Deliberately has NO
+// alias baked in here -- every call site supplies its own (e.g. "AS b(...)"),
+// so this can be embedded directly after LEFT JOIN without a double alias.
 const OFFICE_BASELINE_CTE = `(VALUES
   ('LT1',36),('LT2',22),('SD2',28),('SD1',30),('CTR',26),('ADM',72),
   ('OUE',40),('NRD',48),('EXN',50),('NRO',44),('SUO',32),('EST',60)
-) AS baselines(office_id, baseline_hours)`;
+)`;
 
 // Matches HIGH_RISK_TARIFFS Set in analytics.ts exactly.
 const HIGH_RISK_TARIFFS_SQL = `('85044000','62046200','85176200','87032390','84715000','85258000')`;
@@ -394,7 +396,7 @@ export async function getOverviewFromDB(bureau: string, period: string): Promise
           WHERE clearance_hours > COALESCE(b.baseline_hours,36) * 1.5
         )::bigint AS overdue_count
       FROM decl_filtered d
-      LEFT JOIN ${OFFICE_BASELINE_CTE} b ON b.office_id = d.office_id
+      LEFT JOIN ${OFFICE_BASELINE_CTE} AS b(office_id, baseline_hours) ON b.office_id = d.office_id
     `, params),
 
     pool.query(`
@@ -417,7 +419,7 @@ export async function getOverviewFromDB(bureau: string, period: string): Promise
         COALESCE(b.baseline_hours,36)::float8 AS baseline_hours
       FROM decl_filtered d
       LEFT JOIN analytics.offices o ON o.office_id = d.office_id
-      LEFT JOIN ${OFFICE_BASELINE_CTE} b ON b.office_id = d.office_id
+      LEFT JOIN ${OFFICE_BASELINE_CTE} AS b(office_id, baseline_hours) ON b.office_id = d.office_id
       GROUP BY d.office_id, o.office_name, b.baseline_hours
       ORDER BY revenue DESC
     `, params),
